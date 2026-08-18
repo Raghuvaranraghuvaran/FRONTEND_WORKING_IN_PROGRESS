@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+:root {
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  color: #111827;
+  background: #fafaff;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #fafaff;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.font-mono-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 16px 40px rgba(79, 70, 229, 0.12), 0 2px 8px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.hero-visual {
+  transform-style: preserve-3d;
+  perspective: 1200px;
+}
+
+.product-card {
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+}
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes float-y-sm {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes slow-zoom {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.045); }
+}
+
+@keyframes slow-zoom-out {
+  0%, 100% { transform: scale(1.04); }
+  50% { transform: scale(1); }
+}
+
+@keyframes gentle-rotate {
+  0%, 100% { transform: rotate(-1deg); }
+  50% { transform: rotate(1.5deg); }
+}
+
+@keyframes fade-up {
+  0% { opacity: 0; transform: translateY(16px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes particle-rise {
+  0% { opacity: 0; transform: translateY(10px) scale(0.9); }
+  40% { opacity: 0.85; }
+  100% { opacity: 0; transform: translateY(-80px) scale(1.15); }
+}
+
+@keyframes light-drift {
+  0%, 100% { transform: translate(-8%, -6%); }
+  50% { transform: translate(8%, 6%); }
+}
+
+.animate-float-y { animation: float-y 7s ease-in-out infinite; }
+.animate-float-y-sm { animation: float-y-sm 5s ease-in-out infinite; }
+.animate-slow-zoom { animation: slow-zoom 9s ease-in-out infinite; }
+.animate-slow-zoom-out { animation: slow-zoom-out 10s ease-in-out infinite; }
+.animate-gentle-rotate { animation: gentle-rotate 11s ease-in-out infinite; }
+.animate-fade-up { animation: fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-particle { animation: particle-rise 7s ease-in-out infinite; }
+.animate-light-drift { animation: light-drift 12s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-y,
+  .animate-float-y-sm,
+  .animate-slow-zoom,
+  .animate-slow-zoom-out,
+  .animate-gentle-rotate,
+  .animate-fade-up,
+  .animate-particle,
+  .animate-light-drift {
+    animation: none !important;
+  }
+}
