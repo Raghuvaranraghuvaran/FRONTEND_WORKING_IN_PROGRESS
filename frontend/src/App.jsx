@@ -50,8 +50,6 @@ function AppRoutes() {
       <Route element={<StorefrontLayout />}>
         <Route path="/shop" element={<ShopPage />} />
         <Route path="/products/:productId" element={<ProductDetailPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
         <Route
           path="/cart"
           element={
@@ -94,6 +92,8 @@ function AppRoutes() {
         />
       </Route>
 
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
       <Route path="/merchant/login" element={<MerchantLoginPage />} />
       <Route
         path="/merchant"
