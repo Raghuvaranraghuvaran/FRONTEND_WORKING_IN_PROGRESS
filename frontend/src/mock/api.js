@@ -20,6 +20,119 @@ import {
 import { hasLiveApi, request } from '../lib/http'
 
 const MERCHANT_RECORD_KEY = 'returnguard_merchant_record'
+const SHOPPER_TOKEN_KEY = 'returnguard_shopper_token'
+const MERCHANT_TOKEN_KEY = 'returnguard_merchant_token'
+
+function readTokens() {
+  try {
+    return {
+      shopper: JSON.parse(localStorage.getItem(SHOPPER_TOKEN_KEY) || 'null'),
+      merchant: JSON.parse(localStorage.getItem(MERCHANT_TOKEN_KEY) || 'null'),
+    }
+  } catch {
+    return { shopper: null, merchant: null }
+  }
+}
+
+function writeShopperToken(tokens) {
+  try {
+    localStorage.setItem(SHOPPER_TOKEN_KEY, JSON.stringify(tokens))
+  } catch {
+    // storage unavailable
+  }
+}
+
+function writeMerchantToken(tokens) {
+  try {
+    localStorage.setItem(MERCHANT_TOKEN_KEY, JSON.stringify(tokens))
+  } catch {
+    // storage unavailable
+  }
+}
+
+function clearShopperToken() {
+  try {
+    localStorage.removeItem(SHOPPER_TOKEN_KEY)
+  } catch {
+    // storage unavailable
+  }
+}
+
+function clearMerchantToken() {
+  try {
+    localStorage.removeItem(MERCHANT_TOKEN_KEY)
+  } catch {
+    // storage unavailable
+  }
+}
+
+function unwrap(result) {
+  if (result === null || result === undefined) return result
+  if (Array.isArray(result)) return result
+  if (typeof result === 'object' && 'data' in result && result.data !== undefined) {
+    return result.data
+  }
+  return result
+}
+
+async function live(path, { method = 'GET', body, role = 'shopper' } = {}) {
+  const tokens = readTokens()
+  const currentToken = role === 'merchant' ? tokens.merchant?.access : tokens.shopper?.access
+
+  try {
+    const result = await request(path, { method, body, token: currentToken })
+    return unwrap(result)
+  } catch (err) {
+    const isAuthError =
+      err.status === 401 ||
+      (err.message && (
+        err.message.toLowerCase().includes('token') ||
+        err.message.toLowerCase().includes('unauthorized') ||
+        err.message.toLowerCase().includes('authentication')
+      ))
+
+    const refreshToken = role === 'merchant' ? tokens.merchant?.refresh : tokens.shopper?.refresh
+    if (isAuthError && refreshToken && path !== '/auth/refresh/' && path !== '/auth/login/' && path !== '/merchants/login/') {
+      try {
+        const refreshResult = await request('/auth/refresh/', {
+          method: 'POST',
+          body: { refresh: refreshToken },
+        })
+        const newAccess = refreshResult?.data?.access || refreshResult?.access
+        if (newAccess) {
+          if (role === 'merchant') {
+            writeMerchantToken({ ...tokens.merchant, access: newAccess })
+          } else {
+            writeShopperToken({ ...tokens.shopper, access: newAccess })
+          }
+          const retryResult = await request(path, { method, body, token: newAccess })
+          return unwrap(retryResult)
+        }
+      } catch {
+        // Refresh token expired / invalid: clean up to avoid stuck errors
+        if (role === 'merchant') {
+          clearMerchantToken()
+          session.merchant = null
+        } else {
+          clearShopperToken()
+          session.shopper = null
+        }
+        saveSession()
+      }
+    } else if (isAuthError && path !== '/auth/login/' && path !== '/merchants/login/') {
+      if (role === 'merchant') {
+        clearMerchantToken()
+        session.merchant = null
+      } else {
+        clearShopperToken()
+        session.shopper = null
+      }
+      saveSession()
+    }
+
+    throw err
+  }
+}
 
 const delay = (ms = 450) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -36,11 +149,10 @@ function loadSession() {
   try {
     const stored = JSON.parse(localStorage.getItem('returnguard_session') || 'null')
     if (stored?.shopper) {
-      const match = store.shoppers.find((s) => s.email === stored.shopper.email)
-      if (match) session.shopper = clone(match)
+      session.shopper = clone(stored.shopper)
     }
     if (stored?.merchant) {
-      session.merchant = clone(store.merchantAdmin)
+      session.merchant = clone(stored.merchant)
     }
   } catch {
     session = { shopper: null, merchant: null }
@@ -232,11 +344,19 @@ export const api = {
 
   // ---- Catalog ----
   async getCategories() {
+    if (hasLiveApi()) return live('/products/categories/')
     await delay(300)
     return clone(store.categories)
   },
 
   async getProducts({ categoryId, query } = {}) {
+    if (hasLiveApi()) {
+      const params = new URLSearchParams()
+      if (categoryId && categoryId !== 'all') params.set('category_id', categoryId)
+      if (query) params.set('query', query)
+      const qs = params.toString()
+      return live(`/products/${qs ? `?${qs}` : ''}`)
+    }
     await delay(400)
     let products = clone(store.products)
     if (categoryId && categoryId !== 'all') {
@@ -250,12 +370,22 @@ export const api = {
   },
 
   async getProduct(id) {
+    if (hasLiveApi()) return live(`/products/${id}/`)
     await delay(250)
     return clone(store.products.find((p) => p.id === id) || null)
   },
 
   // ---- Auth ----
   async register({ name, email, password: _password, phone, address }) {
+    if (hasLiveApi()) {
+      const payload = { name, email, password: _password, phone }
+      if (address) payload.address = address
+      const result = await live('/auth/register/', { method: 'POST', body: payload })
+      writeShopperToken(result.tokens)
+      session.shopper = clone(result.user)
+      saveSession()
+      return result.user
+    }
     await delay(600)
     if (findShopperByEmail(email)) {
       throw new Error('An account with this email already exists.')
@@ -283,6 +413,13 @@ export const api = {
   },
 
   async login({ email, password }) {
+    if (hasLiveApi()) {
+      const result = await live('/auth/login/', { method: 'POST', body: { email, password } })
+      writeShopperToken(result.tokens)
+      session.shopper = clone(result.user)
+      saveSession()
+      return result.user
+    }
     await delay(600)
     if (!password || password.length < 1) {
       throw new Error('Password is required.')
@@ -296,7 +433,14 @@ export const api = {
     return clone(shopper)
   },
 
-  async googleSignIn() {
+  async googleSignIn(credential) {
+    if (hasLiveApi()) {
+      const result = await live('/auth/google/', { method: 'POST', body: { credential } })
+      writeShopperToken(result.tokens)
+      session.shopper = clone(result.user)
+      saveSession()
+      return result.user
+    }
     await delay(700)
     const existing = store.shoppers.find((s) => s.email === 'meera@example.com')
     const shopper =
@@ -324,6 +468,16 @@ export const api = {
   },
 
   async merchantLogin({ email, password }) {
+    if (hasLiveApi()) {
+      const result = await live('/merchants/login/', { method: 'POST', body: { email, password }, role: 'merchant' })
+      writeMerchantToken(result.tokens)
+      session.merchant = clone(result.admin)
+      if (result.merchant) {
+        persistMerchant(result.merchant)
+      }
+      saveSession()
+      return { admin: result.admin, merchant: result.merchant }
+    }
     await delay(600)
     if (email === store.merchantAdmin.email && password === store.merchantAdmin.password) {
       session.merchant = clone(store.merchantAdmin)
@@ -334,6 +488,17 @@ export const api = {
   },
 
   async logout(role = 'shopper') {
+    if (hasLiveApi()) {
+      if (role === 'merchant') {
+        clearMerchantToken()
+        session.merchant = null
+      } else {
+        clearShopperToken()
+        session.shopper = null
+      }
+      saveSession()
+      return true
+    }
     await delay(150)
     if (role === 'merchant') session.merchant = null
     else session.shopper = null
@@ -350,11 +515,13 @@ export const api = {
 
   // ---- Shopper ----
   async getCurrentShopper() {
+    if (hasLiveApi()) return live('/auth/me/')
     await delay(200)
     return clone(session.shopper)
   },
 
   async updateProfile(patch) {
+    if (hasLiveApi()) return live('/auth/me/', { method: 'PATCH', body: patch })
     await delay(500)
     const shopper = findShopperByEmail(session.shopper.email)
     if (!shopper) throw new Error('Not authenticated.')
@@ -365,6 +532,11 @@ export const api = {
   },
 
   async addAddress({ label, line }) {
+    if (hasLiveApi()) {
+      const addresses = await live('/auth/addresses/', { method: 'POST', body: { label: label || 'Home', line } })
+      const me = await live('/auth/me/')
+      return { ...me, addresses }
+    }
     await delay(400)
     const shopper = findShopperByEmail(session.shopper.email)
     const address = { id: nextId('addr', shopper.addresses), label: label || 'Home', line }
@@ -375,6 +547,11 @@ export const api = {
   },
 
   async removeAddress(addressId) {
+    if (hasLiveApi()) {
+      const addresses = await live(`/auth/addresses/${addressId}/`, { method: 'DELETE' })
+      const me = await live('/auth/me/')
+      return { ...me, addresses }
+    }
     await delay(400)
     const shopper = findShopperByEmail(session.shopper.email)
     shopper.addresses = shopper.addresses.filter((a) => a.id !== addressId)
@@ -384,6 +561,7 @@ export const api = {
   },
 
   async getShopperOrders() {
+    if (hasLiveApi()) return live('/orders/')
     await delay(500)
     const shopperId = session.shopper?.id
     const orders = clone(store.orders).filter((o) => o.user_id === shopperId)
@@ -391,12 +569,14 @@ export const api = {
   },
 
   async getShopperReturns() {
+    if (hasLiveApi()) return live('/returns/')
     await delay(500)
     const shopperId = session.shopper?.id
     return clone(store.returns).filter((r) => r.user_id === shopperId)
   },
 
   async trackOrder(orderId) {
+    if (hasLiveApi()) return live(`/orders/${orderId}/track/`)
     await delay(400)
     const order = store.orders.find((o) => o.id === orderId)
     if (!order) throw new Error('Order not found.')
@@ -404,6 +584,18 @@ export const api = {
   },
 
   async placeOrder({ items, paymentMethod, address: _address }) {
+    if (hasLiveApi()) {
+      const payload = {
+        items: items.map((item) => ({
+          product_id: item.product_id,
+          name: item.name,
+          quantity: item.quantity,
+          price: Number(item.price),
+        })),
+        payment_method: paymentMethod,
+      }
+      return live('/orders/checkout/', { method: 'POST', body: payload })
+    }
     await delay(900)
     if (!session.shopper) throw new Error('Please sign in to continue.')
     const shopper = findShopperByEmail(session.shopper.email)
@@ -589,6 +781,21 @@ export const api = {
   },
 
   async createReturn({ orderId, reason, note, returnLines, pickupSlot }) {
+    if (hasLiveApi()) {
+      const payload = {
+        order_id: orderId,
+        reason,
+        note,
+        return_lines: (returnLines || []).map((line) => ({
+          product_id: line.product_id,
+          name: line.name,
+          quantity: line.quantity,
+          price: Number(line.price),
+        })),
+        pickup_slot: pickupSlot,
+      }
+      return live('/returns/', { method: 'POST', body: payload })
+    }
     await delay(800)
     const order = store.orders.find((o) => o.id === orderId)
     if (!order) throw new Error('Order not found.')
@@ -648,6 +855,12 @@ export const api = {
   },
 
   async escalateReturn(returnId, escalationReason = 'OTP unavailable or failed') {
+    if (hasLiveApi()) {
+      return live(`/returns/${returnId}/escalate/`, {
+        method: 'POST',
+        body: { escalation_reason: escalationReason },
+      })
+    }
     await delay(500)
     const record = store.returns.find((r) => r.id === returnId)
     if (!record) throw new Error('Return not found.')
@@ -665,6 +878,12 @@ export const api = {
   },
 
   async verifyOtp({ returnId, code }) {
+    if (hasLiveApi()) {
+      return live('/verification/verify/', {
+        method: 'POST',
+        body: { return_id: returnId || '', code },
+      })
+    }
     await delay(800)
     if (code !== '123456') {
       store.verificationAttempts.unshift({
@@ -698,6 +917,7 @@ export const api = {
 
   // ---- Merchant ----
   async getMerchantDashboard() {
+    if (hasLiveApi()) return live('/admin/dashboard/', { role: 'merchant' })
     await delay(500)
     const flagged = store.returns.filter((r) => r.status === 'manual_review').length
     const pendingReview = store.orders.filter((o) => o.status === 'Review').length + flagged
@@ -710,26 +930,31 @@ export const api = {
   },
 
   async getMerchantOrders() {
+    if (hasLiveApi()) return live('/admin/orders/', { role: 'merchant' })
     await delay(500)
     return clone(store.orders)
   },
 
   async getMerchantCustomers() {
+    if (hasLiveApi()) return live('/admin/customers/', { role: 'merchant' })
     await delay(500)
     return clone(store.shoppers)
   },
 
   async getMerchantReturns() {
+    if (hasLiveApi()) return live('/admin/flagged-cases/', { role: 'merchant' })
     await delay(500)
     return clone(store.returns)
   },
 
   async getMerchantAuditLog() {
+    if (hasLiveApi()) return live('/admin/audit-log/', { role: 'merchant' })
     await delay(500)
     return clone(store.auditLog)
   },
 
   async getAnalytics() {
+    if (hasLiveApi()) return live('/analytics/', { role: 'merchant' })
     await delay(600)
     return {
       weeklyTrend: clone(store.weeklyTrend),
@@ -740,6 +965,9 @@ export const api = {
   },
 
   async applySelfTuningSuggestion(suggestionId) {
+    if (hasLiveApi()) {
+      return live(`/admin/self-tuning/${suggestionId}/apply/`, { method: 'POST', role: 'merchant' })
+    }
     await delay(600)
     const suggestion = store.selfTuningSuggestions.find((s) => s.id === suggestionId)
     if (!suggestion) throw new Error('Suggestion not found.')
@@ -760,11 +988,19 @@ export const api = {
   },
 
   async getDeliveryAgents() {
+    if (hasLiveApi()) return live('/admin/delivery-agents/', { role: 'merchant' })
     await delay(500)
     return clone(store.deliveryAgents)
   },
 
   async reviewReturn({ returnId, action, notes }) {
+    if (hasLiveApi()) {
+      return live(`/admin/returns/${returnId}/review/`, {
+        method: 'POST',
+        body: { action, notes },
+        role: 'merchant',
+      })
+    }
     await delay(700)
     const record = store.returns.find((r) => r.id === returnId)
     if (!record) throw new Error('Return not found.')
@@ -801,6 +1037,7 @@ export const api = {
   },
 
   async getCustomerRiskProfile(customerId) {
+    if (hasLiveApi()) return live(`/admin/customers/${customerId}/`, { role: 'merchant' })
     await delay(400)
     const customer = store.shoppers.find((s) => s.id === customerId)
     if (!customer) throw new Error('Customer not found.')
@@ -813,7 +1050,7 @@ export const api = {
 
   async updateMerchantSettings(patch) {
     if (hasLiveApi()) {
-      const merchant = await request('/merchants/me', { method: 'PATCH', body: patch })
+      const merchant = await live('/merchants/me/', { method: 'PATCH', body: patch, role: 'merchant' })
       persistMerchant(merchant)
       return merchant
     }
@@ -823,9 +1060,127 @@ export const api = {
     return clone(store.merchant)
   },
 
+  async getMerchantProducts({ categoryId, query, status } = {}) {
+    if (hasLiveApi()) {
+      const params = new URLSearchParams()
+      if (categoryId && categoryId !== 'all') params.set('category_id', categoryId)
+      if (query) params.set('query', query)
+      if (status && status !== 'all') params.set('status', status)
+      const qs = params.toString()
+      return live(`/admin/products/${qs ? `?${qs}` : ''}`, { role: 'merchant' })
+    }
+    await delay(350)
+    let list = clone(store.products)
+    if (categoryId && categoryId !== 'all') {
+      list = list.filter((p) => p.category_id === categoryId)
+    }
+    if (query) {
+      const q = query.toLowerCase()
+      list = list.filter((p) => p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q))
+    }
+    if (status === 'active') list = list.filter((p) => p.is_active !== false)
+    else if (status === 'inactive') list = list.filter((p) => p.is_active === false)
+    else if (status === 'out_of_stock') list = list.filter((p) => Number(p.stock) === 0)
+    else if (status === 'low_stock') list = list.filter((p) => Number(p.stock) > 0 && Number(p.stock) <= 5)
+    return list
+  },
+
+  async createProduct(payload) {
+    if (hasLiveApi()) {
+      return live('/admin/products/', { method: 'POST', body: payload, role: 'merchant' })
+    }
+    await delay(400)
+    const product = {
+      id: nextId('prod', store.products),
+      merchant_id: store.merchant?.id || 'merchant_1',
+      category_id: payload.category_id || null,
+      name: payload.name,
+      price: Number(payload.price),
+      stock: Number(payload.stock ?? 0),
+      image: payload.image || '',
+      description: payload.description || '',
+      is_active: payload.is_active ?? true,
+      created_at: new Date().toISOString(),
+    }
+    store.products.unshift(product)
+    store.auditLog.unshift({
+      id: nextId('audit', store.auditLog),
+      merchant_id: store.merchant?.id || 'merchant_1',
+      actor: session.merchant?.email || 'admin@returnguard.in',
+      action: 'created',
+      target: `Product: ${product.name}`,
+      timestamp: new Date().toISOString(),
+      notes: `Added product with price ₹${product.price} and stock ${product.stock}.`,
+    })
+    return clone(product)
+  },
+
+  async updateProduct(id, patch) {
+    if (hasLiveApi()) {
+      return live(`/admin/products/${id}/`, { method: 'PATCH', body: patch, role: 'merchant' })
+    }
+    await delay(350)
+    const product = store.products.find((p) => p.id === id)
+    if (!product) throw new Error('Product not found.')
+    Object.assign(product, patch)
+    if (patch.price !== undefined) product.price = Number(patch.price)
+    if (patch.stock !== undefined) product.stock = Number(patch.stock)
+    store.auditLog.unshift({
+      id: nextId('audit', store.auditLog),
+      merchant_id: store.merchant?.id || 'merchant_1',
+      actor: session.merchant?.email || 'admin@returnguard.in',
+      action: 'updated',
+      target: `Product: ${product.name}`,
+      timestamp: new Date().toISOString(),
+      notes: 'Updated product details.',
+    })
+    return clone(product)
+  },
+
+  async deleteProduct(id) {
+    if (hasLiveApi()) {
+      return live(`/admin/products/${id}/`, { method: 'DELETE', role: 'merchant' })
+    }
+    await delay(300)
+    const index = store.products.findIndex((p) => p.id === id)
+    if (index !== -1) {
+      const [removed] = store.products.splice(index, 1)
+      store.auditLog.unshift({
+        id: nextId('audit', store.auditLog),
+        merchant_id: store.merchant?.id || 'merchant_1',
+        actor: session.merchant?.email || 'admin@returnguard.in',
+        action: 'deleted',
+        target: `Product: ${removed.name}`,
+        timestamp: new Date().toISOString(),
+        notes: 'Deleted product from catalog.',
+      })
+    }
+    return { deleted: true, id }
+  },
+
+  async getMerchantCategories() {
+    if (hasLiveApi()) return live('/admin/categories/', { role: 'merchant' })
+    await delay(250)
+    return clone(store.categories)
+  },
+
+  async createCategory(payload) {
+    if (hasLiveApi()) {
+      return live('/admin/categories/', { method: 'POST', body: payload, role: 'merchant' })
+    }
+    await delay(350)
+    const category = {
+      id: nextId('cat', store.categories),
+      name: payload.name,
+      description: payload.description || '',
+    }
+    store.categories.push(category)
+    return clone(category)
+  },
+
   async getMerchantOnboarding() {
     if (hasLiveApi()) {
-      const merchant = await request('/merchants/me')
+      const merchant = await live('/merchants/me/', { role: 'merchant' })
       persistMerchant(merchant)
       return merchant
     }
@@ -840,7 +1195,7 @@ export const api = {
       admin_email: adminEmail,
     }
     if (hasLiveApi()) {
-      const merchant = await request('/merchants', { method: 'POST', body: payload })
+      const merchant = await live('/merchants/', { method: 'POST', body: payload, role: 'merchant' })
       persistMerchant(merchant)
       return merchant
     }
@@ -858,11 +1213,13 @@ export const api = {
   },
 
   async getFraudConfig() {
+    if (hasLiveApi()) return live('/admin/fraud-config/', { role: 'merchant' })
     await delay(400)
     return clone(store.fraudConfig)
   },
 
   async updateFraudConfig(patch) {
+    if (hasLiveApi()) return live('/admin/fraud-config/', { method: 'PATCH', body: patch, role: 'merchant' })
     await delay(500)
     store.fraudConfig = {
       ...store.fraudConfig,
@@ -884,12 +1241,14 @@ export const api = {
   },
 
   async getNotifications() {
+    if (hasLiveApi()) return live('/notifications/')
     await delay(350)
     const userId = session.shopper?.id || session.merchant?.id
     return clone(store.notifications.filter((n) => n.user_id === userId))
   },
 
   async markNotificationsRead() {
+    if (hasLiveApi()) return live('/notifications/read/', { method: 'POST' })
     await delay(250)
     const userId = session.shopper?.id || session.merchant?.id
     store.notifications = store.notifications.map((n) => (n.user_id === userId ? { ...n, read: true } : n))

@@ -14,6 +14,7 @@ import ProfilePage from './pages/ProfilePage'
 import MerchantLoginPage from './pages/MerchantLoginPage'
 import MerchantLayout from './pages/merchant/MerchantLayout'
 import MerchantDashboard from './pages/merchant/MerchantDashboard'
+import MerchantProducts from './pages/merchant/MerchantProducts'
 import MerchantOrders from './pages/merchant/MerchantOrders'
 import MerchantCustomers from './pages/merchant/MerchantCustomers'
 import MerchantFlaggedCases from './pages/merchant/MerchantFlaggedCases'
@@ -104,6 +105,7 @@ function AppRoutes() {
         }
       >
         <Route index element={<MerchantDashboard />} />
+        <Route path="products" element={<MerchantProducts />} />
         <Route path="orders" element={<MerchantOrders />} />
         <Route path="customers" element={<MerchantCustomers />} />
         <Route path="flagged-cases" element={<MerchantFlaggedCases />} />

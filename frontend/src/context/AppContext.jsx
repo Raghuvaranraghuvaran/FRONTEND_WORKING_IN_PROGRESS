@@ -42,15 +42,17 @@ export function AppProvider({ children }) {
       setCart,
       deviceReady,
       addToCart(product) {
+        let isNew = false
         setCart((current) => {
           const found = current.find((item) => item.product_id === product.id)
           if (found) {
-            return current.map((item) =>
-              item.product_id === product.id ? { ...item, quantity: item.quantity + 1 } : item,
-            )
+            // Product is already in cart, do not duplicate
+            return current
           }
-          return [...current, { product_id: product.id, name: product.name, price: product.price, quantity: 1 }]
+          isNew = true
+          return [...current, { product_id: product.id, name: product.name, price: Number(product.price), quantity: 1 }]
         })
+        return isNew
       },
       updateCartItem(productId, quantity) {
         setCart((current) =>

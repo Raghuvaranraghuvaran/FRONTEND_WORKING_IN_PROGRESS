@@ -152,7 +152,7 @@ export default function ReturnRequestPage() {
           {showOtp && (
             <form onSubmit={submitOtp} className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
               <p className="text-sm font-semibold text-amber-900">Step-up confirmation</p>
-              <p className="mt-1 text-xs text-amber-700">Demo OTP: 123456</p>
+              <p className="mt-1 text-xs text-amber-700">Enter the OTP sent to your phone.</p>
               <div className="mt-3 flex gap-2">
                 <input
                   value={otp}

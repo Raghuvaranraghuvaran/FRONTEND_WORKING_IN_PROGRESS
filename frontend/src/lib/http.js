@@ -17,7 +17,12 @@ export async function request(path, { method = 'GET', body, token } = {}) {
 
   const data = await response.json().catch(() => ({}))
   if (!response.ok) {
-    throw new Error(data.message || data.error || `Request failed (${response.status})`)
+    const error = data?.error
+    const message = error?.message || data?.detail || data?.message || `Request failed (${response.status})`
+    const err = new Error(message)
+    err.status = response.status
+    err.data = data
+    throw err
   }
   return data
 }

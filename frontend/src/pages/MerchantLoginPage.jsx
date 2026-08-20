@@ -45,12 +45,6 @@ export default function MerchantLoginPage() {
           </div>
           <p className="mt-1 text-sm text-slate-400">Access the fraud review dashboard.</p>
 
-          {/* demo hint */}
-          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg bg-slate-800 p-3 text-xs text-slate-300">
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
-            Demo: <span className="font-semibold text-white">admin@returnguard.in</span> / <span className="font-semibold text-white">password</span>
-          </div>
-
           {/* error */}
           <AnimatePresence>
             {error && (

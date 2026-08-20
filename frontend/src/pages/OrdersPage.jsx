@@ -14,11 +14,17 @@ export default function OrdersPage() {
   const [tracking, setTracking] = useState(null)
 
   useEffect(() => {
-    Promise.all([api.getShopperOrders(), api.getShopperReturns()]).then(([orderData, returnData]) => {
-      setOrders(orderData)
-      setReturns(returnData)
-      setLoading(false)
-    })
+    Promise.all([api.getShopperOrders(), api.getShopperReturns()])
+      .then(([orderData, returnData]) => {
+        setOrders(Array.isArray(orderData) ? orderData : [])
+        setReturns(Array.isArray(returnData) ? returnData : [])
+        setLoading(false)
+      })
+      .catch(() => {
+        setOrders([])
+        setReturns([])
+        setLoading(false)
+      })
   }, [])
 
   const trackOrder = async (orderId) => {

@@ -6,6 +6,7 @@ import { useApp } from '../../context/AppContext'
 
 const navItems = [
   { to: '/merchant', label: 'Dashboard', end: true },
+  { to: '/merchant/products', label: 'Products' },
   { to: '/merchant/orders', label: 'Orders' },
   { to: '/merchant/customers', label: 'Customers' },
   { to: '/merchant/flagged-cases', label: 'Flagged' },

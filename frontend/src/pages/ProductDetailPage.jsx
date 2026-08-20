@@ -6,19 +6,28 @@ import { INR } from '../lib/format'
 
 export default function ProductDetailPage() {
   const { productId } = useParams()
-  const { addToCart } = useApp()
+  const { addToCart, cart } = useApp()
   const [product, setProduct] = useState(null)
   const [category, setCategory] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [added, setAdded] = useState(false)
+  const [message, setMessage] = useState('')
+
+  const cartItem = cart.find((item) => item.product_id === productId)
+  const isInCart = Boolean(cartItem)
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([api.getProduct(productId), api.getCategories()]).then(([productData, categories]) => {
-      setProduct(productData)
-      setCategory(categories.find((c) => c.id === productData?.category_id) || null)
-      setLoading(false)
-    })
+    Promise.all([api.getProduct(productId), api.getCategories()])
+      .then(([productData, categories]) => {
+        setProduct(productData || null)
+        const cats = Array.isArray(categories) ? categories : []
+        setCategory(cats.find((c) => c.id === productData?.category_id) || null)
+        setLoading(false)
+      })
+      .catch(() => {
+        setProduct(null)
+        setLoading(false)
+      })
   }, [productId])
 
   if (loading) {
@@ -48,9 +57,14 @@ export default function ProductDetailPage() {
   }
 
   const handleAdd = () => {
+    if (isInCart) {
+      setMessage('Already in cart! You can adjust quantity on the Cart page.')
+      window.setTimeout(() => setMessage(''), 3000)
+      return
+    }
     addToCart(product)
-    setAdded(true)
-    window.setTimeout(() => setAdded(false), 1500)
+    setMessage('✓ Added to cart successfully!')
+    window.setTimeout(() => setMessage(''), 2500)
   }
 
   return (
@@ -63,23 +77,52 @@ export default function ProductDetailPage() {
           <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-indigo-600">{category?.name || 'Uncategorized'}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-indigo-600">{category?.name || 'Uncategorized'}</p>
+            {isInCart && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                ✓ In your cart ({cartItem.quantity})
+              </span>
+            )}
+          </div>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{product.name}</h1>
           <p className="mt-3 text-2xl font-bold text-slate-900">{INR.format(product.price)}</p>
           <p className="mt-5 leading-7 text-slate-600">{product.description}</p>
           <p className="mt-2 text-sm text-slate-400">{product.stock} in stock</p>
-          <div className="mt-8 flex gap-3">
-            <button
-              onClick={handleAdd}
-              className="flex-1 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-500"
+
+          {message && (
+            <div
+              className={`mt-4 rounded-xl px-4 py-2.5 text-xs font-medium ${
+                message.includes('Already')
+                  ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                  : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+              }`}
             >
-              {added ? 'Added to cart' : 'Add to cart'}
-            </button>
+              {message}
+            </div>
+          )}
+
+          <div className="mt-6 flex gap-3">
+            {isInCart ? (
+              <Link
+                to="/cart"
+                className="flex-1 rounded-xl bg-emerald-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-emerald-500 shadow-sm"
+              >
+                ✓ View in Cart ({cartItem.quantity})
+              </Link>
+            ) : (
+              <button
+                onClick={handleAdd}
+                className="flex-1 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-500 shadow-sm transition"
+              >
+                Add to cart
+              </button>
+            )}
             <Link
               to="/cart"
-              className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
             >
-              View cart
+              Go to cart
             </Link>
           </div>
         </div>

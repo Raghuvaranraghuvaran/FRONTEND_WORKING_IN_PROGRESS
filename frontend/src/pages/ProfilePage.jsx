@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../mock/api'
 import { useApp } from '../context/AppContext'
 import { formatDate } from '../lib/format'
@@ -13,6 +13,15 @@ export default function ProfilePage() {
   const [newAddress, setNewAddress] = useState({ label: 'Home', line: '' })
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (shopper) {
+      setForm({
+        name: shopper.name || '',
+        phone: shopper.phone || '',
+      })
+    }
+  }, [shopper])
 
   const submit = async (e) => {
     e.preventDefault()
