@@ -73,6 +73,8 @@ let store = {
   weeklyTrend: clone(WEEKLY_TREND),
   topFlaggedCustomers: clone(TOP_FLAGGED_CUSTOMERS),
   categoryReturnRates: clone(CATEGORY_RETURN_RATES),
+  payments: [],
+  invoices: [],
 }
 
 function persistMerchant(merchant) {
@@ -186,6 +188,40 @@ function computeRisk(input = {}) {
 function makeOrderNumber() {
   const n = 1028 + store.orders.length
   return `#${n}`
+}
+
+function makeInvoiceNumber() {
+  const year = new Date().getFullYear()
+  const n = 4001 + store.invoices.length
+  return `INV-${year}-${n}`
+}
+
+const GATEWAY_FAILURE_REASONS = [
+  'Card declined by issuing bank.',
+  'Insufficient balance.',
+  'Payment timed out — no response from bank.',
+]
+
+const GATEWAY_REJECTION_REASONS = [
+  'Transaction rejected by gateway risk check.',
+  'Bank flagged this transaction as suspicious.',
+]
+
+function pushNotification({ userId, type, channel = 'in_app', title, body }) {
+  store.notifications.unshift({
+    id: nextId('notif', store.notifications),
+    user_id: userId,
+    type,
+    channel,
+    title,
+    body,
+    read: false,
+    created_at: new Date().toISOString(),
+  })
+}
+
+function findOrderPayment(orderId) {
+  return store.payments.find((p) => p.order_id === orderId)
 }
 
 export const api = {
@@ -379,6 +415,19 @@ export const api = {
     }))
     const total = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
     const risk = computeRisk({ paymentMethod })
+    const isCod = paymentMethod === 'COD'
+
+    // Order status/delivery status while a Prepaid gateway result is outstanding.
+    // Per the payment/invoice notification matrix, COD orders confirm immediately;
+    // gateway orders wait for a verified webhook (simulated here) before the order
+    // or invoice state changes.
+    const orderStatus = isCod ? (risk.tier === 'High' ? 'Review' : 'Confirmed') : 'Payment Pending'
+    const deliveryStatus = isCod
+      ? risk.tier === 'High'
+        ? 'Pending Review'
+        : 'Processing'
+      : 'Awaiting payment'
+
     const order = {
       id: nextId('ord', store.orders),
       order_number: makeOrderNumber(),
@@ -388,14 +437,16 @@ export const api = {
       items: orderItems,
       total,
       payment_method: paymentMethod,
-      status: risk.tier === 'High' ? 'Review' : 'Active',
-      delivery_status: risk.tier === 'High' ? 'Pending Review' : 'Processing',
+      status: orderStatus,
+      delivery_status: deliveryStatus,
       risk_tier: risk.tier,
       verification_status: risk.tier === 'Medium' ? 'Pending' : 'Verified',
       verification_method: risk.tier === 'Medium' ? 'unverified' : 'device_only',
       device_token: 'device_' + (shopper.id || 'unknown'),
       created_at: new Date().toISOString(),
       risk_context: risk.signals.length ? risk.signals.join('; ') : 'No material risk signals.',
+      payment_status: isCod ? 'COD pending' : 'Processing',
+      invoice: null,
       tracking_events: [
         { label: 'Order placed', at: new Date().toISOString(), done: true },
         { label: 'Packed', at: null, done: false },
@@ -405,23 +456,136 @@ export const api = {
     }
     store.orders.unshift(order)
 
+    // Payment record — hangs off the order, same as Payment/PaymentEvent in the backend model.
+    const payment = {
+      id: nextId('pay', store.payments),
+      order_id: order.id,
+      order_number: order.order_number,
+      user_id: shopper.id,
+      gateway: isCod ? 'cod' : 'mock_gateway',
+      gateway_payment_id: isCod ? null : `mockpay_${crypto.randomUUID().slice(0, 12)}`,
+      amount: total,
+      status: isCod ? 'COD pending' : 'Processing',
+      failure_reason: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    store.payments.unshift(payment)
+
     shopper.total_orders += 1
     if (shopper.risk_tier !== 'High' && risk.tier === 'High') shopper.risk_tier = 'High'
     session.shopper = clone(shopper)
     saveSession()
 
-    store.notifications.unshift({
-      id: nextId('notif', store.notifications),
-      user_id: shopper.id,
-      type: 'order_placed',
-      channel: 'in_app',
-      title: 'Order placed',
-      body: `Order ${order.order_number} was placed successfully.`,
-      read: false,
-      created_at: new Date().toISOString(),
+    if (isCod) {
+      // COD orders confirm immediately and email the customer without waiting on a gateway.
+      pushNotification({
+        userId: shopper.id,
+        type: 'order_confirmation',
+        title: 'Order confirmed',
+        body: `Order ${order.order_number} was confirmed for Cash on Delivery.`,
+      })
+    }
+    // Prepaid orders stay quiet here — the "Payment initiated" row in the notification
+    // matrix marks the customer email as optional, so no email fires until the gateway
+    // (simulator) resolves the outcome.
+
+    return { order: clone(order), payment: clone(payment) }
+  },
+
+  // ---- Payment gateway simulation ----
+  // Mirrors "Never trust the frontend payment message alone": the order/invoice state
+  // only changes once this (mock) webhook-equivalent resolves, not when the UI shows a result.
+  async getOrderPayment(orderId) {
+    await delay(200)
+    return clone(findOrderPayment(orderId) || null)
+  },
+
+  async simulatePaymentResult({ orderId, outcome }) {
+    await delay(1400)
+    const order = store.orders.find((o) => o.id === orderId)
+    const payment = findOrderPayment(orderId)
+    if (!order || !payment) throw new Error('Order not found.')
+
+    payment.updated_at = new Date().toISOString()
+
+    if (outcome === 'success') {
+      payment.status = 'Paid'
+      payment.failure_reason = null
+      order.status = order.risk_tier === 'High' ? 'Review' : 'Confirmed'
+      order.delivery_status = order.risk_tier === 'High' ? 'Pending Review' : 'Processing'
+      order.payment_status = 'Paid'
+
+      const invoice = {
+        id: nextId('inv', store.invoices),
+        order_id: order.id,
+        order_number: order.order_number,
+        invoice_number: makeInvoiceNumber(),
+        invoice_url: `/invoices/${order.order_number.replace('#', '')}.pdf`,
+        status: 'issued',
+        generated_at: new Date().toISOString(),
+      }
+      store.invoices.unshift(invoice)
+      order.invoice = invoice
+
+      pushNotification({
+        userId: order.user_id,
+        type: 'payment_success_invoice',
+        title: 'Payment successful',
+        body: `Payment for ${order.order_number} succeeded. Invoice ${invoice.invoice_number} is ready.`,
+      })
+
+      return { order: clone(order), payment: clone(payment), invoice: clone(invoice) }
+    }
+
+    if (outcome === 'failed') {
+      payment.status = 'Failed'
+      payment.failure_reason = GATEWAY_FAILURE_REASONS[Math.floor(Math.random() * GATEWAY_FAILURE_REASONS.length)]
+      order.status = 'Payment Failed'
+      order.delivery_status = 'Payment failed'
+      order.payment_status = 'Failed'
+
+      pushNotification({
+        userId: order.user_id,
+        type: 'payment_failure',
+        title: 'Payment failed',
+        body: `Payment for ${order.order_number} failed: ${payment.failure_reason}`,
+      })
+
+      return { order: clone(order), payment: clone(payment), invoice: null }
+    }
+
+    // rejected
+    payment.status = 'Rejected'
+    payment.failure_reason =
+      GATEWAY_REJECTION_REASONS[Math.floor(Math.random() * GATEWAY_REJECTION_REASONS.length)]
+    order.status = 'Payment Rejected'
+    order.delivery_status = 'Payment rejected'
+    order.payment_status = 'Rejected'
+
+    pushNotification({
+      userId: order.user_id,
+      type: 'payment_rejected',
+      title: 'Payment rejected',
+      body: `Payment for ${order.order_number} was rejected: ${payment.failure_reason}`,
     })
 
-    return clone(order)
+    return { order: clone(order), payment: clone(payment), invoice: null }
+  },
+
+  async retryPayment(orderId) {
+    await delay(300)
+    const order = store.orders.find((o) => o.id === orderId)
+    const payment = findOrderPayment(orderId)
+    if (!order || !payment) throw new Error('Order not found.')
+    payment.status = 'Processing'
+    payment.failure_reason = null
+    payment.gateway_payment_id = `mockpay_${crypto.randomUUID().slice(0, 12)}`
+    payment.updated_at = new Date().toISOString()
+    order.status = 'Payment Pending'
+    order.delivery_status = 'Awaiting payment'
+    order.payment_status = 'Processing'
+    return { order: clone(order), payment: clone(payment) }
   },
 
   async createReturn({ orderId, reason, note, returnLines, pickupSlot }) {

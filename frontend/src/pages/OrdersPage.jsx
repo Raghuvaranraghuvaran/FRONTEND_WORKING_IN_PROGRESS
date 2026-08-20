@@ -68,10 +68,19 @@ export default function OrdersPage() {
                       <RiskBadge tier={order.risk_tier} />
                       <StatusBadge status={order.status} />
                       <StatusBadge status={order.delivery_status} />
+                      {order.payment_status && <StatusBadge status={order.payment_status} />}
                     </div>
                     <p className="mt-1 text-sm text-slate-500">
                       {formatDate(order.created_at)} · {order.payment_method}
                     </p>
+                    {order.invoice && (
+                      <a
+                        href={order.invoice.invoice_url}
+                        className="mt-1 inline-block text-xs font-semibold text-indigo-600"
+                      >
+                        Invoice {order.invoice.invoice_number}
+                      </a>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-base font-bold text-slate-900">{INR.format(order.total)}</p>
