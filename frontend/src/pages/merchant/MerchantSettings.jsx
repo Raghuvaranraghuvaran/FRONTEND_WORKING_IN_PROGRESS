@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../mock/api'
-import { useApp } from '../../context/AppContext'
 import { formatDate } from '../../lib/format'
 
 export default function MerchantSettings() {
-  const { merchant } = useApp()
   const [settings, setSettings] = useState(null)
   const [form, setForm] = useState({ business_name: '', plan_tier: '' })
   const [saved, setSaved] = useState(false)
@@ -35,9 +33,9 @@ export default function MerchantSettings() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-      <p className="text-sm text-slate-500">Store configuration and merchant-scoped API token.</p>
+      <p className="text-sm text-slate-500">Store configuration and merchant identity.</p>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div className="mt-6">
         <form onSubmit={submit} className="rounded-2xl border border-slate-200 bg-white p-6">
           <h2 className="text-base font-semibold text-slate-900">Store profile</h2>
           <div className="mt-4 space-y-4">
@@ -67,14 +65,6 @@ export default function MerchantSettings() {
           </div>
         </form>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="text-base font-semibold text-slate-900">API access</h2>
-          <p className="mt-2 text-sm text-slate-500">Merchant-scoped token used by the dashboard and future browser extension.</p>
-          <div className="mt-4 rounded-lg bg-slate-950 p-4">
-            <code className="text-sm break-all text-emerald-400">rg_live_9f4e2c1b8a7d6e5f</code>
-          </div>
-          <p className="mt-3 text-xs text-slate-400">Signed in as {merchant?.email}</p>
-        </div>
       </div>
 
       <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">

@@ -6,7 +6,7 @@ export const CATEGORIES = [
 ]
 
 export const PRODUCTS = [
-  { id: 'prod_1', merchant_id: 'merchant_1', category_id: 'cat_ethnic', name: 'Embroidered Lehenga Set', price: 6499, stock: 12, image: 'https://images.unsplash.com/photo-1595593575493-f826fde83d57?auto=format&fit=crop&w=600&q=80', description: 'Festive three-piece lehenga set with mirror work.' },
+  { id: 'prod_1', merchant_id: 'merchant_1', category_id: 'cat_ethnic', name: 'Embroidered Lehenga Set', price: 6499, stock: 12, image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=600&q=80', description: 'Festive three-piece lehenga set with mirror work.' },
   { id: 'prod_2', merchant_id: 'merchant_1', category_id: 'cat_ethnic', name: 'Silk Banarasi Saree', price: 8999, stock: 8, image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80', description: 'Handwoven Banarasi silk saree for weddings.' },
   { id: 'prod_3', merchant_id: 'merchant_1', category_id: 'cat_ethnic', name: 'Designer Kurta Set', price: 2499, stock: 20, image: 'https://images.unsplash.com/photo-1597983073493-88cd35cf93b0?auto=format&fit=crop&w=600&q=80', description: 'Comfortable festive kurta with matching bottoms.' },
   { id: 'prod_4', merchant_id: 'merchant_1', category_id: 'cat_daily', name: 'Cotton Shirt', price: 1299, stock: 40, image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=600&q=80', description: 'Breathable everyday cotton shirt.' },
@@ -16,6 +16,14 @@ export const PRODUCTS = [
   { id: 'prod_8', merchant_id: 'merchant_1', category_id: 'cat_electronics', name: 'Smart Fitness Band', price: 2799, stock: 30, image: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?auto=format&fit=crop&w=600&q=80', description: 'Tracks activity, sleep and heart rate.' },
   { id: 'prod_9', merchant_id: 'merchant_1', category_id: 'cat_home', name: 'Ceramic Dinner Set', price: 3499, stock: 18, image: 'https://images.unsplash.com/photo-1603199506016-b9a594b593c0?auto=format&fit=crop&w=600&q=80', description: 'Twelve-piece ceramic dinnerware set.' },
   { id: 'prod_10', merchant_id: 'merchant_1', category_id: 'cat_home', name: 'Decorative Table Lamp', price: 1899, stock: 22, image: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=600&q=80', description: 'Warm ambient lamp for living spaces.' },
+  { id: 'prod_11', merchant_id: 'merchant_1', category_id: 'cat_ethnic', name: 'Chanderi Anarkali Dress', price: 3299, stock: 14, image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&w=600&q=80', description: 'Lightweight Chanderi Anarkali with delicate gold detailing.' },
+  { id: 'prod_12', merchant_id: 'merchant_1', category_id: 'cat_ethnic', name: 'Printed Cotton Dupatta', price: 899, stock: 28, image: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=600&q=80', description: 'Hand-block inspired cotton dupatta for everyday festive styling.' },
+  { id: 'prod_13', merchant_id: 'merchant_1', category_id: 'cat_daily', name: 'Oversized Linen Shirt', price: 1799, stock: 24, image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=600&q=80', description: 'Relaxed linen shirt designed for warm-weather comfort.' },
+  { id: 'prod_14', merchant_id: 'merchant_1', category_id: 'cat_daily', name: 'Everyday Canvas Sneakers', price: 2199, stock: 32, image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80', description: 'Cushioned low-top sneakers for daily commutes and weekends.' },
+  { id: 'prod_15', merchant_id: 'merchant_1', category_id: 'cat_electronics', name: 'Portable Bluetooth Speaker', price: 2499, stock: 19, image: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&w=600&q=80', description: 'Compact wireless speaker with rich sound for indoor and outdoor use.' },
+  { id: 'prod_16', merchant_id: 'merchant_1', category_id: 'cat_electronics', name: 'Fast Charge Power Bank', price: 1599, stock: 26, image: 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=600&q=80', description: 'High-capacity power bank with USB-C fast charging.' },
+  { id: 'prod_17', merchant_id: 'merchant_1', category_id: 'cat_home', name: 'Woven Storage Basket', price: 1299, stock: 21, image: 'https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=600&q=80', description: 'Textured woven basket for throws, toys, and everyday storage.' },
+  { id: 'prod_18', merchant_id: 'merchant_1', category_id: 'cat_home', name: 'Cotton Cushion Cover Set', price: 749, stock: 35, image: 'https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?auto=format&fit=crop&w=600&q=80', description: 'Set of two soft cotton cushion covers with modern patterns.' },
 ]
 
 export const SHOPPERS = [
@@ -328,7 +336,6 @@ export const MERCHANT = {
   business_name: 'Aria Fashion House',
   store_slug: 'aria-fashion-house',
   admin_email: 'admin@returnguard.in',
-  api_token: 'rg_live_9f4e2c1b8a7d6e5f',
   plan_tier: 'Pilot',
   created_at: '2025-08-01T10:00:00Z',
 }

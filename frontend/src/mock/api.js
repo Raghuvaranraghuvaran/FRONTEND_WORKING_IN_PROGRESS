@@ -17,6 +17,9 @@ import {
   VERIFICATION_ATTEMPTS,
   WEEKLY_TREND,
 } from './seed'
+import { hasLiveApi, request } from '../lib/http'
+
+const MERCHANT_RECORD_KEY = 'returnguard_merchant_record'
 
 const delay = (ms = 450) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -72,7 +75,26 @@ let store = {
   categoryReturnRates: clone(CATEGORY_RETURN_RATES),
 }
 
+function persistMerchant(merchant) {
+  store.merchant = clone(merchant)
+  try {
+    localStorage.setItem(MERCHANT_RECORD_KEY, JSON.stringify(merchant))
+  } catch {
+    // storage unavailable
+  }
+}
+
+function loadMerchantRecord() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(MERCHANT_RECORD_KEY) || 'null')
+    if (stored?.id) store.merchant = stored
+  } catch {
+    // keep seeded merchant
+  }
+}
+
 loadSession()
+loadMerchantRecord()
 
 function nextId(prefix, list) {
   const max = list.reduce((acc, item) => {
@@ -80,6 +102,16 @@ function nextId(prefix, list) {
     return Number.isFinite(num) ? Math.max(acc, num) : acc
   }, 0)
   return `${prefix}_${max + 1}`
+}
+
+function createMerchantId(storeSlug) {
+  const storePrefix = storeSlug
+    .replace(/[^a-z0-9]/gi, '')
+    .slice(0, 8)
+    .toUpperCase()
+    .padEnd(3, 'X')
+  const uniqueSuffix = crypto.randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  return `RG-${storePrefix}-${uniqueSuffix}`
 }
 
 function findShopperByEmail(email) {
@@ -616,28 +648,48 @@ export const api = {
   },
 
   async updateMerchantSettings(patch) {
+    if (hasLiveApi()) {
+      const merchant = await request('/merchants/me', { method: 'PATCH', body: patch })
+      persistMerchant(merchant)
+      return merchant
+    }
     await delay(500)
     Object.assign(store.merchant, patch)
+    persistMerchant(store.merchant)
     return clone(store.merchant)
   },
 
   async getMerchantOnboarding() {
+    if (hasLiveApi()) {
+      const merchant = await request('/merchants/me')
+      persistMerchant(merchant)
+      return merchant
+    }
     await delay(300)
     return clone(store.merchant)
   },
 
   async registerMerchant({ businessName, storeSlug, adminEmail }) {
-    await delay(700)
-    const merchant = {
-      id: nextId('merchant', [store.merchant]),
+    const payload = {
       business_name: businessName,
       store_slug: storeSlug,
       admin_email: adminEmail,
-      api_token: `rg_live_${Math.random().toString(36).slice(2, 18)}`,
+    }
+    if (hasLiveApi()) {
+      const merchant = await request('/merchants', { method: 'POST', body: payload })
+      persistMerchant(merchant)
+      return merchant
+    }
+    await delay(700)
+    const merchant = {
+      id: createMerchantId(storeSlug),
+      business_name: businessName,
+      store_slug: storeSlug,
+      admin_email: adminEmail,
       plan_tier: 'Pilot',
       created_at: new Date().toISOString(),
     }
-    store.merchant = merchant
+    persistMerchant(merchant)
     return clone(merchant)
   },
 

@@ -280,23 +280,7 @@ export default function LandingPage() {
   const navBg = useTransform(scrollY, [0, 80], ['rgba(13,15,18,0)', 'rgba(13,15,18,0.85)'])
   const navBorder = useTransform(scrollY, [0, 80], ['rgba(255,255,255,0)', 'rgba(255,255,255,0.08)'])
 
-  const heroX = useMotionValue(0)
-  const heroY = useMotionValue(0)
-  const layer1 = useTransform(heroX, [-1, 1], [-14, 14])
-  const layer1Y = useTransform(heroY, [-1, 1], [-14, 14])
-  const layer2 = useTransform(heroX, [-1, 1], [-30, 30])
-  const layer2Y = useTransform(heroY, [-1, 1], [-30, 30])
-  const layer3 = useTransform(heroX, [-1, 1], [10, -10])
-  const layer3Y = useTransform(heroY, [-1, 1], [10, -10])
-
   const { d, h, m, s } = useCountdown(62)
-
-  function onHeroMove(e) {
-    if (reduce) return
-    const r = e.currentTarget.getBoundingClientRect()
-    heroX.set(((e.clientX - r.left) / r.width) * 2 - 1)
-    heroY.set(((e.clientY - r.top) / r.height) * 2 - 1)
-  }
 
   return (
     <div className="vlc-root">
@@ -445,6 +429,7 @@ export default function LandingPage() {
           box-shadow: 0 40px 80px -20px rgba(0,0,0,0.6);
           border: 1px solid var(--border);
           position: relative; transform-style: preserve-3d;
+          will-change: transform;
         }
         .vlc-hero-img img { width:100%; height: 420px; object-fit: cover; }
         @media (max-width: 960px) {
@@ -452,7 +437,6 @@ export default function LandingPage() {
           .vlc-hero-img-wrap { position: relative; inset: auto; }
           .vlc-hero-img { max-width: 100%; }
           .vlc-hero-img img { height: 260px; }
-          .vlc-floating-spec { display: none; }
         }
         .vlc-orb {
           position:absolute; border-radius:50%; filter: blur(60px); opacity:0.35; z-index:0;
@@ -463,17 +447,6 @@ export default function LandingPage() {
         .vlc-speedline {
           position:absolute; height:1px; background: linear-gradient(90deg, transparent, var(--border), transparent);
           width: 60%;
-        }
-        .vlc-floating-spec {
-          position: absolute; background: var(--surface); border: 1px solid var(--border);
-          border-radius: 12px; padding: 8px 12px; font-family:'IBM Plex Mono'; font-size: 10px;
-          color: var(--ice); backdrop-filter: blur(6px);
-          display: flex; align-items: center; gap: 8px;
-          max-width: calc(100% - 24px);
-        }
-        .vlc-floating-spec .spec-dot {
-          width: 6px; height: 6px; border-radius: 50%; background: var(--success);
-          box-shadow: 0 0 8px var(--success);
         }
         .vlc-scroll-cue {
           position:absolute; bottom: 34px; left: 50%; transform: translateX(-50%);
@@ -633,7 +606,7 @@ export default function LandingPage() {
       </AnimatePresence>
 
       {/* ── HERO ───────────────────────────────────────────────────── */}
-      <section id="top" className="vlc-hero" onMouseMove={onHeroMove}>
+      <section id="top" className="vlc-hero">
         <div className="vlc-orb vlc-orb-1" />
         <div className="vlc-orb vlc-orb-2" />
         <div className="vlc-speedlines">
@@ -648,17 +621,11 @@ export default function LandingPage() {
 
             </Reveal>
           </div>
-          <motion.div className="vlc-hero-visual" style={{ x: reduce ? 0 : layer1, y: reduce ? 0 : layer1Y }}>
-            <motion.div className="vlc-hero-img-wrap" style={{ x: reduce ? 0 : layer2, y: reduce ? 0 : layer2Y }}>
+          <div className="vlc-hero-visual">
+            <div className="vlc-hero-img-wrap">
               <HeroImage reduce={reduce} />
-            </motion.div>
-            <motion.div className="vlc-floating-spec" style={{ right: '3%', top: '8%', x: reduce ? 0 : layer3, y: reduce ? 0 : layer3Y }}>
-              <span className="spec-dot" /> RISK SCORE: LOW · VERIFIED
-            </motion.div>
-            <motion.div className="vlc-floating-spec" style={{ left: '2%', bottom: '12%', x: reduce ? 0 : layer2, y: reduce ? 0 : layer2Y }}>
-              <span className="spec-dot" /> DEVICE FINGERPRINT · ACTIVE
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         </div>
         <div className="vlc-scroll-cue"><ChevronDown size={14} /><span>SCROLL TO EXPLORE</span></div>
       </section>
