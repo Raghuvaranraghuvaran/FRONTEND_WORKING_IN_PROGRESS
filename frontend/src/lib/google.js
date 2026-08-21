@@ -1,4 +1,7 @@
-const GOOGLE_CLIENT_ID = String(import.meta.env.VITE_GOOGLE_CLIENT_ID || '')
+const GOOGLE_CLIENT_ID = String(
+  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+  '511413180726-tks4agohomumjqluivasu15doe31giim.apps.googleusercontent.com'
+)
 
 let scriptPromise = null
 

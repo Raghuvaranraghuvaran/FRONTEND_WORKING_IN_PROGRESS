@@ -141,8 +141,10 @@ SIMPLE_JWT = {
 }
 
 CORS_ALLOWED_ORIGINS = env_list(
-    "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175"
 )
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+
 
 CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -155,7 +157,10 @@ PAYMENT_GATEWAY_SECRET = os.getenv("PAYMENT_GATEWAY_SECRET", "dev-gateway-secret
 DEMO_OTP = os.getenv("DEMO_OTP", "123456")
 
 # Google Sign-In (Google Identity Services). Set GOOGLE_CLIENT_ID to enable.
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_ID = os.getenv(
+    "GOOGLE_CLIENT_ID",
+    "511413180726-tks4agohomumjqluivasu15doe31giim.apps.googleusercontent.com",
+)
 
 # Media / object storage (local filesystem in dev; swap for S3-compatible storage later).
 MEDIA_URL = "/media/"
