@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { api } from '../mock/api'
 import { useApp } from '../context/AppContext'
 import BrandLogo from '../components/BrandLogo'
+import { hasGoogleSignIn, initializeGoogleSignIn, loadGoogleIdentityServices } from '../lib/google'
 
 export default function MerchantLoginPage() {
   const navigate = useNavigate()
@@ -12,6 +13,31 @@ export default function MerchantLoginPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [focused, setFocused] = useState('')
+  const [otpMode, setOtpMode] = useState(false)
+  const [otpCode, setOtpCode] = useState('')
+  const [otpChallengeId, setOtpChallengeId] = useState(null)
+  const googleButtonRef = useRef(null)
+
+  useEffect(() => {
+    if (!hasGoogleSignIn()) return
+    loadGoogleIdentityServices().then(() => {
+      if (googleButtonRef.current) {
+        initializeGoogleSignIn('merchant-google-signin', async (credential) => {
+          setError('')
+          setSubmitting(true)
+          try {
+            const session = await api.merchantGoogleSignIn(credential)
+            setMerchant(session.admin)
+            navigate('/merchant')
+          } catch (err) {
+            setError(err.message)
+          } finally {
+            setSubmitting(false)
+          }
+        })
+      }
+    })
+  }, [navigate, setMerchant])
 
   const submit = async (e) => {
     e.preventDefault()
@@ -19,6 +45,35 @@ export default function MerchantLoginPage() {
     setSubmitting(true)
     try {
       const session = await api.merchantLogin(form)
+      setMerchant(session.admin)
+      navigate('/merchant')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const sendOTP = async () => {
+    setError('')
+    setSubmitting(true)
+    try {
+      const result = await api.requestLoginOTP(form.email, 'merchant')
+      if (result.challenge_id) setOtpChallengeId(result.challenge_id)
+      setOtpMode(true)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const verifyOTP = async (e) => {
+    e.preventDefault()
+    setError('')
+    setSubmitting(true)
+    try {
+      const session = await api.verifyLoginOTP({ email: form.email, challengeId: otpChallengeId, code: otpCode }, 'merchant')
       setMerchant(session.admin)
       navigate('/merchant')
     } catch (err) {
@@ -99,6 +154,27 @@ export default function MerchantLoginPage() {
               ) : 'Sign in'}
             </motion.button>
           </form>
+
+          <div className="my-5 flex items-center gap-3">
+            <div className="h-px flex-1 bg-slate-700" /><span className="text-xs text-slate-500">or</span><div className="h-px flex-1 bg-slate-700" />
+          </div>
+          {hasGoogleSignIn() ? (
+            <div id="merchant-google-signin" ref={googleButtonRef} className="flex justify-center" />
+          ) : (
+            <p className="text-center text-xs text-slate-500">Google Sign-In is not configured.</p>
+          )}
+          <div className="my-5 flex items-center gap-3">
+            <div className="h-px flex-1 bg-slate-700" /><span className="text-xs text-slate-500">or</span><div className="h-px flex-1 bg-slate-700" />
+          </div>
+          {otpMode ? (
+            <form onSubmit={verifyOTP} className="space-y-3">
+              <input inputMode="numeric" pattern="\\d{6}" maxLength={6} required value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\\D/g, ''))} placeholder="6-digit code" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
+              <button type="submit" disabled={submitting} className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white transition hover:bg-indigo-500 disabled:opacity-50">{submitting ? 'Verifying…' : 'Verify code'}</button>
+              <button type="button" onClick={sendOTP} disabled={submitting} className="w-full text-xs text-indigo-400 hover:text-indigo-300">Resend code</button>
+            </form>
+          ) : (
+            <button type="button" onClick={sendOTP} disabled={submitting || !form.email} className="w-full rounded-xl border border-slate-700 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-800 disabled:opacity-50">Sign in with email OTP</button>
+          )}
         </div>
 
         <p className="mt-6 text-center text-sm text-slate-500">

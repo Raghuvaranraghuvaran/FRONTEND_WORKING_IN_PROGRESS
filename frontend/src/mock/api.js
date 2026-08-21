@@ -467,6 +467,67 @@ export const api = {
     return clone(shopper)
   },
 
+  async requestLoginOTP(email, role = 'shopper') {
+    if (hasLiveApi()) {
+      const path = role === 'merchant' ? '/merchants/request-otp/' : '/auth/request-otp/'
+      return live(path, { method: 'POST', body: { email }, role })
+    }
+    await delay(500)
+    const known = role === 'merchant'
+      ? email === store.merchantAdmin.email
+      : Boolean(findShopperByEmail(email))
+    if (!known) return { sent: true, expires_in: 300 }
+    return { sent: true, challenge_id: `mock-${role}-${Date.now()}`, expires_in: 300 }
+  },
+
+  async verifyLoginOTP({ email, challengeId, code }, role = 'shopper') {
+    if (hasLiveApi()) {
+      const path = role === 'merchant' ? '/merchants/verify-otp/' : '/auth/verify-otp/'
+      const result = await live(path, {
+        method: 'POST',
+        body: { email, challenge_id: challengeId, code },
+        role,
+      })
+      if (role === 'merchant') {
+        writeMerchantToken(result.tokens)
+        session.merchant = clone(result.admin)
+        if (result.merchant) persistMerchant(result.merchant)
+        saveSession()
+        return { admin: result.admin, merchant: result.merchant }
+      }
+      writeShopperToken(result.tokens)
+      session.shopper = clone(result.user)
+      saveSession()
+      return result.user
+    }
+    await delay(500)
+    if (code !== '123456') throw new Error('Invalid or expired sign-in code.')
+    if (role === 'merchant') {
+      if (email !== store.merchantAdmin.email) throw new Error('Invalid or expired sign-in code.')
+      session.merchant = clone(store.merchantAdmin)
+      saveSession()
+      return { admin: clone(session.merchant), merchant: clone(store.merchant) }
+    }
+    const shopper = findShopperByEmail(email)
+    if (!shopper) throw new Error('Invalid or expired sign-in code.')
+    session.shopper = clone(shopper)
+    saveSession()
+    return clone(shopper)
+  },
+
+  async merchantGoogleSignIn(credential) {
+    if (hasLiveApi()) {
+      const result = await live('/merchants/google/', { method: 'POST', body: { credential }, role: 'merchant' })
+      writeMerchantToken(result.tokens)
+      session.merchant = clone(result.admin)
+      if (result.merchant) persistMerchant(result.merchant)
+      saveSession()
+      return { admin: result.admin, merchant: result.merchant }
+    }
+    await delay(700)
+    throw new Error('This Google account is not linked to a merchant account. Contact your admin.')
+  },
+
   async merchantLogin({ email, password }) {
     if (hasLiveApi()) {
       const result = await live('/merchants/login/', { method: 'POST', body: { email, password }, role: 'merchant' })

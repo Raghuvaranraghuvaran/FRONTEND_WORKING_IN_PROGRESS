@@ -12,10 +12,13 @@ from .serializers import (
     AddressSerializer,
     GoogleLoginSerializer,
     LoginSerializer,
+    LoginOTPRequestSerializer,
+    LoginOTPVerifySerializer,
     RegisterSerializer,
     ShopperSerializer,
 )
 from .services import tokens_for_user
+from verification.services import OTPVerificationService
 
 User = get_user_model()
 
@@ -44,7 +47,7 @@ class LoginView(APIView):
             email=serializer.validated_data["email"],
             password=serializer.validated_data["password"],
         )
-        if user is None:
+        if user is None or not user.is_shopper:
             from common.exceptions import AppError
 
             raise AppError("Invalid email or password.", code="INVALID_CREDENTIALS")
@@ -62,6 +65,10 @@ class GoogleLoginView(APIView):
         google_profile = verify_google_id_token(serializer.validated_data["credential"])
 
         user = User.objects.filter(email__iexact=google_profile["email"]).first()
+        if user is not None and not user.is_shopper:
+            from common.exceptions import AppError
+
+            raise AppError("This Google account is not linked to a shopper account.", code="SHOPPER_ACCOUNT_REQUIRED")
         created = False
         if user is None:
             user = User.objects.create_user(
@@ -82,6 +89,32 @@ class GoogleLoginView(APIView):
                 "created": created,
             }
         )
+
+
+class LoginOTPRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = LoginOTPRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return success(OTPVerificationService().request_login_otp(
+            email=serializer.validated_data["email"], role=User.ROLE_SHOPPER
+        ))
+
+
+class LoginOTPVerifyView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = LoginOTPVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = OTPVerificationService().verify_login_otp(
+            email=serializer.validated_data["email"],
+            role=User.ROLE_SHOPPER,
+            challenge_id=serializer.validated_data["challenge_id"],
+            code=serializer.validated_data["code"],
+        )
+        return success({"tokens": tokens_for_user(user), "user": ShopperSerializer(user).data})
 
 
 class RefreshView(APIView):

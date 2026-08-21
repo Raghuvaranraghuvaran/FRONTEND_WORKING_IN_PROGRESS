@@ -29,8 +29,8 @@ export default function StorefrontHeader() {
     }`
 
   const mobileNavLinkClass = ({ isActive }) =>
-    `block rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
-      isActive ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'
+    `flex items-center justify-between border-b border-slate-100 px-6 py-3.5 text-[15px] font-medium transition-colors ${
+      isActive ? 'text-blue-600 bg-blue-50/50 font-semibold' : 'text-slate-800 hover:bg-slate-50 hover:text-blue-600'
     }`
 
   return (
@@ -84,12 +84,20 @@ export default function StorefrontHeader() {
               )}
             </div>
           ) : (
-            <Link
-              to="/login"
-              className="hidden rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 md:block"
-            >
-              Sign in
-            </Link>
+            <div className="hidden items-center gap-2 md:flex">
+              <Link
+                to="/login"
+                className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-500 transition-colors"
+              >
+                Shopper Login
+              </Link>
+              <Link
+                to="/merchant/login"
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Merchant Login
+              </Link>
+            </div>
           )}
 
           {/* hamburger — md and below */}
@@ -116,8 +124,8 @@ export default function StorefrontHeader() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+              transition={{ duration: 0.25 }}
+              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
               onClick={() => setMenuOpen(false)}
             />
 
@@ -126,58 +134,87 @@ export default function StorefrontHeader() {
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="fixed inset-y-0 right-0 z-50 flex w-64 flex-col bg-white shadow-2xl"
+              transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+              className="fixed inset-y-0 right-0 z-50 flex w-[82vw] max-w-[340px] flex-col justify-between bg-white text-slate-900 shadow-2xl"
             >
-              {/* drawer header */}
-              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                <div className="flex items-center gap-2">
-                  <BrandLogo compact className="h-8 w-[8.75rem]" />
+              <div>
+                {/* drawer close header */}
+                <div className="flex items-center justify-end px-5 pt-5 pb-3">
+                  <button
+                    onClick={() => setMenuOpen(false)}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                    aria-label="Close menu"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                      <path d="M3 3l12 12M15 3L3 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  </button>
                 </div>
-                <button
-                  onClick={() => setMenuOpen(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
-                  aria-label="Close menu"
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                  </svg>
-                </button>
+
+                {/* nav links with dividers */}
+                <nav className="mt-1 flex flex-col">
+                  <NavLink to="/" className={mobileNavLinkClass} onClick={() => setMenuOpen(false)}>
+                    Home
+                  </NavLink>
+                  <NavLink to="/shop" className={mobileNavLinkClass} onClick={() => setMenuOpen(false)}>
+                    Shop
+                  </NavLink>
+                  {shopper && (
+                    <>
+                      <NavLink to="/orders" className={mobileNavLinkClass} onClick={() => setMenuOpen(false)}>
+                        Orders
+                      </NavLink>
+                      <NavLink to="/cart" className={mobileNavLinkClass} onClick={() => setMenuOpen(false)}>
+                        <span>Cart</span>
+                        {cartCount > 0 && (
+                          <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                            {cartCount}
+                          </span>
+                        )}
+                      </NavLink>
+                      <NavLink to="/profile" className={mobileNavLinkClass} onClick={() => setMenuOpen(false)}>
+                        Profile ({shopper.name})
+                      </NavLink>
+                    </>
+                  )}
+                </nav>
               </div>
 
-              {/* nav links */}
-              <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-                <NavLink to="/shop" className={mobileNavLinkClass} onClick={() => setMenuOpen(false)}>Shop</NavLink>
-                {shopper && (
-                  <>
-                    <NavLink to="/orders" className={mobileNavLinkClass} onClick={() => setMenuOpen(false)}>Orders</NavLink>
-                    <NavLink to="/cart" className={mobileNavLinkClass} onClick={() => setMenuOpen(false)}>
-                      Cart {cartCount > 0 && <span className="ml-1 rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{cartCount}</span>}
-                    </NavLink>
-                    <NavLink to="/profile" className={mobileNavLinkClass} onClick={() => setMenuOpen(false)}>
-                      {shopper.name}
-                    </NavLink>
-                  </>
-                )}
-              </nav>
-
-              {/* footer */}
-              <div className="border-t border-slate-100 px-3 py-4">
+              {/* footer buttons */}
+              <div className="border-t border-slate-100 p-5 space-y-2.5">
                 {shopper ? (
-                  <button
-                    onClick={handleLogout}
-                    className="w-full rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-                  >
-                    Sign out
-                  </button>
+                  <>
+                    <button
+                      onClick={handleLogout}
+                      className="flex w-full items-center justify-center rounded-full bg-[#0055ff] py-3.5 px-6 text-[15px] font-semibold text-white shadow-sm hover:bg-[#0047d6] active:scale-[0.98] transition-all"
+                    >
+                      Sign out
+                    </button>
+                    <Link
+                      to="/merchant/login"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex w-full items-center justify-center rounded-full border border-slate-200 bg-white py-3 px-6 text-[14px] font-medium text-slate-700 hover:bg-slate-50 active:scale-[0.98] transition-all"
+                    >
+                      Merchant Portal
+                    </Link>
+                  </>
                 ) : (
-                  <Link
-                    to="/login"
-                    onClick={() => setMenuOpen(false)}
-                    className="block w-full rounded-xl bg-indigo-600 py-2.5 text-center text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
-                  >
-                    Sign in
-                  </Link>
+                  <>
+                    <Link
+                      to="/login"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex w-full items-center justify-center rounded-full bg-[#0055ff] py-3.5 px-6 text-[15px] font-semibold text-white shadow-sm hover:bg-[#0047d6] active:scale-[0.98] transition-all"
+                    >
+                      Shopper Login
+                    </Link>
+                    <Link
+                      to="/merchant/login"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex w-full items-center justify-center rounded-full border border-slate-200 bg-white py-3 px-6 text-[14px] font-medium text-slate-700 hover:bg-slate-50 active:scale-[0.98] transition-all"
+                    >
+                      Merchant Login
+                    </Link>
+                  </>
                 )}
               </div>
             </motion.aside>

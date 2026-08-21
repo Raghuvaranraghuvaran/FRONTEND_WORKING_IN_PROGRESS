@@ -1,0 +1,41 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Calibri;}{\f1 Consolas;}}
+\viewkind4\uc1
+\pard\sa240\qc\b\f0\fs32 Git Push Instructions\par
+\pard\sa240\qc\b0\fs22 Push changes to saikrishna-updated and main\par
+\pard\sa180\b\fs26 Before you start\par
+\pard\sa180\b0\fs22 Open PowerShell and go to the project root:\par
+\pard\li360\sa180\f1 cd "C:\\Users\\ADMIN\\OneDrive\\Desktop\\FRONTEND_WORKING_IN_PROGRESS"\par
+\pard\sa180\f0\b Step 1: Check your status\par
+\pard\sa180\b0 See your current branch and changed files:\par
+\pard\li360\sa180\f1 git status\par
+git branch\par
+\pard\sa180\f0\b Step 2: Switch to your working branch\par
+\pard\sa180\b0\f1 git switch saikrishna-updated\par
+\pard\sa180\f0\b Step 3: Add your changes\par
+\pard\sa180\b0 Add all changed files:\par
+\pard\li360\sa180\f1 git add .\par
+\pard\sa180\f0\b Step 4: Create a commit\par
+\pard\sa180\b0 Use a short message describing the changes:\par
+\pard\li360\sa180\f1 git commit -m "Describe your changes"\par
+\pard\sa180\f0\b Step 5: Push to your branch\par
+\pard\sa180\b0\f1 git push origin saikrishna-updated\par
+\pard\sa180\f0\b Step 6: Push the same changes to main\par
+\pard\sa180\b0\f1 git push origin saikrishna-updated:main\par
+\pard\sa180\f0\b Step 7: Confirm the result\par
+\pard\sa180\b0\f1 git status\par
+git log -1 --oneline\par
+\pard\sa240\f0\b Complete sequence\par
+\pard\sa180\b0 Run these commands from the project root:\par
+\pard\li360\sa180\f1 cd "C:\\Users\\ADMIN\\OneDrive\\Desktop\\FRONTEND_WORKING_IN_PROGRESS"\par
+git switch saikrishna-updated\par
+git add .\par
+git commit -m "Describe your changes"\par
+git push origin saikrishna-updated\par
+git push origin saikrishna-updated:main\par
+\pard\sa180\f0\b Important\par
+\pard\sa180\b0 Only run the commit command when git status shows changes. If there are no changes, Git will say there is nothing to commit.\par
+\pard\sa180\b If a commit is rejected because your identity is not configured, set it once with your own details:\par
+\pard\li360\sa180\f1 git config --global user.name "Your Name"\par
+git config --global user.email "you@example.com"\par
+}

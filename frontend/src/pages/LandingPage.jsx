@@ -594,15 +594,109 @@ export default function LandingPage() {
         </div>
       </motion.nav>
 
-      {/* ── MOBILE MENU ────────────────────────────────────────────── */}
+      {/* ── MOBILE MENU DRAWER ────────────────────────────────────────── */}
       <AnimatePresence>
         {navOpen && (
-          <motion.div className="vlc-mobile-menu" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <button className="vlc-mobile-close" onClick={() => setNavOpen(false)} aria-label="Close menu"><X size={28} /></button>
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+              onClick={() => setNavOpen(false)}
+            />
 
-            <Link to="/login" onClick={() => setNavOpen(false)} style={{ color: 'var(--accent)' }}>Shopper Login</Link>
-            <Link to="/merchant/login" onClick={() => setNavOpen(false)} style={{ color: 'var(--accent)' }}>Merchant Login</Link>
-          </motion.div>
+            {/* Drawer */}
+            <motion.aside
+              key="drawer"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+              className="fixed inset-y-0 right-0 z-50 flex w-[82vw] max-w-[340px] flex-col justify-between bg-white text-slate-900 shadow-2xl"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              <div>
+                {/* Close Button Top Row */}
+                <div className="flex items-center justify-end px-5 pt-5 pb-3">
+                  <button
+                    onClick={() => setNavOpen(false)}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                    aria-label="Close menu"
+                  >
+                    <X size={22} strokeWidth={2.2} />
+                  </button>
+                </div>
+
+                {/* Nav Links with Divider Lines */}
+                <nav className="mt-1 flex flex-col">
+                  <a
+                    href="#top"
+                    onClick={() => setNavOpen(false)}
+                    className="flex items-center justify-between border-b border-slate-100 px-6 py-3.5 text-[15px] font-medium text-slate-800 hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                  >
+                    Home
+                  </a>
+                  <a
+                    href="#shop"
+                    onClick={() => setNavOpen(false)}
+                    className="flex items-center justify-between border-b border-slate-100 px-6 py-3.5 text-[15px] font-medium text-slate-800 hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                  >
+                    Collection
+                  </a>
+                  <Link
+                    to="/shop"
+                    onClick={() => setNavOpen(false)}
+                    className="flex items-center justify-between border-b border-slate-100 px-6 py-3.5 text-[15px] font-medium text-slate-800 hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                  >
+                    Shop Store
+                  </Link>
+                  <a
+                    href="#drop"
+                    onClick={() => setNavOpen(false)}
+                    className="flex items-center justify-between border-b border-slate-100 px-6 py-3.5 text-[15px] font-medium text-slate-800 hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                  >
+                    Early Access
+                  </a>
+                  <a
+                    href="#stories"
+                    onClick={() => setNavOpen(false)}
+                    className="flex items-center justify-between border-b border-slate-100 px-6 py-3.5 text-[15px] font-medium text-slate-800 hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                  >
+                    Impact Stories
+                  </a>
+                  <a
+                    href="#top"
+                    onClick={() => setNavOpen(false)}
+                    className="flex items-center justify-between border-b border-slate-100 px-6 py-3.5 text-[15px] font-medium text-slate-800 hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                  >
+                    Contact
+                  </a>
+                </nav>
+              </div>
+
+              {/* Bottom Buttons: Shopper Login & Merchant Login */}
+              <div className="border-t border-slate-100 p-5 space-y-2.5">
+                <Link
+                  to="/login"
+                  onClick={() => setNavOpen(false)}
+                  className="flex w-full items-center justify-center rounded-full bg-[#0055ff] py-3.5 px-6 text-[15px] font-semibold text-white shadow-sm hover:bg-[#0047d6] active:scale-[0.98] transition-all"
+                >
+                  Shopper Login
+                </Link>
+                <Link
+                  to="/merchant/login"
+                  onClick={() => setNavOpen(false)}
+                  className="flex w-full items-center justify-center rounded-full border border-slate-200 bg-white py-3 px-6 text-[14px] font-medium text-slate-700 hover:bg-slate-50 active:scale-[0.98] transition-all"
+                >
+                  Merchant Login
+                </Link>
+              </div>
+            </motion.aside>
+          </>
         )}
       </AnimatePresence>
 

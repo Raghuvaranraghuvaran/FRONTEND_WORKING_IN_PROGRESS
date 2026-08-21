@@ -12,6 +12,8 @@ class OTPChallenge(TimestampedModel):
     )
     target = models.CharField(max_length=255, blank=True, default="")
     method = models.CharField(max_length=16, default="sms_otp")
+    purpose = models.CharField(max_length=32, default="verification")
+    role = models.CharField(max_length=32, blank=True, default="")
     code_hash = models.CharField(max_length=128)
     expires_at = models.DateTimeField()
     attempts = models.PositiveIntegerField(default=0)
@@ -19,6 +21,12 @@ class OTPChallenge(TimestampedModel):
 
     MAX_ATTEMPTS = 5
     TTL_SECONDS = 300
+
+    class Meta:
+        indexes = [
+            models.Index(fields=("user", "purpose", "created_at")),
+            models.Index(fields=("target", "purpose", "created_at")),
+        ]
 
     def __str__(self):
         return f"{self.user.email} OTP ({self.method})"

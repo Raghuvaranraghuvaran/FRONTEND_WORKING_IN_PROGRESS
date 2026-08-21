@@ -3,6 +3,7 @@ import secrets
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.mail import send_mail
 from django.utils import timezone
 
 from common.exceptions import AppError
@@ -12,6 +13,88 @@ from .models import OTPChallenge, VerificationEvent
 class OTPVerificationService:
     MAX_ATTEMPTS = 5
     TTL_SECONDS = 300
+    LOGIN_METHOD = "email_otp"
+    LOGIN_PURPOSE = "login"
+    LOGIN_WINDOW_SECONDS = 600
+    LOGIN_MAX_REQUESTS = 3
+
+    def request_login_otp(self, *, email, role):
+        user = self._login_user(email, role)
+        if user is None:
+            return {"sent": True, "expires_in": self.TTL_SECONDS}
+
+        window_start = timezone.now() - timedelta(seconds=self.LOGIN_WINDOW_SECONDS)
+        recent_requests = OTPChallenge.objects.filter(
+            user=user,
+            purpose=self.LOGIN_PURPOSE,
+            created_at__gte=window_start,
+        ).count()
+        if recent_requests >= self.LOGIN_MAX_REQUESTS:
+            raise AppError("Too many OTP requests. Try again later.", code="OTP_RATE_LIMITED")
+
+        code = f"{secrets.randbelow(1000000):06d}"
+        now = timezone.now()
+        OTPChallenge.objects.filter(
+            user=user,
+            purpose=self.LOGIN_PURPOSE,
+            verified_at__isnull=True,
+        ).update(expires_at=now)
+        challenge = OTPChallenge.objects.create(
+            user=user,
+            target=user.email,
+            method=self.LOGIN_METHOD,
+            purpose=self.LOGIN_PURPOSE,
+            role=role,
+            code_hash=self._hash_code(code),
+            expires_at=now + timedelta(seconds=self.TTL_SECONDS),
+        )
+        try:
+            send_mail(
+                subject="Your ReturnGuard sign-in code",
+                message=f"Your ReturnGuard sign-in code is {code}. It expires in 5 minutes.",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+        except Exception as exc:
+            challenge.delete()
+            raise AppError("Unable to send the sign-in code. Try again later.", code="OTP_SEND_FAILED") from exc
+        VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="sent")
+        return {
+            "sent": True,
+            "challenge_id": challenge.id,
+            "expires_in": self.TTL_SECONDS,
+        }
+
+    def verify_login_otp(self, *, email, role, challenge_id, code):
+        user = self._login_user(email, role)
+        challenge = OTPChallenge.objects.filter(
+            user=user,
+            id=challenge_id,
+            purpose=self.LOGIN_PURPOSE,
+            role=role,
+            verified_at__isnull=True,
+            expires_at__gt=timezone.now(),
+        ).first() if user else None
+        if challenge is None:
+            raise AppError("Invalid or expired sign-in code.", code="OTP_INVALID")
+        if challenge.attempts >= self.MAX_ATTEMPTS:
+            raise AppError("Too many attempts. Request a new code.", code="OTP_ATTEMPTS_EXCEEDED")
+        challenge.attempts += 1
+        challenge.save(update_fields=["attempts", "updated_at"])
+        if not secrets.compare_digest(self._hash_code(code), challenge.code_hash):
+            VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="failed")
+            raise AppError("Invalid or expired sign-in code.", code="OTP_INVALID")
+        challenge.verified_at = timezone.now()
+        challenge.save(update_fields=["verified_at", "updated_at"])
+        VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="confirmed", confidence=1)
+        return user
+
+    def _login_user(self, email, role):
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        return User.objects.filter(email__iexact=email, role=role, is_active=True).first()
 
     def send_otp(self, *, user, method="sms_otp", target=""):
         code = settings.DEMO_OTP
@@ -19,6 +102,7 @@ class OTPVerificationService:
             user=user,
             target=target or user.phone,
             method=method,
+            purpose="verification",
             code_hash=self._hash_code(code),
             expires_at=timezone.now() + timedelta(seconds=self.TTL_SECONDS),
         )
@@ -89,4 +173,5 @@ class OTPVerificationService:
         ReturnEvent.objects.create(return_request=return_request, label="OTP verified")
 
     def _hash_code(self, code):
-        return hashlib.sha256(code.encode()).hexdigest()
+        pepper = getattr(settings, "OTP_PEPPER", "")
+        return hashlib.sha256(f"{pepper}:{code}".encode()).hexdigest()

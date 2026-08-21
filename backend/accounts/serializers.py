@@ -94,3 +94,13 @@ class LoginSerializer(serializers.Serializer):
 
 class GoogleLoginSerializer(serializers.Serializer):
     credential = serializers.CharField()
+
+
+class LoginOTPRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class LoginOTPVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    challenge_id = serializers.IntegerField(required=False, allow_null=True)
+    code = serializers.RegexField(regex=r"^\d{6}$")
