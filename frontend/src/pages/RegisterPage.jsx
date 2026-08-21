@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../mock/api'
 import { useApp } from '../context/AppContext'
+import BrandLogo from '../components/BrandLogo'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
@@ -31,8 +32,7 @@ export default function RegisterPage() {
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
       <div className="w-full max-w-md">
         <Link to="/" className="mb-6 flex items-center justify-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-sm font-bold text-white">RG</span>
-          <span className="text-lg font-bold text-white">ReturnGuard</span>
+          <BrandLogo className="h-12 w-[14rem]" />
         </Link>
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-xl">
           <h1 className="text-2xl font-bold text-white">Create account</h1>

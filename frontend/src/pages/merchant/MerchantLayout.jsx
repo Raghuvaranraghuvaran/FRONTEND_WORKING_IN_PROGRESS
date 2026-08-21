@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { api } from '../../mock/api'
 import { useApp } from '../../context/AppContext'
+import BrandLogo from '../../components/BrandLogo'
 
 const navItems = [
   { to: '/merchant', label: 'Dashboard', end: true },
@@ -55,7 +56,7 @@ export default function MerchantLayout() {
           </button>
 
           <div className="flex min-w-0 shrink-0 items-center gap-2">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-bold text-white">RG</span>
+            <BrandLogo compact className="h-8 w-[8.75rem]" />
             <div className="min-w-0">
               <p className="truncate text-sm font-bold leading-tight text-slate-900">ReturnGuard</p>
               <p className="hidden truncate text-[11px] leading-tight text-slate-500 sm:block">Aria Fashion House</p>
@@ -105,7 +106,7 @@ export default function MerchantLayout() {
             >
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                 <div className="flex items-center gap-2.5">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white">RG</span>
+                  <BrandLogo compact className="h-8 w-[8.75rem]" />
                   <div>
                     <p className="text-sm font-bold leading-tight text-slate-900">ReturnGuard</p>
                     <p className="text-xs leading-tight text-slate-500">Aria Fashion House</p>

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 import { api } from '../mock/api'
 import NotificationBell from './NotificationBell'
+import BrandLogo from './BrandLogo'
 
 export default function StorefrontHeader() {
   const { shopper, setShopper, cart } = useApp()
@@ -39,8 +40,7 @@ export default function StorefrontHeader() {
         {/* left: logo + desktop nav */}
         <div className="flex items-center gap-6">
           <Link to="/" className="flex shrink-0 items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-sm font-bold text-white">RG</span>
-            <span className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">ReturnGuard</span>
+            <BrandLogo compact className="sm:h-9 sm:w-[10rem]" />
           </Link>
 
           {!isLandingPage && (
@@ -132,8 +132,7 @@ export default function StorefrontHeader() {
               {/* drawer header */}
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                 <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">RG</span>
-                  <span className="text-sm font-bold text-slate-900">ReturnGuard</span>
+                  <BrandLogo compact className="h-8 w-[8.75rem]" />
                 </div>
                 <button
                   onClick={() => setMenuOpen(false)}

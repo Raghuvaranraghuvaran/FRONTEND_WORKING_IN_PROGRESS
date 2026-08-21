@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { api } from '../mock/api'
 import { useApp } from '../context/AppContext'
+import BrandLogo from '../components/BrandLogo'
 import {
   hasGoogleSignIn,
   initializeGoogleSignIn,
@@ -59,8 +60,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* logo */}
         <Link to="/" className="mb-6 flex items-center justify-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-600/40">RG</span>
-          <span className="text-lg font-bold text-white">ReturnGuard</span>
+          <BrandLogo className="h-12 w-[14rem]" />
         </Link>
 
         {/* card */}

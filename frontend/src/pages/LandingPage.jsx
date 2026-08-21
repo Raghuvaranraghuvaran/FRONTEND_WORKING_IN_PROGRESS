@@ -348,10 +348,11 @@ export default function LandingPage() {
         .vlc-logo-icon {
           display: flex; align-items: center; justify-content: center;
           width: 36px; height: 36px; border-radius: 10px;
-          background: var(--accent); color: #fff; font-size: 14px; font-weight: 700;
+          background: transparent; color: #fff; font-size: 14px; font-weight: 700;
           font-family: 'Inter', sans-serif; letter-spacing: 0;
-          box-shadow: 0 0 20px var(--accent-glow);
+          box-shadow: none;
         }
+        .vlc-logo-icon img { width: 100%; height: 100%; object-fit: contain; }
         .vlc-nav-links { display: flex; gap: 36px; list-style: none; }
         .vlc-nav-links a {
           color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500;
@@ -582,7 +583,7 @@ export default function LandingPage() {
       {/* ── NAV ────────────────────────────────────────────────────── */}
       <motion.nav className="vlc-nav" style={{ background: navBg, borderColor: navBorder }}>
         <Link to="/" className="vlc-logo">
-          <span className="vlc-logo-icon">RG</span>
+          <span className="vlc-logo-icon"><img src="/returnguard-icon.svg" alt="" /></span>
           RETURN<span>GUARD</span>
         </Link>
 
@@ -701,7 +702,7 @@ export default function LandingPage() {
         <div className="vlc-footer-top">
           <div className="vlc-footer-brand">
             <div className="vlc-logo" style={{ fontSize: 22 }}>
-              <span className="vlc-logo-icon" style={{ width: 30, height: 30, fontSize: 12 }}>RG</span>
+              <span className="vlc-logo-icon" style={{ width: 30, height: 30, fontSize: 12 }}><img src="/returnguard-icon.svg" alt="" /></span>
               RETURN<span>GUARD</span>
             </div>
             <p>Intelligent return-fraud protection for India's D2C merchants. Secure shopping for every customer.</p>
