@@ -170,6 +170,11 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 
+# Safe fallback: if SMTP is selected but host/user/password aren't filled in, fall back to console
+if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend" and not (EMAIL_HOST and EMAIL_HOST_USER and EMAIL_HOST_PASSWORD):
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+
 # Google Sign-In (Google Identity Services). Set GOOGLE_CLIENT_ID to enable.
 GOOGLE_CLIENT_ID = os.getenv(
     "GOOGLE_CLIENT_ID",
