@@ -572,126 +572,182 @@ export default function LandingPage() {
         </div>
       </motion.nav>
 
-      {/* ── MOBILE / DESKTOP PORTAL SELECTION DRAWER (NO BLUR) ──────── */}
+      {/* ── MOBILE / DESKTOP PORTAL SELECTION DRAWER (DYNAMIC MOTION) ─ */}
       <AnimatePresence>
         {navOpen && (
           <>
-            {/* Backdrop: Darkened without blur so page remains sharp */}
+            {/* Backdrop: Darkened without blur so background stays crisp */}
             <motion.div
               key="backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-50 bg-black/60"
+              className="fixed inset-0 z-50 bg-black/75"
               onClick={() => setNavOpen(false)}
             />
 
-            {/* Drawer with rounded border radius and pristine layout */}
+            {/* Drawer styled with user's exact radial gradient & dynamic motion */}
             <motion.aside
               key="drawer"
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              transition={{ type: 'spring', stiffness: 340, damping: 32 }}
-              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[430px] flex-col justify-between bg-white text-slate-900 shadow-2xl p-7 sm:p-8 overflow-y-auto rounded-l-[32px] sm:rounded-l-[36px]"
-              style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
+              transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[520px] flex-col justify-between overflow-y-auto rounded-t-[28px] sm:rounded-t-none sm:rounded-l-[36px] shadow-2xl p-5 sm:p-8 md:p-10 border-t sm:border-t-0 sm:border-l border-blue-500/20"
+              style={{
+                background: 'radial-gradient(circle at top, #17233a 0%, #0a0f1a 42%, #070a12 100%)',
+                color: '#fff',
+                fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+              }}
             >
-              <div>
-                {/* Pull handle for mobile & tablet + Close Button */}
-                <div className="relative flex items-center justify-between mb-2">
-                  <div className="mx-auto w-12 h-1 bg-slate-200/90 rounded-full" />
-                  <button
-                    onClick={() => setNavOpen(false)}
-                    className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 border border-slate-100 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                    aria-label="Close menu"
-                  >
-                    <X size={18} strokeWidth={2.2} />
-                  </button>
-                </div>
+              <div className="relative w-full">
+                {/* Mobile Drag Indicator */}
+                <div className="sm:hidden w-12 h-1 bg-slate-500/40 rounded-full mx-auto mb-3" />
 
-                {/* Main Header with Centered Icon */}
-                <div className="flex flex-col items-center text-center mt-4 mb-8">
-                  <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-blue-50/90 text-blue-600 mb-4 border border-blue-100/70 shadow-sm">
-                    <ShoppingBag size={30} strokeWidth={2} />
-                  </div>
-                  <h2 className="text-2xl sm:text-[26px] font-extrabold text-slate-900 tracking-tight leading-tight flex items-center gap-1.5">
-                    Welcome Back <span className="text-xl sm:text-2xl">👋</span>
-                  </h2>
-                  <p className="text-[14px] text-slate-500 mt-1.5 font-medium">
-                    Select your portal to continue
+                {/* Close Button with micro-interaction */}
+                <motion.button
+                  whileHover={{ scale: 1.15, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setNavOpen(false)}
+                  className="absolute top-0 right-0 border-0 bg-transparent text-[#9fb0c9] hover:text-white text-[32px] sm:text-[38px] leading-none cursor-pointer transition-colors p-1"
+                  aria-label="Close menu"
+                >
+                  ×
+                </motion.button>
+
+                {/* Brand Icon with smooth float animation */}
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1, y: [0, -5, 0] }}
+                  transition={{
+                    scale: { duration: 0.4, ease: 'easeOut' },
+                    opacity: { duration: 0.3 },
+                    y: { duration: 3.5, repeat: Infinity, ease: 'easeInOut' }
+                  }}
+                  className="mx-auto mb-4 sm:mb-5 grid place-items-center rounded-[26px] sm:rounded-[30px] text-[36px] sm:text-[42px] shadow-[0_20px_60px_rgba(0,0,0,0.35)]"
+                  style={{
+                    width: 86,
+                    height: 86,
+                    background: 'linear-gradient(145deg, #17253d, #0d1422)',
+                    border: '1px solid rgba(74, 144, 255, 0.35)',
+                  }}
+                >
+                  🛍️
+                </motion.div>
+
+                {/* Title & Subtitle with staggered entry */}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1, duration: 0.35 }}
+                >
+                  <h1 className="text-[26px] sm:text-[34px] font-bold text-white text-center m-0 leading-tight">
+                    Welcome Back
+                  </h1>
+                  <p className="text-[14px] sm:text-[16px] text-[#9aa9bf] text-center mt-2 mb-6 sm:mb-8 font-normal">
+                    Choose your portal to continue
                   </p>
-                </div>
+                </motion.div>
 
-                {/* Portal Cards: Shopper and Merchant with clean gap */}
-                <div className="space-y-4 pt-1">
-                  {/* Shopper Login Card */}
-                  <Link
-                    to="/login"
-                    onClick={() => setNavOpen(false)}
-                    className="group relative flex items-center justify-between gap-4 rounded-[22px] bg-gradient-to-r from-[#1a66ff] to-[#2563eb] p-5 text-white shadow-xl shadow-blue-500/25 hover:from-[#1557e0] hover:to-[#1d4ed8] active:scale-[0.98] transition-all"
+                {/* Portal Cards with dynamic button flow */}
+                <div className="grid gap-5 sm:gap-6 w-full">
+                  {/* Shopper Portal Card with spring hover */}
+                  <motion.div
+                    initial={{ opacity: 0, x: 25 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.16, duration: 0.35, ease: 'easeOut' }}
+                    whileHover={{ scale: 1.02, y: -3 }}
+                    whileTap={{ scale: 0.98 }}
                   >
-                    <div className="flex items-center gap-4">
-                      {/* White circular badge with blue shopping bag icon */}
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-blue-600 shadow-sm">
-                        <ShoppingBag size={22} strokeWidth={2.2} />
+                    <Link
+                      to="/login"
+                      onClick={() => setNavOpen(false)}
+                      className="group flex items-center gap-4 sm:gap-5 p-4 sm:p-5 text-left rounded-[20px] sm:rounded-[22px] text-white transition-all duration-300 border border-white/10 hover:border-[#3b82f6] bg-[rgba(19,28,45,0.85)] hover:bg-[rgba(27,42,68,0.95)] hover:shadow-[0_16px_45px_rgba(37,99,235,0.22)]"
+                      style={{ textDecoration: 'none' }}
+                    >
+                      <div
+                        className="grid place-items-center shrink-0 rounded-[15px] sm:rounded-[17px] text-[24px] sm:text-[27px] group-hover:scale-110 transition-transform duration-300"
+                        style={{
+                          width: 54,
+                          height: 54,
+                          background: 'rgba(59, 130, 246, 0.14)',
+                          border: '1px solid rgba(59, 130, 246, 0.25)',
+                        }}
+                      >
+                        🛍
                       </div>
-                      <div className="text-left">
-                        <h3 className="text-[16px] font-bold text-white leading-tight">
-                          Shopper Login
-                        </h3>
-                        <p className="text-[13px] text-blue-100/90 mt-0.5 font-normal leading-snug">
-                          Access your orders,<br className="hidden sm:inline" /> returns and rewards.
+
+                      <div className="flex-1 min-w-0">
+                        <h2 className="text-[17px] sm:text-[19px] font-semibold text-white m-0 mb-1 leading-snug group-hover:text-blue-200 transition-colors">
+                          Shopper Portal
+                        </h2>
+                        <p className="text-[12.5px] sm:text-[13.5px] text-[#9aa9bf] m-0 leading-relaxed font-normal">
+                          Shop, track orders, manage returns and rewards.
                         </p>
                       </div>
-                    </div>
-                    {/* Blue circular chevron button */}
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-700/50 text-white group-hover:translate-x-0.5 transition-transform">
-                      <ChevronRight size={18} strokeWidth={2.5} />
-                    </div>
-                  </Link>
 
-                  {/* Merchant Login Card */}
-                  <Link
-                    to="/merchant/login"
-                    onClick={() => setNavOpen(false)}
-                    className="group relative flex items-center justify-between gap-4 rounded-[22px] bg-white border border-slate-200/90 p-5 text-slate-900 shadow-sm hover:border-slate-300 hover:shadow-md hover:bg-slate-50/50 active:scale-[0.98] transition-all"
+                      <span className="text-[24px] sm:text-[28px] text-[#60a5fa] font-light shrink-0 group-hover:translate-x-1.5 transition-transform duration-300">
+                        →
+                      </span>
+                    </Link>
+                  </motion.div>
+
+                  {/* Merchant Portal Card with spring hover */}
+                  <motion.div
+                    initial={{ opacity: 0, x: 25 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.24, duration: 0.35, ease: 'easeOut' }}
+                    whileHover={{ scale: 1.02, y: -3 }}
+                    whileTap={{ scale: 0.98 }}
                   >
-                    <div className="flex items-center gap-4">
-                      {/* Light blue circular badge with storefront icon */}
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 border border-blue-100/60">
-                        <Store size={22} strokeWidth={2.2} />
+                    <Link
+                      to="/merchant/login"
+                      onClick={() => setNavOpen(false)}
+                      className="group flex items-center gap-4 sm:gap-5 p-4 sm:p-5 text-left rounded-[20px] sm:rounded-[22px] text-white transition-all duration-300 border border-white/10 hover:border-[#8b5cf6] bg-[rgba(19,28,45,0.85)] hover:bg-[rgba(27,42,68,0.95)] hover:shadow-[0_16px_45px_rgba(139,92,246,0.22)]"
+                      style={{ textDecoration: 'none' }}
+                    >
+                      <div
+                        className="grid place-items-center shrink-0 rounded-[15px] sm:rounded-[17px] text-[24px] sm:text-[27px] group-hover:scale-110 transition-transform duration-300"
+                        style={{
+                          width: 54,
+                          height: 54,
+                          background: 'rgba(139, 92, 246, 0.14)',
+                          border: '1px solid rgba(139, 92, 246, 0.28)',
+                        }}
+                      >
+                        🏪
                       </div>
-                      <div className="text-left">
-                        <h3 className="text-[16px] font-bold text-slate-900 leading-tight">
-                          Merchant Login
-                        </h3>
-                        <p className="text-[13px] text-slate-500 mt-0.5 font-normal leading-snug">
-                          Manage your store,<br className="hidden sm:inline" /> orders and customers.
+
+                      <div className="flex-1 min-w-0">
+                        <h2 className="text-[17px] sm:text-[19px] font-semibold text-white m-0 mb-1 leading-snug group-hover:text-purple-200 transition-colors">
+                          Merchant Portal
+                        </h2>
+                        <p className="text-[12.5px] sm:text-[13.5px] text-[#9aa9bf] m-0 leading-relaxed font-normal">
+                          Manage your store, products, orders and customers.
                         </p>
                       </div>
-                    </div>
-                    {/* Slate circular chevron button */}
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 border border-slate-200/60 text-slate-600 group-hover:translate-x-0.5 group-hover:text-slate-900 transition-all">
-                      <ChevronRight size={18} strokeWidth={2.5} />
-                    </div>
-                  </Link>
-                </div>
-              </div>
 
-              {/* Bottom Security Trust Badge */}
-              <div className="mt-10 pt-6 border-t border-slate-100 flex items-start gap-3.5 text-left">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 border border-blue-100/60 mt-0.5">
-                  <ShieldCheck size={19} strokeWidth={2.2} />
+                      <span className="text-[24px] sm:text-[28px] text-[#60a5fa] font-light shrink-0 group-hover:translate-x-1.5 transition-transform duration-300">
+                        →
+                      </span>
+                    </Link>
+                  </motion.div>
                 </div>
-                <div>
-                  <p className="text-[13px] font-bold text-slate-900">
-                    Secure. Reliable. Trusted.
-                  </p>
-                  <p className="text-[12px] text-slate-500 mt-0.5 leading-normal">
-                    Your data is protected with enterprise-grade security.
-                  </p>
-                </div>
+
+                {/* Trust Footer with smooth fade */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.32, duration: 0.4 }}
+                  className="mt-8 sm:mt-11 flex justify-center items-center gap-2 sm:gap-2.5 text-[#93a4bb] text-[12.5px] sm:text-[14px] font-medium"
+                >
+                  <span>🔒 Secure</span>
+                  <span className="text-slate-600">•</span>
+                  <span>Reliable</span>
+                  <span className="text-slate-600">•</span>
+                  <span>Trusted</span>
+                </motion.div>
               </div>
             </motion.aside>
           </>

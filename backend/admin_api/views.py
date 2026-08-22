@@ -33,17 +33,28 @@ class MerchantDashboardView(APIView):
     permission_classes = [IsAuthenticated, IsMerchantAdmin]
 
     def get(self, request):
+        from django.db.models import Sum
         merchant = get_merchant_from_user(request.user)
-        total_orders = Order.objects.filter(merchant=merchant).count()
+        merchant_orders = Order.objects.filter(merchant=merchant)
+        total_orders = merchant_orders.count()
+        total_revenue = merchant_orders.filter(~Q(status="Cancelled")).aggregate(total=Sum("total"))["total"] or 0
+        
         flagged = ReturnRequest.objects.filter(merchant=merchant, status="manual_review")
         flagged_cases = flagged.count()
-        pending_review = Order.objects.filter(merchant=merchant, status="Review").count() + flagged_cases
+        all_returns = ReturnRequest.objects.filter(merchant=merchant).count()
+        return_rate = round((all_returns / total_orders * 100), 1) if total_orders > 0 else 0.0
+
+        pending_review = merchant_orders.filter(status="Review").count() + flagged_cases
         recent_flagged = flagged.select_related("order").order_by("-created_at")[:5]
+        
         return success(
             {
                 "totalOrders": total_orders,
+                "totalRevenue": float(total_revenue),
                 "flaggedCases": flagged_cases,
                 "pendingReview": pending_review,
+                "returnRate": return_rate,
+                "riskTier": "Low" if return_rate < 10 else "Medium" if return_rate < 25 else "High",
                 "recentFlagged": ReturnRequestSerializer(recent_flagged, many=True).data,
             }
         )
@@ -65,7 +76,12 @@ class MerchantCustomersView(APIView):
 
     def get(self, request):
         merchant = get_merchant_from_user(request.user)
-        profiles = ShopperProfile.objects.filter(merchant=merchant).select_related("user").order_by("-joined_at")
+        profiles = (
+            ShopperProfile.objects.filter(Q(merchant=merchant) | Q(user__orders__merchant=merchant))
+            .select_related("user")
+            .distinct()
+            .order_by("-joined_at")
+        )
         return success(ShopperProfileSerializer(profiles, many=True).data)
 
 

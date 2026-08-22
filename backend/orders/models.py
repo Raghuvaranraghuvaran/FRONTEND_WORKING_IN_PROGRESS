@@ -38,6 +38,7 @@ class Order(TimestampedModel):
     verification_status = models.CharField(max_length=16, default="Verified")
     verification_method = models.CharField(max_length=16, default="device_only")
     device_token = models.CharField(max_length=128, blank=True, default="")
+    delivery_address = models.TextField(blank=True, default="")
     risk_context = models.TextField(blank=True, default="")
     tracking_events = models.JSONField(default=list)
 

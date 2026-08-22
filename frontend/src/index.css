@@ -16,8 +16,12 @@ body {
   background: #fafaff;
 }
 
-#root {
-  min-height: 100vh;
+input, button, select, textarea {
+  outline: none;
+}
+
+input:focus-visible, input:focus, input:active {
+  outline: none;
 }
 
 .font-mono-num {

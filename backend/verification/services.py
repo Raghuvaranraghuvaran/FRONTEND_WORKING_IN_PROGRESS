@@ -19,7 +19,7 @@ class OTPVerificationService:
     LOGIN_MAX_REQUESTS = 10
 
     def request_login_otp(self, *, email, role):
-        user = self._get_or_create_user(email, role)
+        user = self._get_existing_user(email, role)
 
         window_start = timezone.now() - timedelta(seconds=self.LOGIN_WINDOW_SECONDS)
         recent_requests = OTPChallenge.objects.filter(
@@ -72,7 +72,7 @@ class OTPVerificationService:
         }
 
     def verify_login_otp(self, *, email, role, challenge_id, code):
-        user = self._get_or_create_user(email, role)
+        user = self._get_existing_user(email, role)
         challenge = OTPChallenge.objects.filter(
             user=user,
             id=challenge_id,
@@ -101,45 +101,19 @@ class OTPVerificationService:
         VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="confirmed", confidence=1)
         return user
 
-    def _get_or_create_user(self, email, role):
+    def _get_existing_user(self, email, role):
         from django.contrib.auth import get_user_model
-        from accounts.models import ShopperProfile
 
         User = get_user_model()
-        user = User.objects.filter(email__iexact=email).first()
-        if user is not None:
-            if role and user.role != role:
-                user.role = role
-                user.save(update_fields=["role"])
-            return user
-
-        user = User.objects.create_user(
-            email=email.lower().strip(),
-            name=email.split("@")[0].capitalize(),
-            role=role,
-        )
-        if role == User.ROLE_SHOPPER:
-            ShopperProfile.objects.get_or_create(
-                user=user,
-                defaults={"customer_id": f"CUST-{user.id + 1000}"}
+        user = User.objects.filter(email__iexact=email.strip()).first()
+        if user is None:
+            raise AppError(
+                "No account found with this email. Please create an account first.",
+                code="ACCOUNT_NOT_FOUND"
             )
-        elif role == User.ROLE_MERCHANT_ADMIN:
-            from merchants.models import Merchant, MerchantProfile
-            from merchants.views import _seed_default_categories
-            slug = email.split("@")[0].lower().replace(".", "-")[:40]
-            merchant, created = Merchant.objects.get_or_create(
-                store_slug=slug,
-                defaults={
-                    "business_name": f"{email.split('@')[0]}'s Store",
-                    "admin_email": email,
-                }
-            )
-            MerchantProfile.objects.get_or_create(
-                user=user,
-                defaults={"merchant": merchant}
-            )
-            if created:
-                _seed_default_categories(merchant)
+        if role and user.role != role:
+            user.role = role
+            user.save(update_fields=["role"])
         return user
 
 

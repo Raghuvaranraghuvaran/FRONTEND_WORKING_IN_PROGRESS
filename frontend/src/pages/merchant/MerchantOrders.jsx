@@ -10,13 +10,26 @@ const filters = ['All', 'COD', 'Prepaid', 'Flagged']
 export default function MerchantOrders() {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [filter, setFilter] = useState('All')
 
+  const fetchOrders = () => {
+    setLoading(true)
+    setError(null)
+    api
+      .getMerchantOrders()
+      .then((data) => {
+        setOrders(Array.isArray(data) ? data : [])
+        setLoading(false)
+      })
+      .catch((err) => {
+        setError(err.message || 'Failed to load orders from server.')
+        setLoading(false)
+      })
+  }
+
   useEffect(() => {
-    api.getMerchantOrders().then((data) => {
-      setOrders(data)
-      setLoading(false)
-    })
+    fetchOrders()
   }, [])
 
   const filtered = orders.filter((order) => {
@@ -30,6 +43,18 @@ export default function MerchantOrders() {
     <div>
       <h1 className="text-2xl font-bold text-slate-900">Orders</h1>
       <p className="text-sm text-slate-500">Review payment method, risk, and status for every order.</p>
+
+      {error && (
+        <div className="mt-4 flex items-center justify-between rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+          <span>Error loading orders: {error}</span>
+          <button
+            onClick={fetchOrders}
+            className="rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-500 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className="mt-5 flex flex-wrap gap-2">
         {filters.map((item) => (
@@ -45,7 +70,9 @@ export default function MerchantOrders() {
 
       <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
         {loading ? (
-          <div className="p-6">Loading…</div>
+          <div className="p-8 text-center text-slate-500">Loading store orders…</div>
+        ) : error ? (
+          <div className="p-8 text-center text-slate-500">Unable to load orders at this time.</div>
         ) : filtered.length === 0 ? (
           <div className="p-6"><EmptyState title="No orders match this filter" /></div>
         ) : (

@@ -48,7 +48,7 @@ export default function MerchantLoginPage() {
   const { setMerchant } = useApp()
 
   const [activeTab, setActiveTab] = useState('pw')
-  const [form, setForm] = useState({ email: 'demo@merchant.com', password: 'demo123' })
+  const [form, setForm] = useState({ email: '', password: '' })
   const [remember, setRemember] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -107,6 +107,8 @@ export default function MerchantLoginPage() {
       <style>{`
         @keyframes rg-spin { to { transform: rotate(360deg); } }
         .rg-m-field:focus-within { border-color: ${A} !important; box-shadow: 0 0 0 3px ${A}22; }
+        .rg-m-input { border: none !important; outline: none !important; box-shadow: none !important; background: transparent !important; }
+        .rg-m-input:focus, .rg-m-input:active, .rg-m-input:focus-visible { border: none !important; outline: none !important; box-shadow: none !important; }
         .rg-m-input::placeholder { color: #9ca3af; }
         .rg-m-tab:hover { background: rgba(28,156,134,0.1) !important; }
       `}</style>
@@ -251,28 +253,26 @@ export default function MerchantLoginPage() {
             {/* otp tab */}
             {activeTab === 'otp' && (!otpSent ? (
               <div>
-                <label style={lbl}>Email Address</label>
-                <div className="rg-m-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ ...lbl, marginBottom: 0 }}>Merchant Email</label>
+                  <span style={{ fontSize: 11.5, color: '#6b7280' }}>Passwordless login</span>
+                </div>
+                <div className="rg-m-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 18 }}>
                   <IconMail />
-                  <input className="rg-m-input" type="email" required placeholder="you@example.com"
-                    value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} style={inp} />
-                </div>
-                <div style={{
-                  background: `${A}0c`, border: `1px solid ${A}22`,
-                  borderRadius: 10, padding: 13, fontSize: 12.5, color: '#4b5563', marginBottom: 10, lineHeight: 1.55,
-                }}>
-                  We'll send a 6-digit one-time code to this email. No password needed.
-                </div>
-                <div style={{
-                  background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
-                  borderRadius: 10, padding: '9px 13px', fontSize: 12, color: '#92400e', marginBottom: 16, lineHeight: 1.5,
-                }}>
-                  <strong>Demo mode:</strong> Use code <strong style={{ fontFamily: 'monospace', letterSpacing: '0.1em' }}>123456</strong> to verify.
+                  <input
+                    className="rg-m-input"
+                    type="email"
+                    required
+                    placeholder="Enter your store email"
+                    value={form.email}
+                    onChange={e => setForm({ ...form, email: e.target.value })}
+                    style={inp}
+                  />
                 </div>
                 <motion.button type="button" disabled={submitting || !form.email} onClick={sendOTP}
                   whileHover={{ scale: submitting ? 1 : 1.02 }} whileTap={{ scale: 0.97 }}
-                  style={{ ...btn(A), opacity: (!form.email || submitting) ? 0.5 : 1 }}>
-                  {submitting ? <><Spinner /> Sending…</> : 'Send one-time code'}
+                  style={{ ...btn(A), opacity: (!form.email || submitting) ? 0.6 : 1, marginBottom: 0 }}>
+                  {submitting ? <><Spinner /> Sending code…</> : 'Send one-time code'}
                 </motion.button>
               </div>
             ) : (
@@ -296,24 +296,29 @@ export default function MerchantLoginPage() {
               </form>
             ))}
 
-            {/* divider */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0 14px' }}>
-              <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.1)' }} />
-              <span style={{ fontSize: 12, color: '#9ca3af' }}>or</span>
-              <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.1)' }} />
-            </div>
+            {/* Google sign-in only on standard login tab */}
+            {activeTab === 'pw' && (
+              <>
+                {/* divider */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0 14px' }}>
+                  <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.1)' }} />
+                  <span style={{ fontSize: 12, color: '#9ca3af' }}>or</span>
+                  <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.1)' }} />
+                </div>
 
-            {hasGoogleSignIn() ? (
-              <div id="merchant-google-signin" ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center' }} />
-            ) : (
-              <button type="button" disabled={submitting} style={googleButton} onClick={async () => {
-                setError(''); setSubmitting(true)
-                try { const s = await api.merchantGoogleSignIn('mock-credential'); setMerchant(s.admin); navigate('/merchant') }
-                catch (e) { setError(e.message) }
-                finally { setSubmitting(false) }
-              }}>
-                {submitting ? <><Spinner /> Signing in…</> : <><IconGoogle /> Continue with Google</>}
-              </button>
+                {hasGoogleSignIn() ? (
+                  <div id="merchant-google-signin" ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center' }} />
+                ) : (
+                  <button type="button" disabled={submitting} style={googleButton} onClick={async () => {
+                    setError(''); setSubmitting(true)
+                    try { const s = await api.merchantGoogleSignIn('mock-credential'); setMerchant(s.admin); navigate('/merchant') }
+                    catch (e) { setError(e.message) }
+                    finally { setSubmitting(false) }
+                  }}>
+                    {submitting ? <><Spinner /> Signing in…</> : <><IconGoogle /> Continue with Google</>}
+                  </button>
+                )}
+              </>
             )}
 
             <p style={{ textAlign: 'center', fontSize: 12.5, color: '#6b7280', marginTop: 16, marginBottom: 0 }}>

@@ -53,6 +53,30 @@ export default function ReturnRequestPage() {
     )
   }
 
+  const isDelivered =
+    order.delivery_status?.toLowerCase() === 'delivered' ||
+    order.status?.toLowerCase() === 'delivered'
+
+  if (!isDelivered) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-20 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-600 text-2xl mb-4">
+          📦
+        </div>
+        <h1 className="text-xl font-bold text-slate-900">Return Not Available Yet</h1>
+        <p className="mt-2 text-sm text-slate-600 max-w-md mx-auto">
+          Order <strong>{order.order_number}</strong> is currently <strong>{order.delivery_status || order.status}</strong>. Returns can only be requested after the package has been delivered to you.
+        </p>
+        <Link
+          to="/orders"
+          className="mt-6 inline-flex rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+        >
+          Back to my orders
+        </Link>
+      </main>
+    )
+  }
+
   const toggleLine = (item, checked) => {
     setSelectedLines((current) => {
       const next = { ...current }

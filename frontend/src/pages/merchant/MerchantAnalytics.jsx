@@ -39,39 +39,53 @@ export default function MerchantAnalytics() {
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
           <h2 className="text-base font-semibold text-slate-900">Returns per week</h2>
-          <div className="mt-4 flex items-end gap-3" style={{ height: '220px' }}>
-            {data.weeklyTrend.map((week) => {
-              const max = Math.max(...data.weeklyTrend.map((w) => w.returns))
-              return (
-                <div key={week.week} className="flex flex-1 flex-col items-center gap-1">
-                  <div className="flex w-full items-end justify-center gap-1">
-                    <div className="w-7 rounded-t-md bg-slate-200" style={{ height: `${(week.returns / max) * 170}px` }} title={`${week.returns} returns`} />
-                    <div className="w-7 rounded-t-md bg-rose-400" style={{ height: `${(week.flagged / max) * 170}px` }} title={`${week.flagged} flagged`} />
-                  </div>
-                  <span className="text-xs font-medium text-slate-500">{week.week}</span>
-                </div>
-              )
-            })}
-          </div>
-          <div className="mt-3 flex justify-center gap-5 text-xs text-slate-500">
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-slate-200" /> Returns</span>
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-rose-400" /> Flagged</span>
-          </div>
+          {(!data.weeklyTrend || data.weeklyTrend.length === 0) ? (
+            <div className="flex h-[220px] items-center justify-center text-sm text-slate-400">
+              No weekly return trend data recorded yet.
+            </div>
+          ) : (
+            <>
+              <div className="mt-4 flex items-end gap-3" style={{ height: '220px' }}>
+                {data.weeklyTrend.map((week) => {
+                  const max = Math.max(1, ...data.weeklyTrend.map((w) => w.returns || 0))
+                  return (
+                    <div key={week.week} className="flex flex-1 flex-col items-center gap-1">
+                      <div className="flex w-full items-end justify-center gap-1">
+                        <div className="w-7 rounded-t-md bg-slate-200" style={{ height: `${((week.returns || 0) / max) * 170}px` }} title={`${week.returns} returns`} />
+                        <div className="w-7 rounded-t-md bg-rose-400" style={{ height: `${((week.flagged || 0) / max) * 170}px` }} title={`${week.flagged} flagged`} />
+                      </div>
+                      <span className="text-xs font-medium text-slate-500">{week.week}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="mt-3 flex justify-center gap-5 text-xs text-slate-500">
+                <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-slate-200" /> Returns</span>
+                <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-rose-400" /> Flagged</span>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
           <h2 className="text-base font-semibold text-slate-900">Top flagged customers</h2>
-          <div className="mt-4 space-y-3">
-            {data.topFlaggedCustomers.map((item, index) => (
-              <div key={item.customer} className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">{index + 1}</span>
-                  <span className="text-sm font-medium text-slate-900">{item.customer}</span>
+          {(!data.topFlaggedCustomers || data.topFlaggedCustomers.length === 0) ? (
+            <div className="flex h-[220px] items-center justify-center text-sm text-slate-400">
+              No flagged customers for this store.
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {data.topFlaggedCustomers.map((item, index) => (
+                <div key={item.customer || index} className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">{index + 1}</span>
+                    <span className="text-sm font-medium text-slate-900">{item.customer}</span>
+                  </div>
+                  <span className="text-sm font-semibold text-rose-600">{item.flagged} flagged</span>
                 </div>
-                <span className="text-sm font-semibold text-rose-600">{item.flagged} flagged</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

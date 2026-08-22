@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../mock/api'
+import { formatDate, INR } from '../../lib/format'
 import { TrendingUp, AlertTriangle, Clock, DollarSign, ArrowUpRight, Filter, ExternalLink, CheckCircle2 } from 'lucide-react'
 
 // Stat Card Component
@@ -160,10 +161,24 @@ export default function MerchantDashboard() {
   const [activeTab, setActiveTab] = useState('recent')
 
   useEffect(() => {
-    api.getMerchantDashboard().then((result) => {
-      setData(result)
-      setLoading(false)
-    })
+    api.getMerchantDashboard()
+      .then((result) => {
+        setData(result || {})
+        setLoading(false)
+      })
+      .catch((err) => {
+        console.error('Failed to fetch merchant dashboard:', err)
+        setData({
+          totalOrders: 0,
+          totalRevenue: 0,
+          flaggedCases: 0,
+          pendingReview: 0,
+          returnRate: 0,
+          riskTier: 'Low',
+          recentFlagged: [],
+        })
+        setLoading(false)
+      })
   }, [])
 
   if (loading || !data) {
@@ -191,21 +206,20 @@ export default function MerchantDashboard() {
       <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <StatCard
           title="Total Orders"
-          value={data.totalOrders || 24}
-          subtitle="+12% vs last month"
+          value={data.totalOrders ?? 0}
+          subtitle="All-time store orders"
           color="purple"
-          trend={12}
         />
         <StatCard
           title="Flagged cases"
-          value={data.flaggedCases || 7}
-          subtitle="2 cases"
+          value={data.flaggedCases ?? 0}
+          subtitle="Returns requiring review"
           color="orange"
         />
         <StatCard
           title="Pending review"
-          value={data.pendingReview || 3}
-          subtitle="3 cases"
+          value={data.pendingReview ?? 0}
+          subtitle="Total review backlog"
           color="pink"
         />
       </div>
@@ -214,24 +228,22 @@ export default function MerchantDashboard() {
       <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <StatCard
           title="Revenue (INR)"
-          value="₹1,24,850"
-          subtitle="+8%"
+          value={INR.format(data.totalRevenue ?? 0)}
+          subtitle="Delivered & active orders"
           color="green"
           icon={DollarSign}
-          trend={8}
         />
         <StatCard
-          title="Flagged Return Rate"
-          value="8.3%"
-          subtitle="-1.2%"
+          title="Return Rate"
+          value={`${data.returnRate ?? 0}%`}
+          subtitle="Calculated from store returns"
           color="yellow"
           icon={TrendingUp}
-          trend={-1.2}
         />
         <StatCard
           title="Store Risk Tier"
-          value="'Stable' ↑"
-          subtitle="Prev: Low Risk"
+          value={data.riskTier || 'Low'}
+          subtitle="AI Store Risk Rating"
           color="dark"
           icon={AlertTriangle}
         />

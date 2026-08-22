@@ -11,7 +11,8 @@ export default function OrdersPage() {
   const [returns, setReturns] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('orders')
-  const [tracking, setTracking] = useState(null)
+  const [trackingOrderMap, setTrackingOrderMap] = useState({})
+  const [activeTrackingId, setActiveTrackingId] = useState(null)
 
   useEffect(() => {
     Promise.all([api.getShopperOrders(), api.getShopperReturns()])
@@ -27,9 +28,16 @@ export default function OrdersPage() {
       })
   }, [])
 
-  const trackOrder = async (orderId) => {
-    const events = await api.trackOrder(orderId)
-    setTracking(events)
+  const toggleTrackOrder = async (orderId) => {
+    if (activeTrackingId === orderId) {
+      setActiveTrackingId(null)
+      return
+    }
+    if (!trackingOrderMap[orderId]) {
+      const events = await api.trackOrder(orderId)
+      setTrackingOrderMap((prev) => ({ ...prev, [orderId]: events }))
+    }
+    setActiveTrackingId(orderId)
   }
 
   return (
@@ -44,13 +52,13 @@ export default function OrdersPage() {
           onClick={() => setTab('orders')}
           className={`rounded-full px-4 py-1.5 text-sm font-medium ${tab === 'orders' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200'}`}
         >
-          Orders
+          Orders ({orders.length})
         </button>
         <button
           onClick={() => setTab('returns')}
           className={`rounded-full px-4 py-1.5 text-sm font-medium ${tab === 'returns' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200'}`}
         >
-          Returns
+          Returns ({returns.length})
         </button>
       </div>
 
@@ -65,68 +73,101 @@ export default function OrdersPage() {
           <EmptyState title="No orders yet" description="Your placed orders will appear here." />
         ) : (
           <div className="space-y-3">
-            {orders.map((order) => (
-              <div key={order.id} className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h2 className="text-base font-bold text-slate-900">{order.order_number}</h2>
-                      <RiskBadge tier={order.risk_tier} />
-                      <StatusBadge status={order.status} />
-                      <StatusBadge status={order.delivery_status} />
-                      {order.payment_status && <StatusBadge status={order.payment_status} />}
+            {orders.map((order) => {
+              const isDelivered =
+                order.delivery_status?.toLowerCase() === 'delivered' ||
+                order.status?.toLowerCase() === 'delivered'
+              const existingReturn = returns.find(
+                (r) => r.order_id === order.id || r.order_number === order.order_number
+              )
+
+              return (
+                <div key={order.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h2 className="text-base font-bold text-slate-900">{order.order_number}</h2>
+                        <RiskBadge tier={order.risk_tier} />
+                        <StatusBadge status={order.status} />
+                        <StatusBadge status={order.delivery_status} />
+                        {order.payment_status && <StatusBadge status={order.payment_status} />}
+                      </div>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {formatDate(order.created_at)} · {order.payment_method}
+                      </p>
+                      {order.invoice && (
+                        <a
+                          href={order.invoice.invoice_url}
+                          className="mt-1 inline-block text-xs font-semibold text-indigo-600"
+                        >
+                          Invoice {order.invoice.invoice_number}
+                        </a>
+                      )}
                     </div>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {formatDate(order.created_at)} · {order.payment_method}
-                    </p>
-                    {order.invoice && (
-                      <a
-                        href={order.invoice.invoice_url}
-                        className="mt-1 inline-block text-xs font-semibold text-indigo-600"
+                    <div className="text-right">
+                      <p className="text-base font-bold text-slate-900">{INR.format(order.total)}</p>
+                      <p className="text-xs text-slate-500">
+                        {order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 1} item(s)
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    {/* Return button: ONLY shown after delivery is completed */}
+                    {existingReturn ? (
+                      <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 border border-slate-200">
+                        Return {existingReturn.status === 'manual_review' ? 'Under Review' : existingReturn.status}
+                      </span>
+                    ) : isDelivered ? (
+                      <Link
+                        to={`/orders/${order.id}/return`}
+                        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors"
                       >
-                        Invoice {order.invoice.invoice_number}
-                      </a>
+                        Request return
+                      </Link>
+                    ) : (
+                      <span className="text-xs text-slate-400 font-medium py-1">
+                        Return available once delivered
+                      </span>
                     )}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-base font-bold text-slate-900">{INR.format(order.total)}</p>
-                    <p className="text-xs text-slate-500">
-                      {order.items.reduce((sum, item) => sum + item.quantity, 0)} item(s)
-                    </p>
-                  </div>
-                </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Link
-                    to={`/orders/${order.id}/return`}
-                    className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500"
-                  >
-                    Request return
-                  </Link>
-                  <button
-                    onClick={() => trackOrder(order.id)}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                  >
-                    Track order
-                  </button>
-                </div>
+                    {/* Track Order button */}
+                    <button
+                      onClick={() => toggleTrackOrder(order.id)}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        activeTrackingId === order.id
+                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {activeTrackingId === order.id ? 'Hide tracking' : 'Track order'}
+                    </button>
+                  </div>
 
-                {tracking && (
-                  <div className="mt-4 rounded-xl bg-slate-50 p-4">
-                    <p className="text-xs font-semibold text-slate-900">Tracking timeline</p>
-                    <div className="mt-2 space-y-2">
-                      {tracking.map((event, index) => (
-                        <div key={index} className="flex items-center gap-2 text-xs">
-                          <span className={`h-2 w-2 rounded-full ${event.done ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                          <span className="font-medium text-slate-700">{event.label}</span>
-                          <span className="text-slate-400">{event.at ? formatDateTime(event.at) : 'Pending'}</span>
-                        </div>
-                      ))}
+                  {/* Order-specific Tracking Timeline */}
+                  {activeTrackingId === order.id && trackingOrderMap[order.id] && (
+                    <div className="mt-4 rounded-xl bg-slate-50 p-4 border border-slate-100 animate-fade-up">
+                      <p className="text-xs font-semibold text-slate-900 mb-2">Live Shipping Progress</p>
+                      <div className="space-y-2">
+                        {trackingOrderMap[order.id].map((event, index) => (
+                          <div key={index} className="flex items-center gap-2.5 text-xs">
+                            <span
+                              className={`h-2.5 w-2.5 rounded-full ${
+                                event.done ? 'bg-emerald-500' : 'bg-slate-300'
+                              }`}
+                            />
+                            <span className="font-medium text-slate-700">{event.label}</span>
+                            <span className="text-slate-400">
+                              {event.at ? formatDateTime(event.at) : 'Pending'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              )
+            })}
           </div>
         )
       ) : returns.length === 0 ? (
