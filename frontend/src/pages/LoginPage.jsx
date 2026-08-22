@@ -60,7 +60,6 @@ export default function LoginPage() {
   const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState('')
   const [otpChallengeId, setOtpChallengeId] = useState(null)
-  const [sentHintCode, setSentHintCode] = useState('')
   const [focusedField, setFocusedField] = useState('')
   const googleButtonRef = useRef(null)
 
@@ -90,7 +89,6 @@ export default function LoginPage() {
     try {
       const r = await api.requestLoginOTP(form.email)
       if (r?.challenge_id) setOtpChallengeId(r.challenge_id)
-      if (r?.code) setSentHintCode(r.code)
       setOtpSent(true)
     } catch (e) { setError(e.message) }
     finally { setSubmitting(false) }
@@ -325,38 +323,9 @@ export default function LoginPage() {
                     Change email
                   </button>
                 </div>
-                <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 10px' }}>
-                  Sent to <strong style={{ color: '#111827' }}>{form.email}</strong>
+                <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 16px' }}>
+                  A 6-digit verification code has been sent to <strong style={{ color: '#111827' }}>{form.email}</strong>. Please check your email inbox to retrieve it.
                 </p>
-
-                {/* On-screen Display & Auto-Fill */}
-                {sentHintCode && (
-                  <div style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    margin: '0 0 14px', padding: '8px 12px',
-                    background: `${A}12`, border: `1px solid ${A}30`, borderRadius: 8
-                  }}>
-                    <div>
-                      <span style={{ fontSize: 11, color: '#4b5563', display: 'block', fontWeight: 500 }}>
-                        Your One-Time Code:
-                      </span>
-                      <strong style={{ fontFamily: 'monospace', fontSize: 15, color: A, letterSpacing: '2px' }}>
-                        {sentHintCode}
-                      </strong>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setOtpCode(sentHintCode)}
-                      style={{
-                        background: A, color: '#fff', border: 'none',
-                        borderRadius: 6, padding: '4px 10px', fontSize: 12,
-                        cursor: 'pointer', fontWeight: 600
-                      }}
-                    >
-                      Auto-Fill
-                    </button>
-                  </div>
-                )}
                 <div className="rg-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 16 }}>
                   <input
                     className="rg-input"
