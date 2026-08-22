@@ -594,7 +594,7 @@ export default function LandingPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', stiffness: 340, damping: 32 }}
-              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[400px] flex-col justify-between bg-white text-slate-900 shadow-2xl p-6 sm:p-8 overflow-y-auto"
+              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[410px] flex-col justify-between bg-white text-slate-900 shadow-2xl p-6 sm:p-7 overflow-y-auto"
               style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
             >
               <div>
@@ -602,43 +602,43 @@ export default function LandingPage() {
                 <div className="flex items-center justify-end">
                   <button
                     onClick={() => setNavOpen(false)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition-colors"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100/80 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
                     aria-label="Close menu"
                   >
-                    <X size={22} strokeWidth={2.2} />
+                    <X size={19} strokeWidth={2.2} />
                   </button>
                 </div>
 
                 {/* Main Header with Centered Icon */}
-                <div className="flex flex-col items-center text-center mt-2 mb-8">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-600 mb-4 border border-blue-100 shadow-sm">
+                <div className="flex flex-col items-center text-center mt-3 mb-7">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-b from-blue-50 to-blue-100/60 text-blue-600 mb-3.5 border border-blue-100 shadow-sm">
                     <ShoppingBag size={28} strokeWidth={2} />
                   </div>
-                  <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+                  <h2 className="text-[25px] font-bold text-slate-900 tracking-tight leading-tight">
                     Welcome Back
                   </h2>
-                  <p className="text-sm text-slate-500 mt-1.5 font-normal">
+                  <p className="text-[13.5px] text-slate-500 mt-1 font-normal">
                     Select your portal to continue.
                   </p>
                 </div>
 
-                {/* Portal Cards: Shopper and Merchant Only */}
-                <div className="space-y-4">
+                {/* Portal Cards: Shopper and Merchant with clean gap */}
+                <div className="space-y-4 pt-1">
                   {/* Shopper Login Card */}
                   <Link
                     to="/login"
                     onClick={() => setNavOpen(false)}
-                    className="group flex items-center justify-between gap-4 rounded-2xl bg-[#0055ff] p-4 sm:p-5 text-white shadow-md shadow-blue-500/25 hover:bg-[#0047d6] active:scale-[0.98] transition-all"
+                    className="group flex items-center justify-between gap-4 rounded-2xl bg-[#0055ff] p-5 text-white shadow-lg shadow-blue-500/20 hover:bg-[#0047d6] active:scale-[0.98] transition-all"
                   >
                     <div className="flex items-center gap-3.5">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/20 text-white">
-                        <ShoppingBag size={20} strokeWidth={2} />
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/20 text-white">
+                        <ShoppingBag size={21} strokeWidth={2} />
                       </div>
                       <div className="text-left">
-                        <h3 className="text-base font-bold text-white leading-tight">
+                        <h3 className="text-[15.5px] font-bold text-white leading-tight">
                           Shopper Login
                         </h3>
-                        <p className="text-xs sm:text-sm text-blue-100 mt-0.5 font-normal">
+                        <p className="text-[12.5px] text-blue-100 mt-0.5 font-normal leading-snug">
                           Access your orders, returns and rewards.
                         </p>
                       </div>
@@ -650,17 +650,17 @@ export default function LandingPage() {
                   <Link
                     to="/merchant/login"
                     onClick={() => setNavOpen(false)}
-                    className="group flex items-center justify-between gap-4 rounded-2xl bg-white border border-slate-200/90 p-4 sm:p-5 text-slate-900 shadow-sm hover:border-blue-200 hover:bg-slate-50/60 active:scale-[0.98] transition-all"
+                    className="group flex items-center justify-between gap-4 rounded-2xl bg-white border border-slate-200 p-5 text-slate-900 shadow-sm hover:border-slate-300 hover:bg-slate-50/70 active:scale-[0.98] transition-all"
                   >
                     <div className="flex items-center gap-3.5">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                        <Store size={20} strokeWidth={2} />
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50/90 text-blue-600 border border-blue-100/60">
+                        <Store size={21} strokeWidth={2} />
                       </div>
                       <div className="text-left">
-                        <h3 className="text-base font-bold text-slate-900 leading-tight">
+                        <h3 className="text-[15.5px] font-bold text-slate-900 leading-tight">
                           Merchant Login
                         </h3>
-                        <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-normal">
+                        <p className="text-[12.5px] text-slate-500 mt-0.5 font-normal leading-snug">
                           Manage your store, orders and customers.
                         </p>
                       </div>
@@ -671,10 +671,12 @@ export default function LandingPage() {
               </div>
 
               {/* Bottom Security Trust Badge */}
-              <div className="mt-8 pt-6 border-t border-slate-100 flex items-start gap-3 text-left">
-                <ShieldCheck size={18} className="text-blue-600 shrink-0 mt-0.5" />
+              <div className="mt-8 pt-5 border-t border-slate-100 flex items-start gap-3 text-left">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 mt-0.5">
+                  <ShieldCheck size={18} />
+                </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-800">
+                  <p className="text-[12.5px] font-semibold text-slate-800">
                     Secure. Reliable. Trusted.
                   </p>
                   <p className="text-[11px] text-slate-500 mt-0.5 leading-normal">
