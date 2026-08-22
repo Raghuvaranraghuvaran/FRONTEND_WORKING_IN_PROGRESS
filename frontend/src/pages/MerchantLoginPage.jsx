@@ -315,20 +315,50 @@ export default function MerchantLoginPage() {
               </div>
             ) : (
               <form onSubmit={verifyOTP}>
-                <label style={lbl}>6-digit code</label>
-                <div className="rg-m-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)' }}>
-                  <input className="rg-m-input" inputMode="numeric" pattern="\d{6}" maxLength={6} required
-                    placeholder="123456" value={otpCode}
-                    onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                    style={{ ...inp, letterSpacing: '0.25em', textAlign: 'center', fontSize: 17, fontWeight: 600 }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ ...lbl, marginBottom: 0 }}>6-Digit Verification Code</label>
+                  <button
+                    type="button"
+                    onClick={() => { setOtpSent(false); setOtpCode(''); }}
+                    style={{ background: 'none', border: 'none', color: A, cursor: 'pointer', fontSize: 12, fontWeight: 500, padding: 0 }}
+                  >
+                    Change email
+                  </button>
                 </div>
-                <motion.button type="submit" disabled={submitting}
+                <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 10px' }}>
+                  Sent to <strong style={{ color: '#111827' }}>{form.email}</strong>
+                </p>
+                <div className="rg-m-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 16 }}>
+                  <input
+                    className="rg-m-input"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="\d{6}"
+                    maxLength={6}
+                    name="auth_merchant_otp_code"
+                    autoComplete="one-time-code"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck="false"
+                    data-lpignore="true"
+                    data-form-type="other"
+                    data-1p-ignore="true"
+                    data-tempmail-ignore="true"
+                    data-disable-tempmail="true"
+                    required
+                    placeholder="• • • • • •"
+                    value={otpCode}
+                    onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    style={{ ...inp, letterSpacing: '0.35em', textAlign: 'center', fontSize: 18, fontWeight: 700 }}
+                  />
+                </div>
+                <motion.button type="submit" disabled={submitting || otpCode.length < 6}
                   whileHover={{ scale: submitting ? 1 : 1.02 }} whileTap={{ scale: 0.97 }}
-                  style={{ ...btn(A), marginBottom: 8 }}>
-                  {submitting ? <><Spinner /> Verifying…</> : 'Verify code'}
+                  style={{ ...btn(A), marginBottom: 10, opacity: (otpCode.length < 6 || submitting) ? 0.6 : 1 }}>
+                  {submitting ? <><Spinner /> Verifying…</> : 'Verify & Continue'}
                 </motion.button>
                 <button type="button" onClick={sendOTP} disabled={submitting}
-                  style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, color: A, padding: '4px 0' }}>
+                  style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, color: A, padding: '4px 0', fontWeight: 500 }}>
                   Resend code
                 </button>
               </form>
