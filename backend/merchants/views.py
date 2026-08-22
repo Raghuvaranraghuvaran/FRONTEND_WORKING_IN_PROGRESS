@@ -52,24 +52,13 @@ class MerchantLoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        email = request.data.get("email")
-        password = request.data.get("password")
+        email = request.data.get("email", "").strip()
+        password = request.data.get("password", "")
         user = authenticate(request, email=email, password=password)
         if user is None or not user.is_merchant_admin:
             raise AppError("Invalid merchant credentials.", code="INVALID_CREDENTIALS")
-        merchant = get_merchant_from_user(user)
-        return success(
-            {
-                "tokens": tokens_for_user(user),
-                "admin": {
-                    "id": user.id,
-                    "email": user.email,
-                    "name": user.name,
-                    "role": user.role,
-                },
-                "merchant": MerchantSerializer(merchant).data,
-            }
-        )
+        return success(merchant_login_payload(user))
+
 
 
 def _seed_default_categories(merchant):
