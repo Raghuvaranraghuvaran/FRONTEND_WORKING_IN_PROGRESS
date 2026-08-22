@@ -116,7 +116,7 @@ export default function StorefrontHeader() {
         </div>
       </div>
 
-      {/* ── MOBILE PORTAL DRAWER (NO BLUR) ──────────────────────── */}
+      {/* ── MOBILE / DESKTOP PORTAL DRAWER (NO BLUR) ───────────── */}
       <AnimatePresence>
         {menuOpen && (
           <>
@@ -136,36 +136,37 @@ export default function StorefrontHeader() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', stiffness: 340, damping: 32 }}
-              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[410px] flex-col justify-between bg-white text-slate-900 shadow-2xl p-6 sm:p-7 overflow-y-auto"
+              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[430px] flex-col justify-between bg-white text-slate-900 shadow-2xl p-7 sm:p-8 overflow-y-auto rounded-l-[32px] sm:rounded-l-[36px]"
             >
               <div>
-                {/* drawer close header */}
-                <div className="flex items-center justify-end">
+                {/* Pull handle for mobile & tablet + Close Button */}
+                <div className="relative flex items-center justify-between mb-2">
+                  <div className="mx-auto w-12 h-1 bg-slate-200/90 rounded-full" />
                   <button
                     onClick={() => setMenuOpen(false)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100/80 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
+                    className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 border border-slate-100 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
                     aria-label="Close menu"
                   >
-                    <X size={19} strokeWidth={2.2} />
+                    <X size={18} strokeWidth={2.2} />
                   </button>
                 </div>
 
                 {/* Main Header with Centered Icon */}
-                <div className="flex flex-col items-center text-center mt-3 mb-7">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-b from-blue-50 to-blue-100/60 text-blue-600 mb-3.5 border border-blue-100 shadow-sm">
-                    <ShoppingBag size={28} strokeWidth={2} />
+                <div className="flex flex-col items-center text-center mt-4 mb-8">
+                  <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-blue-50/90 text-blue-600 mb-4 border border-blue-100/70 shadow-sm">
+                    <ShoppingBag size={30} strokeWidth={2} />
                   </div>
-                  <h2 className="text-[25px] font-bold text-slate-900 tracking-tight leading-tight">
-                    {shopper ? `Hello, ${shopper.name}` : 'Welcome Back'}
+                  <h2 className="text-2xl sm:text-[26px] font-extrabold text-slate-900 tracking-tight leading-tight flex items-center gap-1.5">
+                    {shopper ? `Hello, ${shopper.name}` : <>Welcome Back <span className="text-xl sm:text-2xl">👋</span></>}
                   </h2>
-                  <p className="text-[13.5px] text-slate-500 mt-1 font-normal">
-                    {shopper ? 'Navigate your account & portal' : 'Select your portal to continue.'}
+                  <p className="text-[14px] text-slate-500 mt-1.5 font-medium">
+                    {shopper ? 'Navigate your account & portal' : 'Select your portal to continue'}
                   </p>
                 </div>
 
                 {shopper ? (
                   /* Logged-in Shopper Navigation Links */
-                  <nav className="space-y-2">
+                  <nav className="space-y-2.5">
                     <NavLink to="/shop" className={mobileNavLinkClass} onClick={() => setMenuOpen(false)}>
                       Shop Products
                     </NavLink>
@@ -191,51 +192,55 @@ export default function StorefrontHeader() {
                     <Link
                       to="/login"
                       onClick={() => setMenuOpen(false)}
-                      className="group flex items-center justify-between gap-4 rounded-2xl bg-[#0055ff] p-5 text-white shadow-lg shadow-blue-500/20 hover:bg-[#0047d6] active:scale-[0.98] transition-all"
+                      className="group relative flex items-center justify-between gap-4 rounded-[22px] bg-gradient-to-r from-[#1a66ff] to-[#2563eb] p-5 text-white shadow-xl shadow-blue-500/25 hover:from-[#1557e0] hover:to-[#1d4ed8] active:scale-[0.98] transition-all"
                     >
-                      <div className="flex items-center gap-3.5">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/20 text-white">
-                          <ShoppingBag size={21} strokeWidth={2} />
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-blue-600 shadow-sm">
+                          <ShoppingBag size={22} strokeWidth={2.2} />
                         </div>
                         <div className="text-left">
-                          <h3 className="text-[15.5px] font-bold text-white leading-tight">
+                          <h3 className="text-[16px] font-bold text-white leading-tight">
                             Shopper Login
                           </h3>
-                          <p className="text-[12.5px] text-blue-100 mt-0.5 font-normal leading-snug">
-                            Access your orders, returns and rewards.
+                          <p className="text-[13px] text-blue-100/90 mt-0.5 font-normal leading-snug">
+                            Access your orders,<br className="hidden sm:inline" /> returns and rewards.
                           </p>
                         </div>
                       </div>
-                      <ChevronRight size={20} className="text-white/80 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-700/50 text-white group-hover:translate-x-0.5 transition-transform">
+                        <ChevronRight size={18} strokeWidth={2.5} />
+                      </div>
                     </Link>
 
                     {/* Merchant Login Card */}
                     <Link
                       to="/merchant/login"
                       onClick={() => setMenuOpen(false)}
-                      className="group flex items-center justify-between gap-4 rounded-2xl bg-white border border-slate-200 p-5 text-slate-900 shadow-sm hover:border-slate-300 hover:bg-slate-50/70 active:scale-[0.98] transition-all"
+                      className="group relative flex items-center justify-between gap-4 rounded-[22px] bg-white border border-slate-200/90 p-5 text-slate-900 shadow-sm hover:border-slate-300 hover:shadow-md hover:bg-slate-50/50 active:scale-[0.98] transition-all"
                     >
-                      <div className="flex items-center gap-3.5">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50/90 text-blue-600 border border-blue-100/60">
-                          <Store size={21} strokeWidth={2} />
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 border border-blue-100/60">
+                          <Store size={22} strokeWidth={2.2} />
                         </div>
                         <div className="text-left">
-                          <h3 className="text-[15.5px] font-bold text-slate-900 leading-tight">
+                          <h3 className="text-[16px] font-bold text-slate-900 leading-tight">
                             Merchant Login
                           </h3>
-                          <p className="text-[12.5px] text-slate-500 mt-0.5 font-normal leading-snug">
-                            Manage your store, orders and customers.
+                          <p className="text-[13px] text-slate-500 mt-0.5 font-normal leading-snug">
+                            Manage your store,<br className="hidden sm:inline" /> orders and customers.
                           </p>
                         </div>
                       </div>
-                      <ChevronRight size={20} className="text-slate-400 shrink-0 group-hover:translate-x-0.5 group-hover:text-slate-600 transition-all" />
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 border border-slate-200/60 text-slate-600 group-hover:translate-x-0.5 group-hover:text-slate-900 transition-all">
+                        <ChevronRight size={18} strokeWidth={2.5} />
+                      </div>
                     </Link>
                   </div>
                 )}
               </div>
 
               {/* Bottom Security Trust Badge / Signout */}
-              <div className="mt-8 pt-5 border-t border-slate-100">
+              <div className="mt-10 pt-6 border-t border-slate-100">
                 {shopper ? (
                   <button
                     onClick={handleLogout}
@@ -244,16 +249,16 @@ export default function StorefrontHeader() {
                     Sign out
                   </button>
                 ) : (
-                  <div className="flex items-start gap-3 text-left">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 mt-0.5">
-                      <ShieldCheck size={18} />
+                  <div className="flex items-start gap-3.5 text-left">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 border border-blue-100/60 mt-0.5">
+                      <ShieldCheck size={19} strokeWidth={2.2} />
                     </div>
                     <div>
-                      <p className="text-[12.5px] font-semibold text-slate-800">
+                      <p className="text-[13px] font-bold text-slate-900">
                         Secure. Reliable. Trusted.
                       </p>
-                      <p className="text-[11px] text-slate-500 mt-0.5 leading-normal">
-                        Your data is protected with enterprise grade security.
+                      <p className="text-[12px] text-slate-500 mt-0.5 leading-normal">
+                        Your data is protected with enterprise-grade security.
                       </p>
                     </div>
                   </div>
