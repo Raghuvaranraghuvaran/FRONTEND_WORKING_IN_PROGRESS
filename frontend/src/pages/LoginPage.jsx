@@ -60,7 +60,6 @@ export default function LoginPage() {
   const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState('')
   const [otpChallengeId, setOtpChallengeId] = useState(null)
-  const [sentHintCode, setSentHintCode] = useState('')
   const [focusedField, setFocusedField] = useState('')
   const googleButtonRef = useRef(null)
 
@@ -90,7 +89,6 @@ export default function LoginPage() {
     try {
       const r = await api.requestLoginOTP(form.email)
       if (r?.challenge_id) setOtpChallengeId(r.challenge_id)
-      if (r?.code) setSentHintCode(r.code)
       setOtpSent(true)
     } catch (e) { setError(e.message) }
     finally { setSubmitting(false) }
@@ -325,31 +323,9 @@ export default function LoginPage() {
                     Change email
                   </button>
                 </div>
-                <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 10px' }}>
-                  Sent to <strong style={{ color: '#111827' }}>{form.email}</strong>
+                <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 16px' }}>
+                  A 6-digit one-time passcode has been sent to <strong style={{ color: '#111827' }}>{form.email}</strong>. Please check your email inbox.
                 </p>
-
-                {/* Instant Fill Helper */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  margin: '0 0 12px', padding: '7px 12px',
-                  background: `${A}12`, border: `1px solid ${A}28`, borderRadius: 8
-                }}>
-                  <span style={{ fontSize: 12, color: '#1f2937' }}>
-                    Code: <strong style={{ fontFamily: 'monospace', fontSize: 13, color: A }}>{sentHintCode || '123456'}</strong>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setOtpCode(sentHintCode || '123456')}
-                    style={{
-                      background: A, color: '#fff', border: 'none',
-                      borderRadius: 6, padding: '3px 9px', fontSize: 11.5,
-                      cursor: 'pointer', fontWeight: 600
-                    }}
-                  >
-                    Auto-Fill
-                  </button>
-                </div>
                 <div className="rg-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 16 }}>
                   <input
                     className="rg-input"
