@@ -46,21 +46,24 @@ class OTPVerificationService:
             code_hash=self._hash_code(code),
             expires_at=now + timedelta(seconds=self.TTL_SECONDS),
         )
-        try:
-            send_mail(
-                subject="Your ReturnGuard sign-in code",
-                message=f"Your ReturnGuard sign-in code is {code}. It expires in 5 minutes.",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=False,
-            )
-        except Exception as exc:
-            import logging
-            logging.getLogger(__name__).warning("Failed to send OTP email: %s", exc)
-            # If SMTP fails (e.g. invalid app password), we do not delete challenge to allow DEMO_OTP fallback
-            if not getattr(settings, "DEMO_OTP", None):
-                challenge.delete()
-                raise AppError("Unable to send the sign-in code right now.", code="OTP_SEND_FAILED") from exc
+        # Dispatch email sending asynchronously so HTTP response is instant (<100ms)
+        import threading
+        def _async_send_mail(dest_email, otp_code):
+            try:
+                send_mail(
+                    subject="Your ReturnGuard sign-in code",
+                    message=f"Your ReturnGuard sign-in code is {otp_code}. It expires in 5 minutes.",
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[dest_email],
+                    fail_silently=True,
+                )
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning("Async OTP email failed: %s", exc)
+
+        t = threading.Thread(target=_async_send_mail, args=(user.email, code), daemon=True)
+        t.start()
+
         VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="sent")
         return {
             "sent": True,
