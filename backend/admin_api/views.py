@@ -374,6 +374,75 @@ class MerchantProductsView(APIView):
         return success(AdminProductSerializer(product).data, status=status.HTTP_201_CREATED)
 
 
+class MerchantProductBulkUploadView(APIView):
+    permission_classes = [IsAuthenticated, IsMerchantAdmin]
+
+    def post(self, request):
+        import uuid
+        from django.utils.text import slugify
+        merchant = get_merchant_from_user(request.user)
+        products_data = request.data.get("products", [])
+        if not isinstance(products_data, list) or len(products_data) == 0:
+            raise AppError("A non-empty list of products is required.", code="INVALID_PAYLOAD")
+
+        created_products = []
+        for item in products_data:
+            name = (item.get("name") or "").strip()
+            if not name:
+                continue
+            price = item.get("price") or 0
+            stock = item.get("stock") or 0
+            image = item.get("image") or "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80"
+            desc = item.get("description") or ""
+            cat_name = (item.get("category") or item.get("category_id") or "").strip()
+
+            category = None
+            if cat_name:
+                category = Category.objects.filter(merchant=merchant, id=cat_name).first()
+                if not category:
+                    category = Category.objects.filter(merchant=merchant, name__iexact=cat_name).first()
+                if not category:
+                    slug = slugify(cat_name) or "cat"
+                    cat_id = f"cat_{merchant.id}_{slug}"
+                    category = Category.objects.filter(id=cat_id).first()
+                    if not category:
+                        category = Category.objects.create(
+                            id=cat_id,
+                            merchant=merchant,
+                            name=cat_name,
+                            slug=slug,
+                            description=f"{cat_name} collection",
+                        )
+
+            product = Product.objects.create(
+                merchant=merchant,
+                category=category,
+                name=name,
+                price=price,
+                stock=stock,
+                image=image,
+                description=desc,
+                is_active=item.get("is_active", True),
+            )
+            created_products.append(product)
+
+        log_action(
+            merchant=merchant,
+            actor=request.user.email,
+            action="bulk_imported",
+            target="Products Bulk Import",
+            notes=f"Successfully imported {len(created_products)} products via CSV/Bulk Entry.",
+        )
+
+        return success(
+            {
+                "count": len(created_products),
+                "products": AdminProductSerializer(created_products, many=True).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
 class MerchantProductDetailView(APIView):
     permission_classes = [IsAuthenticated, IsMerchantAdmin]
 

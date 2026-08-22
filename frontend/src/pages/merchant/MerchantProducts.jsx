@@ -1,8 +1,64 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Plus, Search, Edit2, Trash2, Check, X, AlertTriangle, Package, DollarSign, Tag } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Plus, Search, Edit2, Trash2, Check, X, AlertTriangle, Package, DollarSign, Tag, UploadCloud, FileSpreadsheet, Download, RefreshCw } from 'lucide-react'
 import { api } from '../../mock/api'
 import { INR } from '../../lib/format'
 import EmptyState from '../../components/EmptyState'
+
+const DEFAULT_SAMPLE_CSV = `name,price,category,stock,image,description
+Classic Silk Saree,2499,Ethnic Wear,50,https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600,Pure silk saree with zari border
+Cotton Kurta Set,1299,Daily Wear,100,https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=600,Breathable summer daily wear
+Wireless Earbuds,1999,Electronics,25,https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600,Active noise cancellation`
+
+function parseCSV(text) {
+  if (!text || !text.trim()) return []
+  const lines = text.trim().split(/\r?\n/)
+  if (lines.length < 2) return []
+
+  const parseLine = (line) => {
+    const result = []
+    let cur = ''
+    let inQuote = false
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i]
+      if (c === '"') {
+        inQuote = !inQuote
+      } else if (c === ',' && !inQuote) {
+        result.push(cur.trim())
+        cur = ''
+      } else {
+        cur += c
+      }
+    }
+    result.push(cur.trim())
+    return result
+  }
+
+  const headers = parseLine(lines[0]).map((h) => h.toLowerCase().trim().replace(/^"|"$/g, ''))
+  const nameIdx = headers.findIndex((h) => h === 'name' || h === 'product_name' || h === 'title')
+  const priceIdx = headers.findIndex((h) => h === 'price' || h === 'mrp' || h === 'cost')
+  const catIdx = headers.findIndex((h) => h === 'category' || h === 'category_name' || h === 'category_id')
+  const stockIdx = headers.findIndex((h) => h === 'stock' || h === 'quantity' || h === 'qty')
+  const imgIdx = headers.findIndex((h) => h === 'image' || h === 'image_url' || h === 'photo')
+  const descIdx = headers.findIndex((h) => h === 'description' || h === 'desc' || h === 'details')
+
+  const items = []
+  for (let i = 1; i < lines.length; i++) {
+    const row = parseLine(lines[i])
+    if (row.length === 0 || (row.length === 1 && !row[0])) continue
+
+    const name = nameIdx !== -1 ? row[nameIdx] : row[0] || ''
+    if (!name) continue
+
+    const price = priceIdx !== -1 ? parseFloat(row[priceIdx]) || 0 : 0
+    const category = catIdx !== -1 ? row[catIdx] : 'General'
+    const stock = stockIdx !== -1 ? parseInt(row[stockIdx], 10) || 10 : 10
+    const image = (imgIdx !== -1 ? row[imgIdx] : '') || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80'
+    const description = descIdx !== -1 ? row[descIdx] : ''
+
+    items.push({ name, price, category, stock, image, description, is_active: true })
+  }
+  return items
+}
 
 const statusFilters = [
   { id: 'all', label: 'All Items' },
@@ -35,6 +91,12 @@ export default function MerchantProducts() {
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
   
+  // Bulk Upload Modal state
+  const [bulkModalOpen, setBulkModalOpen] = useState(false)
+  const [csvText, setCsvText] = useState(DEFAULT_SAMPLE_CSV)
+  const [bulkError, setBulkError] = useState('')
+  const [bulkSaving, setBulkSaving] = useState(false)
+
   // Category modal
   const [categoryModalOpen, setCategoryModalOpen] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
@@ -47,6 +109,8 @@ export default function MerchantProducts() {
 
   // Notification toast
   const [toastMessage, setToastMessage] = useState('')
+
+  const parsedBulkItems = useMemo(() => parseCSV(csvText), [csvText])
 
   const showToast = (msg) => {
     setToastMessage(msg)
@@ -204,6 +268,50 @@ export default function MerchantProducts() {
     }
   }
 
+  const handleBulkImport = async () => {
+    if (parsedBulkItems.length === 0) {
+      setBulkError('Please enter or upload valid CSV rows with at least product name.')
+      return
+    }
+    try {
+      setBulkSaving(true)
+      setBulkError('')
+      const res = await api.bulkCreateMerchantProducts(parsedBulkItems)
+      const count = res?.count || parsedBulkItems.length
+      showToast(`Successfully imported ${count} products!`)
+      setBulkModalOpen(false)
+      loadData()
+    } catch (err) {
+      setBulkError(err.message || 'Failed to import products.')
+    } finally {
+      setBulkSaving(false)
+    }
+  }
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const content = event.target?.result
+      if (typeof content === 'string') {
+        setCsvText(content)
+      }
+    }
+    reader.readAsText(file)
+  }
+
+  const downloadSampleCSV = () => {
+    const blob = new Blob([DEFAULT_SAMPLE_CSV], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    link.setAttribute('download', 'returnguard_products_sample.csv')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   // Metrics computation
   const totalCount = products.length
   const activeCount = products.filter((p) => p.is_active !== false).length
@@ -228,13 +336,24 @@ export default function MerchantProducts() {
             Manage your product inventory, pricing, descriptions, and sales status.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={() => setCategoryModalOpen(true)}
             className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             <Tag className="h-4 w-4 text-slate-500" />
             New Category
+          </button>
+          <button
+            onClick={() => {
+              setCsvText(DEFAULT_SAMPLE_CSV)
+              setBulkError('')
+              setBulkModalOpen(true)
+            }}
+            className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors"
+          >
+            <UploadCloud className="h-4 w-4 text-emerald-600" />
+            Bulk Upload (CSV)
           </button>
           <button
             onClick={openAddModal}
@@ -734,6 +853,167 @@ export default function MerchantProducts() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Product Upload Modal */}
+      {bulkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto">
+          <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl my-8 max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                  <FileSpreadsheet className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Bulk Product Upload</h3>
+                  <p className="text-xs text-slate-500">Paste CSV data or upload a file to import multiple products at once.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setBulkModalOpen(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 py-4 space-y-4 pr-1">
+              {/* Quick Actions / Tips */}
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 border border-slate-200 p-3">
+                <div className="text-xs text-slate-600">
+                  Columns: <code className="bg-white px-1.5 py-0.5 rounded border text-slate-800 font-semibold">name, price, category, stock, image, description</code>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
+                    <UploadCloud className="h-3.5 w-3.5 text-indigo-600" />
+                    Upload .CSV File
+                    <input type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={downloadSampleCSV}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+                  >
+                    <Download className="h-3.5 w-3.5 text-emerald-600" />
+                    Download Sample
+                  </button>
+                </div>
+              </div>
+
+              {/* CSV Textarea */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    CSV Data (Comma Separated)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setCsvText(DEFAULT_SAMPLE_CSV)}
+                    className="text-xs font-semibold text-indigo-600 hover:underline inline-flex items-center gap-1"
+                  >
+                    <RefreshCw className="h-3 w-3" /> Reset to Sample
+                  </button>
+                </div>
+                <textarea
+                  rows={6}
+                  value={csvText}
+                  onChange={(e) => setCsvText(e.target.value)}
+                  placeholder="name,price,category,stock,image,description&#10;Product 1,999,Ethnic Wear,50,https://...,Product details"
+                  className="w-full rounded-xl border border-slate-300 p-3 font-mono text-xs text-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none leading-relaxed"
+                />
+              </div>
+
+              {/* Error display */}
+              {bulkError && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700">
+                  {bulkError}
+                </div>
+              )}
+
+              {/* Preview Section */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                    <span>Parsed Preview</span>
+                    <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                      {parsedBulkItems.length} products ready
+                    </span>
+                  </div>
+                </div>
+
+                {parsedBulkItems.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-400">
+                    No valid products parsed yet. Make sure the header row has <code>name, price, category</code>.
+                  </div>
+                ) : (
+                  <div className="max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white">
+                    <table className="w-full text-left text-xs">
+                      <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                        <tr>
+                          <th className="py-2 px-3">#</th>
+                          <th className="py-2 px-3">Product Name</th>
+                          <th className="py-2 px-3">Category</th>
+                          <th className="py-2 px-3">Price</th>
+                          <th className="py-2 px-3">Stock</th>
+                          <th className="py-2 px-3">Description</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {parsedBulkItems.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/80">
+                            <td className="py-2 px-3 text-slate-400 font-mono">{idx + 1}</td>
+                            <td className="py-2 px-3 font-semibold text-slate-900 flex items-center gap-2">
+                              {item.image && (
+                                <img src={item.image} alt="" className="h-6 w-6 rounded object-cover border border-slate-200 shrink-0" />
+                              )}
+                              <span className="truncate max-w-[140px]">{item.name}</span>
+                            </td>
+                            <td className="py-2 px-3">
+                              <span className="inline-block rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                                {item.category}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 font-semibold text-emerald-700">{INR(item.price)}</td>
+                            <td className="py-2 px-3 text-slate-600">{item.stock}</td>
+                            <td className="py-2 px-3 text-slate-500 truncate max-w-[160px]">{item.description || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-2.5 border-t border-slate-100 pt-4 mt-2">
+              <button
+                type="button"
+                onClick={() => setBulkModalOpen(false)}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={bulkSaving || parsedBulkItems.length === 0}
+                onClick={handleBulkImport}
+                className="rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 disabled:opacity-50 transition-colors flex items-center gap-2"
+              >
+                {bulkSaving ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" /> Importing...
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud className="h-4 w-4" /> Import {parsedBulkItems.length} Products
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1204,6 +1204,51 @@ export const api = {
     return clone(product)
   },
 
+  async bulkCreateMerchantProducts(productsList) {
+    if (hasLiveApi()) {
+      return live('/admin/products/bulk/', { method: 'POST', body: { products: productsList }, role: 'merchant' })
+    }
+    await delay(600)
+    const created = []
+    for (const item of productsList) {
+      if (!item.name) continue
+      let catId = item.category_id
+      if (!catId && item.category) {
+        const found = store.categories.find((c) => c.name.toLowerCase() === item.category.toLowerCase().trim())
+        if (found) {
+          catId = found.id
+        } else {
+          catId = `cat_${store.categories.length + 1}_${Date.now()}`
+          store.categories.push({ id: catId, name: item.category, description: `${item.category} products` })
+        }
+      }
+      const product = {
+        id: nextId('prod', store.products),
+        merchant_id: store.merchant?.id || 'merchant_1',
+        category_id: catId || null,
+        name: item.name,
+        price: Number(item.price || 0),
+        stock: Number(item.stock ?? 0),
+        image: item.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
+        description: item.description || '',
+        is_active: item.is_active ?? true,
+        created_at: new Date().toISOString(),
+      }
+      store.products.unshift(product)
+      created.push(product)
+    }
+    store.auditLog.unshift({
+      id: nextId('audit', store.auditLog),
+      merchant_id: store.merchant?.id || 'merchant_1',
+      actor: session.merchant?.email || 'admin@returnguard.in',
+      action: 'bulk_imported',
+      target: 'Products Bulk Import',
+      timestamp: new Date().toISOString(),
+      notes: `Imported ${created.length} products via CSV/Bulk Entry.`,
+    })
+    return { count: created.length, products: clone(created) }
+  },
+
   async updateProduct(id, patch) {
     if (hasLiveApi()) {
       return live(`/admin/products/${id}/`, { method: 'PATCH', body: patch, role: 'merchant' })
