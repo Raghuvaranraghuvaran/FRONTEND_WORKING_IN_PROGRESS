@@ -15,6 +15,53 @@ from .serializers import MerchantRegisterSerializer, MerchantSerializer
 User = get_user_model()
 
 
+class MerchantRegisterView(APIView):
+    """Register a new merchant user, provision their store tenant, and return auth tokens."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        name = request.data.get("name", "").strip()
+        email = request.data.get("email", "").strip().lower()
+        password = request.data.get("password", "")
+        business_name = request.data.get("business_name", "").strip() or f"{name or email.split('@')[0]}'s Store"
+        store_slug = request.data.get("store_slug", "").strip().lower() or email.split("@")[0].replace(".", "-")[:40]
+
+        if not email or not password:
+            raise AppError("Email and password are required.", code="VALIDATION_ERROR")
+
+        if User.objects.filter(email__iexact=email).exists():
+            raise AppError("An account with this email already exists.", code="USER_EXISTS")
+
+        from merchants.models import Merchant, MerchantProfile
+        from django.utils.text import slugify
+
+        base_slug = slugify(store_slug) or "store"
+        slug = base_slug
+        counter = 1
+        while Merchant.objects.filter(store_slug=slug).exists():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+
+        merchant = Merchant.objects.create(
+            business_name=business_name,
+            store_slug=slug,
+            admin_email=email,
+        )
+
+        user = User.objects.create_user(
+            email=email,
+            name=name,
+            password=password,
+            role=User.ROLE_MERCHANT_ADMIN,
+        )
+
+        MerchantProfile.objects.create(user=user, merchant=merchant)
+        _seed_default_categories(merchant)
+
+        return success(merchant_login_payload(user), status=status.HTTP_201_CREATED)
+
+
 class MerchantListView(APIView):
     """Create a merchant tenant (frontend onboarding posts here)."""
 

@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     path("", views.MerchantListView.as_view(), name="merchant-list"),
+    path("register/", views.MerchantRegisterView.as_view(), name="merchant-register"),
     path("login/", views.MerchantLoginView.as_view(), name="merchant-login"),
     path("google/", views.MerchantGoogleLoginView.as_view(), name="merchant-google-login"),
     path("request-otp/", views.MerchantOTPRequestView.as_view(), name="merchant-request-otp"),
