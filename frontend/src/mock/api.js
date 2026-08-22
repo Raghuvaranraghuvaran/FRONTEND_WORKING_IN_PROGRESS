@@ -360,11 +360,16 @@ export const api = {
     await delay(400)
     let products = clone(store.products)
     if (categoryId && categoryId !== 'all') {
-      products = products.filter((p) => p.category_id === categoryId)
+      const target = categoryId.toLowerCase().trim()
+      products = products.filter((p) => {
+        const cat = store.categories.find((c) => c.id === p.category_id)
+        const catName = (cat?.name || '').toLowerCase()
+        return p.category_id === categoryId || catName === target || p.category_id?.toLowerCase() === target
+      })
     }
     if (query) {
       const q = query.toLowerCase()
-      products = products.filter((p) => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q))
+      products = products.filter((p) => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q) || (p.merchant_name && p.merchant_name.toLowerCase().includes(q)))
     }
     return products
   },

@@ -65,17 +65,34 @@ export default function ShopPage() {
   const [loading, setLoading] = useState(true)
   const [searchParams, setSearchParams] = useSearchParams()
   const [searchInput, setSearchInput] = useState(searchParams.get('q') || '')
+  const [sortBy, setSortBy] = useState('popular')
+  const [priceRange, setPriceRange] = useState('all')
+  const [inStockOnly, setInStockOnly] = useState(false)
+  const [selectedMerchant, setSelectedMerchant] = useState('all')
+
   const activeCategory = searchParams.get('category') || 'all'
   const query = searchParams.get('q') || ''
 
   useEffect(() => {
-    api.getCategories().then(setCategories)
+    api.getCategories().then((data) => {
+      const list = Array.isArray(data) ? data : []
+      const unique = []
+      const seen = new Set()
+      for (const cat of list) {
+        const norm = (cat.name || '').trim().toLowerCase()
+        if (norm && !seen.has(norm)) {
+          seen.add(norm)
+          unique.push(cat)
+        }
+      }
+      setCategories(unique)
+    })
   }, [])
 
   useEffect(() => {
     setLoading(true)
     api.getProducts({ categoryId: activeCategory, query }).then((data) => {
-      setProducts(data)
+      setProducts(Array.isArray(data) ? data : [])
       setLoading(false)
     })
   }, [activeCategory, query])
@@ -92,6 +109,61 @@ export default function ShopPage() {
     setSearchParams({ category: activeCategory, q: searchInput })
   }
 
+  const clearAllFilters = () => {
+    setSearchParams({})
+    setSearchInput('')
+    setSortBy('popular')
+    setPriceRange('all')
+    setInStockOnly(false)
+    setSelectedMerchant('all')
+  }
+
+  // Unique merchant list from current products for filtering
+  const availableMerchants = useMemo(() => {
+    const map = new Map()
+    products.forEach((p) => {
+      const name = p.merchant_name || p.merchant?.business_name
+      if (name) map.set(name, name)
+    })
+    return Array.from(map.values())
+  }, [products])
+
+  // Filter and sort computation
+  const filteredProducts = useMemo(() => {
+    let list = [...products]
+
+    // 1. Price Range filter
+    if (priceRange === 'under_1000') {
+      list = list.filter((p) => Number(p.price) < 1000)
+    } else if (priceRange === '1000_3000') {
+      list = list.filter((p) => Number(p.price) >= 1000 && Number(p.price) <= 3000)
+    } else if (priceRange === 'above_3000') {
+      list = list.filter((p) => Number(p.price) > 3000)
+    }
+
+    // 2. In stock only filter
+    if (inStockOnly) {
+      list = list.filter((p) => Number(p.stock) > 0)
+    }
+
+    // 3. Merchant filter
+    if (selectedMerchant !== 'all') {
+      list = list.filter((p) => (p.merchant_name || p.merchant?.business_name) === selectedMerchant)
+    }
+
+    // 4. Sorting
+    if (sortBy === 'price_asc') {
+      list.sort((a, b) => Number(a.price) - Number(b.price))
+    } else if (sortBy === 'price_desc') {
+      list.sort((a, b) => Number(b.price) - Number(a.price))
+    } else if (sortBy === 'newest') {
+      list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+    }
+
+    return list
+  }, [products, priceRange, inStockOnly, selectedMerchant, sortBy])
+
+  const hasActiveFilters = activeCategory !== 'all' || query !== '' || priceRange !== 'all' || inStockOnly || selectedMerchant !== 'all' || sortBy !== 'popular'
   const rewardPoints = 350
 
   return (
@@ -115,8 +187,8 @@ export default function ShopPage() {
           <p style={{ fontSize: 14, color: '#64748b' }}>Find something you'll love. Quality products, easy returns.</p>
         </div>
 
-        {/* Search + Sort */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+        {/* Search + Primary Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
           <form onSubmit={handleSearch} style={{ flex: 1, minWidth: 280, display: 'flex', gap: 8 }}>
             <div style={{
               flex: 1, display: 'flex', alignItems: 'center', gap: 8,
@@ -141,18 +213,93 @@ export default function ShopPage() {
             </button>
           </form>
 
+          {/* Sort By Dropdown */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Sort by:</span>
-            <select style={{
-              background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: 8,
-              padding: '6px 12px', fontSize: 13, color: '#1e293b', cursor: 'pointer', fontWeight: 500,
-            }}>
-              <option>Popular</option>
-              <option>Price: Low to High</option>
-              <option>Price: High to Low</option>
-              <option>Newest</option>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              style={{
+                background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: 8,
+                padding: '7px 12px', fontSize: 13, color: '#1e293b', cursor: 'pointer', fontWeight: 500,
+              }}
+            >
+              <option value="popular">Popular</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+              <option value="newest">Newest</option>
             </select>
           </div>
+        </div>
+
+        {/* Secondary Filter Bar */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20,
+          background: '#f8fafc', padding: '12px 16px', borderRadius: 12, border: '1px solid #e2e8f0',
+          flexWrap: 'wrap',
+        }}>
+          {/* Price filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 12.5, color: '#475569', fontWeight: 600 }}>Price:</span>
+            <select
+              value={priceRange}
+              onChange={(e) => setPriceRange(e.target.value)}
+              style={{
+                background: '#fff', border: '1px solid #cbd5e1', borderRadius: 6,
+                padding: '4px 10px', fontSize: 12.5, color: '#1e293b', cursor: 'pointer',
+              }}
+            >
+              <option value="all">All Prices</option>
+              <option value="under_1000">Under ₹1,000</option>
+              <option value="1000_3000">₹1,000 - ₹3,000</option>
+              <option value="above_3000">Above ₹3,000</option>
+            </select>
+          </div>
+
+          {/* Merchant filter */}
+          {availableMerchants.length > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 12.5, color: '#475569', fontWeight: 600 }}>Store:</span>
+              <select
+                value={selectedMerchant}
+                onChange={(e) => setSelectedMerchant(e.target.value)}
+                style={{
+                  background: '#fff', border: '1px solid #cbd5e1', borderRadius: 6,
+                  padding: '4px 10px', fontSize: 12.5, color: '#1e293b', cursor: 'pointer',
+                }}
+              >
+                <option value="all">All Stores</option>
+                {availableMerchants.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* In stock only checkbox */}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#334155', fontWeight: 500, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={inStockOnly}
+              onChange={(e) => setInStockOnly(e.target.checked)}
+              style={{ accentColor: '#6366f1' }}
+            />
+            In-stock only
+          </label>
+
+          {/* Clear filters button */}
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              style={{
+                marginLeft: 'auto', background: 'none', border: 'none',
+                fontSize: 12, color: '#e11d48', fontWeight: 600, cursor: 'pointer',
+                textDecoration: 'underline', padding: '2px 6px',
+              }}
+            >
+              Clear all filters
+            </button>
+          )}
         </div>
 
         {/* Category pills */}
@@ -168,23 +315,26 @@ export default function ShopPage() {
                 borderColor: activeCategory === 'all' ? '#6366f1' : '#e2e8f0',
               }}
             >
-              All
+              All Categories
             </button>
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => { setSearchParams({ category: cat.id, q: query }); setSearchInput(query) }}
-                style={{
-                  padding: '7px 18px', borderRadius: 20, fontSize: 13, fontWeight: 600,
-                  border: '1.5px solid', cursor: 'pointer', transition: 'all .15s',
-                  background: activeCategory === cat.id ? '#6366f1' : '#fff',
-                  color: activeCategory === cat.id ? '#fff' : '#475569',
-                  borderColor: activeCategory === cat.id ? '#6366f1' : '#e2e8f0',
-                }}
-              >
-                {cat.name}
-              </button>
-            ))}
+            {categories.map((cat) => {
+              const isCatActive = activeCategory === cat.id || activeCategory.toLowerCase() === (cat.name || '').toLowerCase()
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => { setSearchParams({ category: cat.name || cat.id, q: query }); setSearchInput(query) }}
+                  style={{
+                    padding: '7px 18px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+                    border: '1.5px solid', cursor: 'pointer', transition: 'all .15s',
+                    background: isCatActive ? '#6366f1' : '#fff',
+                    color: isCatActive ? '#fff' : '#475569',
+                    borderColor: isCatActive ? '#6366f1' : '#e2e8f0',
+                  }}
+                >
+                  {cat.name}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -195,21 +345,32 @@ export default function ShopPage() {
               <div key={i} style={{ height: 340, background: '#e2e8f0', borderRadius: 14, animation: 'pulse 1.5s infinite' }} />
             ))}
           </div>
-        ) : products.length === 0 ? (
+        ) : filteredProducts.length === 0 ? (
           <div style={{
             background: '#fff', border: '2px dashed #cbd5e1', borderRadius: 14,
             padding: '64px 20px', textAlign: 'center',
           }}>
             <p style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 6 }}>No products found</p>
-            <p style={{ fontSize: 13, color: '#64748b' }}>Try a different category or search term.</p>
+            <p style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>Try adjusting your filters, search term, or price range.</p>
+            {hasActiveFilters && (
+              <button
+                onClick={clearAllFilters}
+                style={{
+                  background: '#6366f1', color: '#fff', padding: '8px 18px', borderRadius: 8,
+                  fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer',
+                }}
+              >
+                Clear all filters
+              </button>
+            )}
           </div>
         ) : (
           <>
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
-              Showing 1-{products.length} of {products.length} products
+              Showing {filteredProducts.length} of {products.length} products
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 18 }}>
-              {products.map((product) => {
+              {filteredProducts.map((product) => {
                 const categoryName = categories.find((c) => c.id === product.category_id)?.name || 'Uncategorized'
                 return (
                   <div key={product.id} style={{

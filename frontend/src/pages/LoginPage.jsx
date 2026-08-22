@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { api } from '../mock/api'
 import { useApp } from '../context/AppContext'
+import BrandLogo from '../components/BrandLogo'
 import {
   hasGoogleSignIn,
   initializeGoogleSignIn,
@@ -141,17 +142,8 @@ export default function LoginPage() {
         <div style={{ width: '100%', maxWidth: 460 }}>
 
           {/* ── Brand bar ────────────────────────────────────────────────── */}
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22, textDecoration: 'none' }}>
-            <span style={{
-              width: 40, height: 40, borderRadius: 12, background: A,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: 800, color: '#fff', fontSize: 19, flexShrink: 0,
-              boxShadow: `0 4px 14px ${A}55`,
-            }}>R</span>
-            <div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#1e1b3a', lineHeight: 1.2 }}>ReturnGuard</div>
-              <div style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>Smart Returns. Happy Customers.</div>
-            </div>
+          <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', marginBottom: 20, textDecoration: 'none' }}>
+            <BrandLogo className="h-11 w-auto" />
           </Link>
 
           {/* ── Glass card ───────────────────────────────────────────────── */}
