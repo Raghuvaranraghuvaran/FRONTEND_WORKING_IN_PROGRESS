@@ -86,7 +86,16 @@ class AdminProductWriteSerializer(serializers.ModelSerializer):
         )
 
     def validate_category_id(self, value):
-        if value and not Category.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Category does not exist.")
+        if not value:
+            return value
+        # Scope the lookup to the merchant so cross-merchant category IDs
+        # are rejected and merchant-specific IDs always resolve correctly.
+        merchant = self.context.get("merchant")
+        if merchant:
+            if not Category.objects.filter(id=value, merchant=merchant).exists():
+                raise serializers.ValidationError("Category does not exist.")
+        else:
+            if not Category.objects.filter(id=value).exists():
+                raise serializers.ValidationError("Category does not exist.")
         return value
 

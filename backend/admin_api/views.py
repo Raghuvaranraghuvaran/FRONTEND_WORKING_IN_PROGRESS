@@ -334,7 +334,7 @@ class MerchantProductsView(APIView):
 
     def post(self, request):
         merchant = get_merchant_from_user(request.user)
-        serializer = AdminProductWriteSerializer(data=request.data)
+        serializer = AdminProductWriteSerializer(data=request.data, context={"merchant": merchant})
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
 
@@ -374,7 +374,7 @@ class MerchantProductDetailView(APIView):
         if product is None:
             raise NotFoundError("Product not found.")
 
-        serializer = AdminProductWriteSerializer(product, data=request.data, partial=True)
+        serializer = AdminProductWriteSerializer(product, data=request.data, partial=True, context={"merchant": merchant})
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
 
@@ -422,7 +422,24 @@ class MerchantCategoriesView(APIView):
 
     def get(self, request):
         merchant = get_merchant_from_user(request.user)
-        categories = Category.objects.filter(Q(merchant=merchant) | Q(merchant__isnull=True)).order_by("name")
+        categories = Category.objects.filter(merchant=merchant)
+        if not categories.exists():
+            defaults = (
+                ("Daily Wear", "Everyday tops, shirts and basics"),
+                ("Electronics", "Gadgets and accessories"),
+                ("Ethnic Wear", "Kurtas, sarees, lehengas and festive wear"),
+                ("Home", "Home and living essentials"),
+            )
+            for name, description in defaults:
+                slug = slugify(name)
+                # Use slug-only IDs (no merchant PK) so category IDs are
+                # stable and predictable regardless of the merchant's DB row id.
+                Category.objects.get_or_create(
+                    merchant=merchant,
+                    name=name,
+                    defaults={"description": description, "slug": slug, "id": f"cat_{slug}"},
+                )
+            categories = Category.objects.filter(merchant=merchant)
         return success(AdminCategorySerializer(categories, many=True).data)
 
     def post(self, request):
@@ -431,12 +448,14 @@ class MerchantCategoriesView(APIView):
         if not name:
             raise AppError("Category name is required.")
 
+        slug = slugify(name)
         category, created = Category.objects.get_or_create(
             merchant=merchant,
             name=name,
             defaults={
                 "description": request.data.get("description", ""),
-                "slug": request.data.get("slug", ""),
+                "slug": slug,
+                "id": f"cat_{slug}",
             },
         )
         return success(AdminCategorySerializer(category).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
