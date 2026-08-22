@@ -93,35 +93,40 @@ class Command(BaseCommand):
                     self._rename_category(name_match, canonical_id, name, description, merchant)
                 continue
 
-            # --- Missing entirely — create it ---
+            # --- Missing entirely — create it (get_or_create guards against race/duplicate) ---
             self.stdout.write(f"  [NEW]  Create {canonical_id!r} ({name})")
             if not dry_run:
-                Category.objects.create(
+                Category.objects.get_or_create(
                     id=canonical_id,
-                    merchant=merchant,
-                    name=name,
-                    description=description,
-                    slug=slug,
+                    defaults={
+                        "merchant": merchant,
+                        "name": name,
+                        "description": description,
+                        "slug": slug,
+                    },
                 )
 
     def _rename_category(self, old_cat, new_id, name, description, merchant):
         """
         Django doesn't allow in-place PK changes on CharField primary keys.
         Strategy:
-          1. Create the new category with the canonical ID.
+          1. Get or create the new category with the canonical ID.
           2. Re-point all products from the old category to the new one.
           3. Delete the old category.
         """
-        # Step 1 — create new
-        new_cat, _ = Category.objects.get_or_create(
+        # Step 1 — get or create new (guards against duplicate key on re-run)
+        new_cat, created = Category.objects.get_or_create(
             id=new_id,
-            merchant=merchant,
             defaults={
+                "merchant": merchant,
                 "name": name,
                 "description": description or old_cat.description,
                 "slug": slugify(name),
             },
         )
+        if not created:
+            # Canonical already exists — just re-point products and clean up old
+            self.stdout.write(f"         Canonical {new_id!r} already exists, re-pointing products")
 
         # Step 2 — migrate products
         affected = Product.objects.filter(category=old_cat)
@@ -130,6 +135,7 @@ class Command(BaseCommand):
             affected.update(category=new_cat)
             self.stdout.write(f"         Moved {count} product(s) to {new_id!r}")
 
-        # Step 3 — delete old
-        old_cat.delete()
-        self.stdout.write(f"         Deleted old category {old_cat.id!r}")
+        # Step 3 — delete old (only if it's different from the new one)
+        if old_cat.id != new_cat.id:
+            old_cat.delete()
+            self.stdout.write(f"         Deleted old category {old_cat.id!r}")
