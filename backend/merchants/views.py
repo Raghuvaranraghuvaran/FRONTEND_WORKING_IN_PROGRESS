@@ -34,16 +34,19 @@ def _send_merchant_welcome_email(dest_email, merchant_username, business_name):
                 "Please keep your credentials secure.\n\n"
                 "— The ReturnGuard Team"
             )
+            print(f"\n[ReturnGuard Email] Sending welcome email to {dest_email} (Username: {merchant_username})...")
             send_mail(
                 subject=subject,
                 message=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[dest_email],
-                fail_silently=True,
+                fail_silently=False,
             )
+            print(f"[ReturnGuard Email] Successfully delivered welcome email to {dest_email}!\n")
         except Exception as exc:
             import logging
             logging.getLogger(__name__).warning("Merchant welcome email failed: %s", exc)
+            print(f"[ReturnGuard Email Error] Failed to send email to {dest_email}: {exc}\n")
 
     t = threading.Thread(target=_task, daemon=True)
     t.start()
