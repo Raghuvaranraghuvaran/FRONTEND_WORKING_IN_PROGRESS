@@ -64,7 +64,7 @@ export default function LoginPage() {
   const googleButtonRef = useRef(null)
 
   useEffect(() => {
-    if (!hasGoogleSignIn()) return
+    if (!hasGoogleSignIn() || otpSent) return
     loadGoogleIdentityServices().then(() => {
       if (googleButtonRef.current) {
         initializeGoogleSignIn('shopper-google-signin', async (credential) => {
@@ -75,7 +75,7 @@ export default function LoginPage() {
         })
       }
     })
-  }, [navigate, setShopper])
+  }, [navigate, setShopper, activeTab, otpSent])
 
   const submitPassword = async (e) => {
     e.preventDefault(); setError(''); setSubmitting(true)
@@ -160,11 +160,13 @@ export default function LoginPage() {
             {/* card header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
               <div style={{
-                width: 38, height: 38, borderRadius: '50%',
-                background: `linear-gradient(135deg, ${A}22, ${A}44)`,
+                width: 38, height: 38, borderRadius: 10,
+                background: `linear-gradient(135deg, ${A}15, ${A}30)`,
                 border: `1.5px solid ${A}44`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
-              }}>🛍️</div>
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <img src="/returnguard-icon.svg" style={{ width: 22, height: 22 }} alt="ReturnGuard" />
+              </div>
               <div>
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e1b3a', margin: 0, lineHeight: 1.2 }}>Shopper Sign In</h2>
                 <p style={{ fontSize: 12, color: '#6b7280', margin: 0 }}>Welcome back! Choose how to sign in.</p>
@@ -360,8 +362,8 @@ export default function LoginPage() {
               </form>
             ))}
 
-            {/* Google sign-in only on standard login tab */}
-            {activeTab === 'pw' && (
+            {/* Google sign-in available across both tabs */}
+            {!otpSent && (
               <>
                 {/* divider */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0 14px' }}>
@@ -371,7 +373,7 @@ export default function LoginPage() {
                 </div>
 
                 {hasGoogleSignIn() ? (
-                  <div id="shopper-google-signin" ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center' }} />
+                  <div id="shopper-google-signin" ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center', minHeight: 40 }} />
                 ) : (
                   <button type="button" disabled={submitting} style={googleButton} onClick={async () => {
                     setError(''); setSubmitting(true)

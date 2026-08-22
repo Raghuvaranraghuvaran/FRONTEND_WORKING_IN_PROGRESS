@@ -60,7 +60,7 @@ export default function MerchantLoginPage() {
   const googleButtonRef = useRef(null)
 
   useEffect(() => {
-    if (!hasGoogleSignIn()) return
+    if (!hasGoogleSignIn() || otpSent) return
     loadGoogleIdentityServices().then(() => {
       if (googleButtonRef.current) {
         initializeGoogleSignIn('merchant-google-signin', async (credential) => {
@@ -71,7 +71,7 @@ export default function MerchantLoginPage() {
         })
       }
     })
-  }, [navigate, setMerchant])
+  }, [navigate, setMerchant, activeTab, otpSent])
 
   const submitPassword = async (e) => {
     e.preventDefault(); setError(''); setSubmitting(true)
@@ -156,11 +156,13 @@ export default function MerchantLoginPage() {
             {/* header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
               <div style={{
-                width: 38, height: 38, borderRadius: '50%',
-                background: `linear-gradient(135deg, ${A}22, ${A}44)`,
+                width: 38, height: 38, borderRadius: 10,
+                background: `linear-gradient(135deg, ${A}15, ${A}30)`,
                 border: `1.5px solid ${A}44`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
-              }}>🏪</div>
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <img src="/returnguard-icon.svg" style={{ width: 22, height: 22 }} alt="ReturnGuard" />
+              </div>
               <div>
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: '#0f2922', margin: 0, lineHeight: 1.2 }}>Merchant Sign In</h2>
                 <p style={{ fontSize: 12, color: '#6b7280', margin: 0 }}>Access the portal. Choose how to sign in.</p>
@@ -356,8 +358,8 @@ export default function MerchantLoginPage() {
               </form>
             ))}
 
-            {/* Google sign-in only on standard login tab */}
-            {activeTab === 'pw' && (
+            {/* Google sign-in available across both tabs */}
+            {!otpSent && (
               <>
                 {/* divider */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0 14px' }}>
@@ -367,7 +369,7 @@ export default function MerchantLoginPage() {
                 </div>
 
                 {hasGoogleSignIn() ? (
-                  <div id="merchant-google-signin" ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center' }} />
+                  <div id="merchant-google-signin" ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center', minHeight: 40 }} />
                 ) : (
                   <button type="button" disabled={submitting} style={googleButton} onClick={async () => {
                     setError(''); setSubmitting(true)
