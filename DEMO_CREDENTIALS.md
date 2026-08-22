@@ -5,10 +5,12 @@ Use these credentials to test the application in mock mode (no backend required)
 ## Shopper Account
 - **Email:** demo@shopper.com
 - **Password:** demo123
+- **Google Sign-In:** ✅ Works in mock mode (logs in as Demo Shopper)
 
 ## Merchant Account
 - **Email:** demo@merchant.com
 - **Password:** demo123
+- **Google Sign-In:** ✅ Works in mock mode (logs in as Demo Merchant)
 
 ## Mock Mode Setup
 
@@ -33,7 +35,12 @@ The application is configured to use mock data by default. To enable this:
 - Barcode generation for member ID
 - Order history
 - Merchant portal (login with merchant credentials)
+- **Google Sign-In** (mock mode - no real Google account needed)
 
-## Google Sign-In
+## Google Sign-In in Mock Mode
 
-Google Sign-In is configured but requires mock mode or a running backend to work properly.
+- Click "Continue with Google" button
+- Any Google account sign-in will work
+- **Shopper login:** Redirects to demo shopper account
+- **Merchant login:** Redirects to demo merchant account
+- No actual Google verification happens in mock mode

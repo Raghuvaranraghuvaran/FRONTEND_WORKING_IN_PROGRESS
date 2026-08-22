@@ -441,25 +441,33 @@ export const api = {
       saveSession()
       return result.user
     }
+    // Mock mode - simulate Google sign-in with demo user
     await delay(700)
-    const existing = store.shoppers.find((s) => s.email === 'meera@example.com')
+    const demoShopper = store.shoppers.find((s) => s.email === 'demo@shopper.com')
+    if (demoShopper) {
+      session.shopper = clone(demoShopper)
+      saveSession()
+      return clone(demoShopper)
+    }
+    // Fallback to creating a mock Google user
+    const existing = store.shoppers.find((s) => s.email === 'google.demo@example.com')
     const shopper =
       existing ||
       {
         id: nextId('user', store.shoppers),
         merchant_id: 'merchant_1',
-        customer_id: 'CUST-1003',
-        name: 'Meera Iyer',
-        email: 'meera@example.com',
+        customer_id: 'CUST-GOOGLE',
+        name: 'Google Demo User',
+        email: 'google.demo@example.com',
         phone: '+91 90123 45678',
         role: 'shopper',
-        addresses: [{ id: 'addr_google', label: 'Home', line: '14, Lake View Street, Adyar, Chennai 600020' }],
-        total_orders: 6,
-        total_returns: 1,
+        addresses: [{ id: 'addr_google', label: 'Home', line: '123 Google Street, Demo City 600020' }],
+        total_orders: 3,
+        total_returns: 0,
         total_cod_refusals: 0,
         risk_tier: 'Low',
         device_reuse_flag: false,
-        joined_at: new Date().toISOString(),
+        joined_at: '2025-01-15T10:00:00Z',
       }
     if (!existing) store.shoppers.push(shopper)
     session.shopper = clone(shopper)
@@ -524,8 +532,11 @@ export const api = {
       saveSession()
       return { admin: result.admin, merchant: result.merchant }
     }
+    // Mock mode - simulate Google sign-in for merchant
     await delay(700)
-    throw new Error('This Google account is not linked to a merchant account. Contact your admin.')
+    session.merchant = clone(store.merchantAdmin)
+    saveSession()
+    return { admin: clone(session.merchant), merchant: clone(store.merchant) }
   },
 
   async merchantLogin({ email, password }) {
