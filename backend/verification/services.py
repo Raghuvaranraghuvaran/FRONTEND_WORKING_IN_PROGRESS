@@ -19,7 +19,32 @@ class OTPVerificationService:
     LOGIN_MAX_REQUESTS = 3
 
     def request_login_otp(self, *, email, role):
-        user = self._get_or_create_user(email, role)
+        user = self._login_user(email, role)
+        if user is None:
+            # Auto-provision user for new OTP sign-ins
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user = User.objects.filter(email__iexact=email).first()
+            if user is None:
+                user = User.objects.create_user(
+                    email=email,
+                    name=email.split("@")[0],
+                    role=role,
+                )
+            if role == "shopper":
+                from accounts.models import ShopperProfile
+                ShopperProfile.objects.get_or_create(
+                    user=user,
+                    defaults={"customer_id": f"CUST-{user.id + 1000}"}
+                )
+            elif role == "merchant_admin":
+                from merchants.models import Merchant, MerchantProfile
+                slug = email.split("@")[0].lower().replace(".", "-")[:40]
+                merchant, created = Merchant.objects.get_or_create(
+                    store_slug=slug,
+                    defaults={"business_name": f"{email.split('@')[0]}'s Store", "admin_email": email}
+                )
+                MerchantProfile.objects.get_or_create(user=user, defaults={"merchant": merchant})
 
         window_start = timezone.now() - timedelta(seconds=self.LOGIN_WINDOW_SECONDS)
         recent_requests = OTPChallenge.objects.filter(
@@ -28,7 +53,7 @@ class OTPVerificationService:
             created_at__gte=window_start,
         ).count()
         if recent_requests >= self.LOGIN_MAX_REQUESTS:
-            raise AppError("Too many OTP requests. Try again later.", code="OTP_RATE_LIMITED")
+            raise AppError("Too many OTP requests. Try again in 10 minutes.", code="OTP_RATE_LIMITED")
 
         code = f"{secrets.randbelow(1000000):06d}"
         now = timezone.now()
@@ -55,10 +80,12 @@ class OTPVerificationService:
                 fail_silently=False,
             )
         except Exception as exc:
-            # If console backend or SMTP failure, keep challenge alive for fallback demo OTP
-            if settings.EMAIL_BACKEND != "django.core.mail.backends.console.EmailBackend":
+            import logging
+            logging.getLogger(__name__).warning("Failed to send OTP email: %s", exc)
+            # If SMTP fails (e.g. invalid app password), we do not delete challenge to allow DEMO_OTP fallback
+            if not getattr(settings, "DEMO_OTP", None):
                 challenge.delete()
-                raise AppError("Unable to send the sign-in code. Check your SMTP settings or try Google login.", code="OTP_SEND_FAILED") from exc
+                raise AppError("Unable to send the sign-in code right now.", code="OTP_SEND_FAILED") from exc
         VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="sent")
         return {
             "sent": True,

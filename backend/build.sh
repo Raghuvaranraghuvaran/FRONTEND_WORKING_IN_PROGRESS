@@ -15,7 +15,9 @@ User = get_user_model()
 
 # Create demo shopper
 if not User.objects.filter(email='demo@shopper.com').exists():
-    User.objects.create_user(email='demo@shopper.com', password='demo123', name='Demo Shopper', role='shopper')
+    user = User.objects.create_user(email='demo@shopper.com', password='demo123', name='Demo Shopper', role='shopper')
+    from accounts.models import ShopperProfile
+    ShopperProfile.objects.get_or_create(user=user, defaults={'customer_id': 'CUST-DEMO'})
     print('Created demo shopper')
 
 # Create demo merchant admin

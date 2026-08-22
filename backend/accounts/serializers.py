@@ -14,14 +14,55 @@ class AddressSerializer(serializers.ModelSerializer):
 
 class ShopperSerializer(serializers.ModelSerializer):
     addresses = AddressSerializer(many=True, read_only=True)
-    customer_id = serializers.CharField(source="shopper_profile.customer_id", read_only=True)
-    merchant_id = serializers.CharField(source="shopper_profile.merchant_id", read_only=True, allow_null=True)
-    total_orders = serializers.IntegerField(source="shopper_profile.total_orders", read_only=True)
-    total_returns = serializers.IntegerField(source="shopper_profile.total_returns", read_only=True)
-    total_cod_refusals = serializers.IntegerField(source="shopper_profile.total_cod_refusals", read_only=True)
-    risk_tier = serializers.CharField(source="shopper_profile.risk_tier", read_only=True)
-    device_reuse_flag = serializers.BooleanField(source="shopper_profile.device_reuse_flag", read_only=True)
-    joined_at = serializers.DateTimeField(source="shopper_profile.joined_at", read_only=True)
+    customer_id = serializers.SerializerMethodField()
+    merchant_id = serializers.SerializerMethodField()
+    total_orders = serializers.SerializerMethodField()
+    total_returns = serializers.SerializerMethodField()
+    total_cod_refusals = serializers.SerializerMethodField()
+    risk_tier = serializers.SerializerMethodField()
+    device_reuse_flag = serializers.SerializerMethodField()
+    joined_at = serializers.SerializerMethodField()
+
+    def _get_profile(self, obj):
+        profile = getattr(obj, "shopper_profile", None)
+        if profile is None and obj.is_shopper:
+            profile, _ = ShopperProfile.objects.get_or_create(
+                user=obj,
+                defaults={"customer_id": f"CUST-{obj.id + 1000}"},
+            )
+        return profile
+
+    def get_customer_id(self, obj):
+        p = self._get_profile(obj)
+        return p.customer_id if p else f"CUST-{obj.id + 1000}"
+
+    def get_merchant_id(self, obj):
+        p = self._get_profile(obj)
+        return str(p.merchant_id) if (p and p.merchant_id) else "merchant_1"
+
+    def get_total_orders(self, obj):
+        p = self._get_profile(obj)
+        return p.total_orders if p else 0
+
+    def get_total_returns(self, obj):
+        p = self._get_profile(obj)
+        return p.total_returns if p else 0
+
+    def get_total_cod_refusals(self, obj):
+        p = self._get_profile(obj)
+        return p.total_cod_refusals if p else 0
+
+    def get_risk_tier(self, obj):
+        p = self._get_profile(obj)
+        return p.risk_tier if p else "Low"
+
+    def get_device_reuse_flag(self, obj):
+        p = self._get_profile(obj)
+        return p.device_reuse_flag if p else False
+
+    def get_joined_at(self, obj):
+        p = self._get_profile(obj)
+        return p.joined_at if p else obj.created_at
 
     class Meta:
         model = User
