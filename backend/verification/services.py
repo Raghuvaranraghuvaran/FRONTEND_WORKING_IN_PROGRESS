@@ -85,6 +85,7 @@ class OTPVerificationService:
             "sent": True,
             "challenge_id": challenge.id,
             "expires_in": self.TTL_SECONDS,
+            "code": code,
         }
 
     def verify_login_otp(self, *, email, role, challenge_id, code):
