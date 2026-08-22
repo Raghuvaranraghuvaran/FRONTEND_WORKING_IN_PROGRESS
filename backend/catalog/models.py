@@ -20,9 +20,10 @@ class Category(TimestampedModel):
 
     def save(self, *args, **kwargs):
         if not self.id:
-            self.id = self.slug or "".join(
-                ch for ch in self.name.lower() if ch.isalnum() or ch == "-"
-            )
+            import uuid
+            m_tag = str(getattr(self, "merchant_id", None) or uuid.uuid4().hex[:8])[:16]
+            slug_tag = self.slug or "".join(ch for ch in self.name.lower() if ch.isalnum() or ch == "-") or uuid.uuid4().hex[:8]
+            self.id = f"cat_{m_tag}_{slug_tag}"[:64]
         super().save(*args, **kwargs)
 
     def __str__(self):

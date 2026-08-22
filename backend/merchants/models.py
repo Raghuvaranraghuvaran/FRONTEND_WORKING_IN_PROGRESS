@@ -19,6 +19,7 @@ class Merchant(TimestampedModel):
     store_slug = models.SlugField(max_length=128, unique=True)
     admin_email = models.EmailField()
     plan_tier = models.CharField(max_length=16, choices=PLAN_CHOICES, default="Pilot")
+    return_window_days = models.PositiveIntegerField(default=7)
 
     def __str__(self):
         return self.business_name

@@ -63,20 +63,27 @@ class MerchantLoginView(APIView):
 
 def _seed_default_categories(merchant):
     """Create default categories for a newly provisioned merchant."""
+    import uuid
     from django.utils.text import slugify
     from catalog.models import Category
 
     defaults = [
-        ("cat_ethnic", "Ethnic Wear", "Kurtas, sarees, lehengas and festive wear"),
-        ("cat_daily",  "Daily Wear",  "Everyday tops, shirts and basics"),
-        ("cat_electronics", "Electronics", "Gadgets and accessories"),
-        ("cat_home",   "Home",         "Home and living essentials"),
+        ("Ethnic Wear", "Kurtas, sarees, lehengas and festive wear"),
+        ("Daily Wear",  "Everyday tops, shirts and basics"),
+        ("Electronics", "Gadgets and accessories"),
+        ("Home",         "Home and living essentials"),
     ]
-    for cat_id, name, description in defaults:
+    for name, description in defaults:
+        slug = slugify(name)
+        cat_id = f"cat_{merchant.id}_{slug}"[:64]
         Category.objects.get_or_create(
-            id=cat_id,
             merchant=merchant,
-            defaults={"name": name, "description": description, "slug": slugify(name)},
+            name=name,
+            defaults={
+                "id": cat_id,
+                "description": description,
+                "slug": slug,
+            },
         )
 
 
