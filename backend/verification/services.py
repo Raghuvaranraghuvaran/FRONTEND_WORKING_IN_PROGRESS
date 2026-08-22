@@ -27,14 +27,14 @@ class OTPVerificationService:
         User = get_user_model()
         user = User.objects.filter(email__iexact=clean_email).first()
         if user is None:
-            if role == User.ROLE_MERCHANT:
+            if role == User.ROLE_MERCHANT_ADMIN:
                 raise AppError("No merchant account found for this email. Please register your store first.", code="ACCOUNT_NOT_FOUND")
             # Auto-provision new shopper account for passwordless sign-in
+            name = clean_email.split("@")[0].title()
             user = User.objects.create_user(
                 email=clean_email,
-                username=clean_email,
+                name=name,
                 role=User.ROLE_SHOPPER,
-                first_name=clean_email.split("@")[0].title(),
             )
             from accounts.models import ShopperProfile
             ShopperProfile.objects.get_or_create(
@@ -68,18 +68,18 @@ class OTPVerificationService:
             expires_at=now + timedelta(seconds=self.TTL_SECONDS),
         )
 
-        print(f"\n==========================================")
-        print(f"🔑 [ReturnGuard OTP] Email: {user.email}")
-        print(f"🔑 [ReturnGuard OTP] Code: {code}")
-        print(f"==========================================\n")
+        print("\n==========================================")
+        print(f"[ReturnGuard OTP] Email: {user.email}")
+        print(f"[ReturnGuard OTP] Code: {code}")
+        print("==========================================\n")
 
-        # Dispatch email sending asynchronously
+        # Dispatch email sending asynchronously so HTTP response is instant (<100ms)
         import threading
         def _async_send_mail(dest_email, otp_code):
             try:
                 send_mail(
                     subject="Your ReturnGuard sign-in code",
-                    message=f"Your ReturnGuard sign-in code is {otp_code}. It expires in 5 minutes.",
+                    message=f"Your ReturnGuard sign-in code is {otp_code}. It expires in 5 minutes.\n\nThank you,\nReturnGuard Team",
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[dest_email],
                     fail_silently=True,
