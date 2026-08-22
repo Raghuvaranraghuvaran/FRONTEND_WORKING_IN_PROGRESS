@@ -180,7 +180,7 @@ if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend" and not (EMAIL
 # Google Sign-In (Google Identity Services). Set GOOGLE_CLIENT_ID to enable.
 GOOGLE_CLIENT_ID = os.getenv(
     "GOOGLE_CLIENT_ID",
-    "511413180726-tks4agohomumjqluivasu15doe31giim.apps.googleusercontent.com",
+    "604991077373-64vuiauji09psh9n09gh3d8uqid444io.apps.googleusercontent.com",
 )
 
 # Media / object storage (local filesystem in dev; swap for S3-compatible storage later).
