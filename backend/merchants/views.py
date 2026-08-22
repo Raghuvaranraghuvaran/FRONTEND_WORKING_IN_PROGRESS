@@ -72,10 +72,51 @@ class MerchantLoginView(APIView):
         )
 
 
+def _seed_default_categories(merchant):
+    """Create default categories for a newly provisioned merchant."""
+    from django.utils.text import slugify
+    from catalog.models import Category
+
+    defaults = [
+        ("cat_ethnic", "Ethnic Wear", "Kurtas, sarees, lehengas and festive wear"),
+        ("cat_daily",  "Daily Wear",  "Everyday tops, shirts and basics"),
+        ("cat_electronics", "Electronics", "Gadgets and accessories"),
+        ("cat_home",   "Home",         "Home and living essentials"),
+    ]
+    for cat_id, name, description in defaults:
+        Category.objects.get_or_create(
+            id=cat_id,
+            merchant=merchant,
+            defaults={"name": name, "description": description, "slug": slugify(name)},
+        )
+
+
 def merchant_login_payload(user):
     merchant = get_merchant_from_user(user)
     if merchant is None:
-        raise AppError("This Google account is not linked to a merchant account. Contact your admin.", code="MERCHANT_ACCOUNT_REQUIRED")
+        # Auto-provision merchant for new OTP / Google sign-in users
+        from merchants.models import Merchant, MerchantProfile
+        slug = user.email.split("@")[0].lower().replace(".", "-")[:40]
+        merchant, created = Merchant.objects.get_or_create(
+            store_slug=slug,
+            defaults={
+                "business_name": f"{user.name or slug}'s Store",
+                "admin_email": user.email,
+            }
+        )
+        MerchantProfile.objects.update_or_create(
+            user=user,
+            defaults={"merchant": merchant}
+        )
+        user.role = User.ROLE_MERCHANT_ADMIN
+        user.save(update_fields=["role"])
+        if created:
+            _seed_default_categories(merchant)
+    else:
+        # Ensure existing merchants also have default categories
+        from catalog.models import Category
+        if not Category.objects.filter(merchant=merchant).exists():
+            _seed_default_categories(merchant)
     return {
         "tokens": tokens_for_user(user),
         "admin": {"id": user.id, "email": user.email, "name": user.name, "role": user.role},
@@ -89,13 +130,41 @@ class MerchantGoogleLoginView(APIView):
     def post(self, request):
         from accounts.google_auth import verify_google_id_token
         from accounts.serializers import GoogleLoginSerializer
+        from merchants.models import Merchant, MerchantProfile
 
         serializer = GoogleLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         profile = verify_google_id_token(serializer.validated_data["credential"])
-        user = User.objects.filter(email__iexact=profile["email"], role=User.ROLE_MERCHANT_ADMIN, is_active=True).first()
-        if user is None or not hasattr(user, "merchant_profile"):
-            raise AppError("This Google account is not linked to a merchant account. Contact your admin.", code="MERCHANT_ACCOUNT_REQUIRED")
+
+        user = User.objects.filter(email__iexact=profile["email"]).first()
+        if user is None:
+            user = User.objects.create_user(
+                email=profile["email"],
+                name=profile["name"],
+                role=User.ROLE_MERCHANT_ADMIN,
+            )
+        elif user.role != User.ROLE_MERCHANT_ADMIN:
+            user.role = User.ROLE_MERCHANT_ADMIN
+            user.save(update_fields=["role"])
+
+        # Link or create merchant tenant if not present
+        if not hasattr(user, "merchant_profile") or user.merchant_profile.merchant is None:
+            slug = profile["email"].split("@")[0].lower().replace(".", "-")[:40]
+            merchant, created = Merchant.objects.get_or_create(
+                store_slug=slug,
+                defaults={
+                    "business_name": f"{profile['name']}'s Store",
+                    "admin_email": profile["email"],
+                }
+            )
+            MerchantProfile.objects.update_or_create(
+                user=user,
+                defaults={"merchant": merchant}
+            )
+            if created:
+                _seed_default_categories(merchant)
+            user.refresh_from_db()
+
         return success(merchant_login_payload(user))
 
 
