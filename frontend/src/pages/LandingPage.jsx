@@ -10,20 +10,13 @@ import {
   AnimatePresence,
 } from 'framer-motion'
 import {
-  ShoppingBag,
-  ArrowRight,
-  ArrowUpRight,
   Star,
   Menu,
   X,
-  Plus,
-  Truck,
   ShieldCheck,
   RotateCcw,
   ChevronDown,
   Fingerprint,
-  ScanLine,
-  BrainCircuit,
 } from 'lucide-react'
 
 /* ------------------------------------------------------------------ */
@@ -57,24 +50,6 @@ const PRODUCTS = [
     tag: null,
     img: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=900&q=80',
     specs: { brand: 'Luxury Shoes', material: 'Italian Leather', sole: 'Leather' },
-  },
-]
-
-const LAYERS = [
-  {
-    n: '01',
-    name: 'Real-Time Risk Scoring',
-    copy: 'AI-powered fraud detection analyses every return request in milliseconds — scoring device fingerprint, purchase history, and behavioral signals.',
-  },
-  {
-    n: '02',
-    name: 'Device-Based Verification',
-    copy: 'Our SDK silently fingerprints each session. Repeated device reuse, emulator patterns, and VPN masking are caught before checkout.',
-  },
-  {
-    n: '03',
-    name: 'Self-Tuning Rules Engine',
-    copy: 'Fraud thresholds auto-calibrate weekly based on your store\u2019s data \u2014 reducing false positives while tightening defences against real abuse.',
   },
 ]
 

@@ -183,8 +183,8 @@ export default function LoginPage() {
           {otpMode ? (
             <form onSubmit={verifyOTP} className="space-y-3">
               <input
-                inputMode="numeric" pattern="\\d{6}" maxLength={6} required value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value.replace(/\\D/g, ''))}
+                inputMode="numeric" pattern="\d{6}" maxLength={6} required value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                 placeholder="6-digit code"
                 className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
               />

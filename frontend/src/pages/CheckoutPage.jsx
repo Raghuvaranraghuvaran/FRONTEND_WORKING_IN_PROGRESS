@@ -46,7 +46,7 @@ export default function CheckoutPage() {
     try {
       if (shopper && customAddress && selectedAddressId === 'custom') {
         try {
-          await api.addAddress(customAddress, 'Home')
+          await api.addAddress({ line: customAddress, label: 'Home' })
         } catch {
           // address save optional
         }

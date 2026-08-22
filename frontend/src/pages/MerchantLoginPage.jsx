@@ -168,7 +168,7 @@ export default function MerchantLoginPage() {
           </div>
           {otpMode ? (
             <form onSubmit={verifyOTP} className="space-y-3">
-              <input inputMode="numeric" pattern="\\d{6}" maxLength={6} required value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\\D/g, ''))} placeholder="6-digit code" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
+              <input inputMode="numeric" pattern="\d{6}" maxLength={6} required value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))} placeholder="6-digit code" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
               <button type="submit" disabled={submitting} className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white transition hover:bg-indigo-500 disabled:opacity-50">{submitting ? 'Verifying…' : 'Verify code'}</button>
               <button type="button" onClick={sendOTP} disabled={submitting} className="w-full text-xs text-indigo-400 hover:text-indigo-300">Resend code</button>
             </form>

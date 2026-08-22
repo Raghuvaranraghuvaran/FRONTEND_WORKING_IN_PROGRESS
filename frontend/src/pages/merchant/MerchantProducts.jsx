@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Plus, Search, Edit2, Trash2, Check, X, AlertTriangle, Package, DollarSign, Layers, Tag } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { Plus, Search, Edit2, Trash2, Check, X, AlertTriangle, Package, DollarSign, Tag } from 'lucide-react'
 import { api } from '../../mock/api'
 import { INR } from '../../lib/format'
 import EmptyState from '../../components/EmptyState'
@@ -53,7 +53,7 @@ export default function MerchantProducts() {
     setTimeout(() => setToastMessage(''), 3000)
   }
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true)
       const [prods, cats] = await Promise.all([
@@ -71,11 +71,11 @@ export default function MerchantProducts() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [searchQuery, selectedCategory, selectedStatus])
 
   useEffect(() => {
     loadData()
-  }, [selectedCategory, selectedStatus])
+  }, [loadData])
 
   const handleSearchSubmit = (e) => {
     e.preventDefault()
