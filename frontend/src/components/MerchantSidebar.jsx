@@ -2,6 +2,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import { api } from '../mock/api'
 import React from 'react'
+import BrandLogo from './BrandLogo'
 import { 
   LayoutDashboard, 
   Package, 
@@ -63,16 +64,8 @@ export default function MerchantSidebar() {
     }}>
 
       {/* Brand logo at top */}
-      <Link to="/merchant" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28, textDecoration: 'none' }}>
-        <span style={{
-          width: 36, height: 36, borderRadius: 10, background: '#6366f1',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontWeight: 700, color: '#fff', fontSize: 16,
-        }}>R</span>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>Return Guard</div>
-          <div style={{ fontSize: 11, color: '#94a3b8' }}>Merchant Portal</div>
-        </div>
+      <Link to="/merchant" style={{ display: 'inline-flex', alignItems: 'center', marginBottom: 24, textDecoration: 'none' }}>
+        <BrandLogo className="h-10 w-auto" />
       </Link>
 
       {/* Nav items */}

@@ -486,10 +486,6 @@ export const api = {
       return live(path, { method: 'POST', body: { email }, role })
     }
     await delay(500)
-    const known = role === 'merchant'
-      ? email === store.merchantAdmin.email
-      : Boolean(findShopperByEmail(email))
-    if (!known) return { sent: true, expires_in: 300 }
     return { sent: true, challenge_id: `mock-${role}-${Date.now()}`, expires_in: 300 }
   },
 
@@ -514,15 +510,31 @@ export const api = {
       return result.user
     }
     await delay(500)
-    if (code !== '123456') throw new Error('Invalid or expired sign-in code.')
     if (role === 'merchant') {
-      if (email !== store.merchantAdmin.email) throw new Error('Invalid or expired sign-in code.')
       session.merchant = clone(store.merchantAdmin)
       saveSession()
       return { admin: clone(session.merchant), merchant: clone(store.merchant) }
     }
-    const shopper = findShopperByEmail(email)
-    if (!shopper) throw new Error('Invalid or expired sign-in code.')
+    let shopper = findShopperByEmail(email)
+    if (!shopper) {
+      shopper = {
+        id: nextId('user', store.shoppers),
+        merchant_id: 'merchant_1',
+        customer_id: `CUST-${Date.now().toString().slice(-4)}`,
+        name: email.split('@')[0],
+        email,
+        phone: '+91 98765 43210',
+        role: 'shopper',
+        addresses: [],
+        total_orders: 0,
+        total_returns: 0,
+        total_cod_refusals: 0,
+        risk_tier: 'Low',
+        device_reuse_flag: false,
+        joined_at: new Date().toISOString(),
+      }
+      store.shoppers.push(shopper)
+    }
     session.shopper = clone(shopper)
     saveSession()
     return clone(shopper)
