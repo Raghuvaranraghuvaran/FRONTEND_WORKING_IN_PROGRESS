@@ -60,7 +60,7 @@ export default function MerchantLoginPage() {
   const googleButtonRef = useRef(null)
 
   useEffect(() => {
-    if (!hasGoogleSignIn() || otpSent) return
+    if (!hasGoogleSignIn() || activeTab !== 'pw') return
     loadGoogleIdentityServices().then(() => {
       if (googleButtonRef.current) {
         initializeGoogleSignIn('merchant-google-signin', async (credential) => {
@@ -71,7 +71,7 @@ export default function MerchantLoginPage() {
         })
       }
     })
-  }, [navigate, setMerchant, activeTab, otpSent])
+  }, [navigate, setMerchant, activeTab])
 
   const submitPassword = async (e) => {
     e.preventDefault(); setError(''); setSubmitting(true)
@@ -358,8 +358,8 @@ export default function MerchantLoginPage() {
               </form>
             ))}
 
-            {/* Google sign-in available across both tabs */}
-            {!otpSent && (
+            {/* Google sign-in only on Email & Password tab */}
+            {activeTab === 'pw' && (
               <>
                 {/* divider */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0 14px' }}>
