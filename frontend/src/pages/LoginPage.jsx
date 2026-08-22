@@ -223,10 +223,28 @@ export default function LoginPage() {
                 <label style={lbl}>Email Address</label>
                 <div className="rg-field" style={{ ...field, borderColor: focusedField === 'email' ? A : 'rgba(0,0,0,0.12)' }}>
                   <IconMail />
-                  <input className="rg-input" type="email" required placeholder="you@example.com"
-                    value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
-                    onFocus={() => setFocusedField('email')} onBlur={() => setFocusedField('')}
-                    style={inp} />
+                  <input
+                    className="rg-input"
+                    type="text"
+                    inputMode="email"
+                    name="auth_user_login"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck="false"
+                    data-lpignore="true"
+                    data-form-type="other"
+                    data-1p-ignore="true"
+                    data-tempmail-ignore="true"
+                    data-disable-tempmail="true"
+                    required
+                    placeholder="you@example.com"
+                    value={form.email}
+                    onChange={e => setForm({ ...form, email: e.target.value })}
+                    onFocus={() => setFocusedField('email')}
+                    onBlur={() => setFocusedField('')}
+                    style={inp}
+                  />
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -235,10 +253,19 @@ export default function LoginPage() {
                 </div>
                 <div className="rg-field" style={{ ...field, borderColor: focusedField === 'pw' ? A : 'rgba(0,0,0,0.12)' }}>
                   <IconLock />
-                  <input className="rg-input" type="password" required placeholder="Enter your password"
-                    value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
-                    onFocus={() => setFocusedField('pw')} onBlur={() => setFocusedField('')}
-                    style={inp} />
+                  <input
+                    className="rg-input"
+                    type="password"
+                    name="auth_user_secret"
+                    autoComplete="current-password"
+                    required
+                    placeholder="Enter your password"
+                    value={form.password}
+                    onChange={e => setForm({ ...form, password: e.target.value })}
+                    onFocus={() => setFocusedField('pw')}
+                    onBlur={() => setFocusedField('')}
+                    style={inp}
+                  />
                 </div>
 
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#6b7280', marginBottom: 18, cursor: 'pointer' }}>
@@ -265,7 +292,18 @@ export default function LoginPage() {
                   <IconMail />
                   <input
                     className="rg-input"
-                    type="email"
+                    type="text"
+                    inputMode="email"
+                    name="auth_otp_recipient"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck="false"
+                    data-lpignore="true"
+                    data-form-type="other"
+                    data-1p-ignore="true"
+                    data-tempmail-ignore="true"
+                    data-disable-tempmail="true"
                     required
                     placeholder="Enter your email address"
                     value={form.email}

@@ -108,3 +108,25 @@ input:focus-visible, input:focus, input:active {
     animation: none !important;
   }
 }
+
+/* Prevent browser extensions (TempMail, Inboxes, etc.) from injecting icons into input containers */
+.rg-field, .rg-m-field {
+  position: relative;
+  overflow: hidden;
+}
+
+.rg-field > *:not(svg):not(input):not(button),
+.rg-m-field > *:not(svg):not(input):not(button),
+.rg-field iframe,
+.rg-m-field iframe,
+.rg-field div:not(.rg-custom),
+.rg-m-field div:not(.rg-custom) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  left: -9999px !important;
+}
