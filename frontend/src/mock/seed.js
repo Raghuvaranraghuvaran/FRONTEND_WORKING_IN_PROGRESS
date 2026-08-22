@@ -28,6 +28,24 @@ export const PRODUCTS = [
 
 export const SHOPPERS = [
   {
+    id: 'user_demo',
+    merchant_id: 'merchant_1',
+    customer_id: 'CUST-DEMO',
+    name: 'Demo Shopper',
+    email: 'demo@shopper.com',
+    phone: '+91 99999 00000',
+    role: 'shopper',
+    addresses: [
+      { id: 'addr_demo1', label: 'Home', line: 'Demo Address, Test Street, Demo City 123456' },
+    ],
+    total_orders: 5,
+    total_returns: 1,
+    total_cod_refusals: 0,
+    risk_tier: 'Low',
+    device_reuse_flag: false,
+    joined_at: '2025-01-01T10:00:00Z',
+  },
+  {
     id: 'user_1',
     merchant_id: 'merchant_1',
     customer_id: 'CUST-1001',
@@ -335,17 +353,17 @@ export const MERCHANT = {
   id: 'merchant_1',
   business_name: 'Aria Fashion House',
   store_slug: 'aria-fashion-house',
-  admin_email: 'admin@returnguard.in',
+  admin_email: 'demo@merchant.com',
   plan_tier: 'Pilot',
   created_at: '2025-08-01T10:00:00Z',
 }
 
 export const MERCHANT_ADMIN = {
-  id: 'admin_1',
+  id: 'admin_demo',
   merchant_id: 'merchant_1',
-  email: 'admin@returnguard.in',
-  password: 'password',
-  name: 'Aria Admin',
+  email: 'demo@merchant.com',
+  password: 'demo123',
+  name: 'Demo Merchant',
   role: 'merchant_admin',
 }
 

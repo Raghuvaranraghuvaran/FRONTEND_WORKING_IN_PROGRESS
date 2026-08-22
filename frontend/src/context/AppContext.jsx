@@ -50,7 +50,13 @@ export function AppProvider({ children }) {
             return current
           }
           isNew = true
-          return [...current, { product_id: product.id, name: product.name, price: Number(product.price), quantity: 1 }]
+          return [...current, { 
+            product_id: product.id, 
+            name: product.name, 
+            price: Number(product.price), 
+            quantity: 1,
+            image: product.image // Add product image
+          }]
         })
         return isNew
       },

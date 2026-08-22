@@ -1,7 +1,9 @@
 import { BrowserRouter, Route, Routes, Navigate, Outlet } from 'react-router-dom'
 import { AppProvider, useApp } from './context/AppContext'
 import StorefrontHeader from './components/StorefrontHeader'
+import ShopperLayout from './components/ShopperLayout'
 import LandingPage from './pages/LandingPage'
+import DashboardPage from './pages/DashboardPage'
 import ShopPage from './pages/ShopPage'
 import ProductDetailPage from './pages/ProductDetailPage'
 import LoginPage from './pages/LoginPage'
@@ -48,49 +50,17 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route element={<StorefrontLayout />}>
+      
+      {/* Shopper pages - with sidebar layout */}
+      <Route element={<RequireShopper><ShopperLayout /></RequireShopper>}>
+        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/shop" element={<ShopPage />} />
         <Route path="/products/:productId" element={<ProductDetailPage />} />
-        <Route
-          path="/cart"
-          element={
-            <RequireShopper>
-              <CartPage />
-            </RequireShopper>
-          }
-        />
-        <Route
-          path="/checkout"
-          element={
-            <RequireShopper>
-              <CheckoutPage />
-            </RequireShopper>
-          }
-        />
-        <Route
-          path="/orders"
-          element={
-            <RequireShopper>
-              <OrdersPage />
-            </RequireShopper>
-          }
-        />
-        <Route
-          path="/orders/:orderId/return"
-          element={
-            <RequireShopper>
-              <ReturnRequestPage />
-            </RequireShopper>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <RequireShopper>
-              <ProfilePage />
-            </RequireShopper>
-          }
-        />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/orders" element={<OrdersPage />} />
+        <Route path="/orders/:orderId/return" element={<ReturnRequestPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
       </Route>
 
       <Route path="/login" element={<LoginPage />} />

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import Barcode from 'react-barcode'
 import { api } from '../mock/api'
 import { useApp } from '../context/AppContext'
 import { formatDate } from '../lib/format'
@@ -13,6 +14,8 @@ export default function ProfilePage() {
   const [newAddress, setNewAddress] = useState({ label: 'Home', line: '' })
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [profilePhoto, setProfilePhoto] = useState(shopper?.profilePhoto || null)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     if (shopper) {
@@ -20,13 +23,29 @@ export default function ProfilePage() {
         name: shopper.name || '',
         phone: shopper.phone || '',
       })
+      setProfilePhoto(shopper.profilePhoto || null)
     }
   }, [shopper])
+
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setProfilePhoto(reader.result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
 
   const submit = async (e) => {
     e.preventDefault()
     setSaving(true)
-    const updated = await api.updateProfile({ name: form.name, phone: form.phone })
+    const updated = await api.updateProfile({ 
+      name: form.name, 
+      phone: form.phone,
+      profilePhoto: profilePhoto 
+    })
     setShopper(updated)
     setSaving(false)
     setSaved(true)
@@ -53,6 +72,74 @@ export default function ProfilePage() {
       <p className="text-sm text-slate-500">Update personal details and manage saved addresses.</p>
 
       <form onSubmit={submit} className="mt-6 space-y-5">
+        {/* Profile Photo Section */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="text-base font-semibold text-slate-900 mb-4">Profile Photo</h2>
+          <div className="flex items-center gap-6">
+            <div style={{
+              width: 120,
+              height: 120,
+              borderRadius: '50%',
+              background: profilePhoto ? `url(${profilePhoto}) center/cover` : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              fontSize: 48,
+              fontWeight: 700,
+              border: '4px solid #e2e8f0',
+            }}>
+              {!profilePhoto && shopper?.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex flex-col gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handlePhotoUpload}
+                accept="image/*"
+                style={{ display: 'none' }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+              >
+                Upload Photo
+              </button>
+              {profilePhoto && (
+                <button
+                  type="button"
+                  onClick={() => setProfilePhoto(null)}
+                  className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300"
+                >
+                  Remove Photo
+                </button>
+              )}
+              <p className="text-xs text-slate-500">JPG, PNG or GIF (max. 5MB)</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Barcode Section */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="text-base font-semibold text-slate-900 mb-4">Member Barcode</h2>
+          <div className="flex flex-col items-center gap-3 bg-slate-50 rounded-xl p-6">
+            <p className="text-sm text-slate-600">Your unique member ID</p>
+            {shopper?.email && (
+              <Barcode 
+                value={shopper.email} 
+                width={2}
+                height={80}
+                displayValue={true}
+                background="#f8fafc"
+                lineColor="#1e293b"
+                fontSize={14}
+              />
+            )}
+            <p className="text-xs text-slate-400 mt-2">Show this barcode at store for quick checkout</p>
+          </div>
+        </div>
+
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>

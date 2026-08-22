@@ -27,8 +27,14 @@ export default function CartPage() {
       <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_320px]">
         <div className="space-y-3">
           {cart.map((item) => (
-            <div key={item.product_id} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4">
-              <div>
+            <div key={item.product_id} className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4">
+              {/* Product image */}
+              {item.image && (
+                <div style={{ width: 80, height: 80, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: '#f1f5f9' }}>
+                  <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              )}
+              <div className="flex-1">
                 <p className="font-semibold text-slate-900">{item.name}</p>
                 <p className="text-sm text-slate-500">{INR.format(item.price)} each</p>
               </div>
