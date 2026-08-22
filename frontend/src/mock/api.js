@@ -1257,6 +1257,19 @@ export const api = {
       return merchant
     }
     await delay(300)
+    if (session.merchant) {
+      const email = session.merchant.email
+      const name = session.merchant.name || email.split('@')[0]
+      const slug = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-')
+      return {
+        id: `merchant_${slug}`,
+        business_name: `${name}'s Store`,
+        store_slug: slug,
+        admin_email: email,
+        plan_tier: 'Pilot',
+        created_at: new Date().toISOString(),
+      }
+    }
     return clone(store.merchant)
   },
 

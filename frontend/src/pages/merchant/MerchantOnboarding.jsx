@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../../mock/api'
+import { useApp } from '../../context/AppContext'
 import { formatDate } from '../../lib/format'
 
 export default function MerchantOnboarding() {
   const navigate = useNavigate()
+  const { merchant: merchantUser } = useApp()
   const [existing, setExisting] = useState(null)
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ businessName: '', storeSlug: '', adminEmail: '' })
@@ -13,16 +15,30 @@ export default function MerchantOnboarding() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    api.getMerchantOnboarding().then((merchant) => {
-      setExisting(merchant)
-      setForm({
-        businessName: merchant.business_name,
-        storeSlug: merchant.store_slug,
-        adminEmail: merchant.admin_email,
+    api
+      .getMerchantOnboarding()
+      .then((m) => {
+        setExisting(m)
+        const email = m?.admin_email || merchantUser?.email || ''
+        const defaultName = m?.business_name || (merchantUser?.name ? `${merchantUser.name}'s Store` : '')
+        const defaultSlug = m?.store_slug || (email ? email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-') : '')
+        
+        setForm({
+          businessName: defaultName,
+          storeSlug: defaultSlug,
+          adminEmail: email,
+        })
+        setLoading(false)
       })
-      setLoading(false)
-    })
-  }, [])
+      .catch(() => {
+        setForm({
+          businessName: merchantUser?.name ? `${merchantUser.name}'s Store` : '',
+          storeSlug: merchantUser?.email ? merchantUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-') : '',
+          adminEmail: merchantUser?.email || '',
+        })
+        setLoading(false)
+      })
+  }, [merchantUser])
 
   const submit = async (e) => {
     e.preventDefault()

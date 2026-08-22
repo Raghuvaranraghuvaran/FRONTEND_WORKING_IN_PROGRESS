@@ -19,14 +19,39 @@ def get_merchant_from_user(user):
     Merchant admins resolve to their own merchant; shoppers resolve to the
     merchant they are registered against.
     """
+    if user is None or not user.is_authenticated:
+        return None
+
     merchant_profile = getattr(user, "merchant_profile", None)
     if merchant_profile is not None:
         return merchant_profile.merchant
+
     shopper = getattr(user, "shopper_profile", None)
     if shopper is not None and shopper.merchant_id:
         return shopper.merchant
-    from merchants.models import Merchant
-    return Merchant.objects.first()
+
+    # If merchant admin has no profile yet, provision their isolated tenant
+    if getattr(user, "is_merchant_admin", False) or getattr(user, "role", "") == "merchant_admin":
+        from merchants.models import Merchant, MerchantProfile
+        from django.utils.text import slugify
+        base_slug = slugify(user.email.split("@")[0])[:35] or f"merchant-{user.id}"
+        slug = base_slug
+        counter = 1
+        while Merchant.objects.filter(store_slug=slug).exclude(admin_email=user.email).exists():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+
+        merchant, _ = Merchant.objects.get_or_create(
+            store_slug=slug,
+            defaults={
+                "business_name": f"{user.name or user.email.split('@')[0]}'s Store",
+                "admin_email": user.email,
+            },
+        )
+        MerchantProfile.objects.update_or_create(user=user, defaults={"merchant": merchant})
+        return merchant
+
+    return None
 
 
 def require_merchant_context(request):

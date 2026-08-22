@@ -10,12 +10,12 @@ export default function MerchantSettings() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    api.getMerchantDashboard().then(() => {
+    api.getMerchantOnboarding().then((merchant) => {
       const current = {
-        business_name: 'Aria Fashion House',
-        plan_tier: 'Pilot',
+        business_name: merchant?.business_name || '',
+        plan_tier: merchant?.plan_tier || 'Pilot',
       }
-      setSettings(current)
+      setSettings(merchant)
       setForm(current)
     })
   }, [])
