@@ -19,7 +19,7 @@ def env_list(name, default=""):
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-dev-key-change-me")
 DEBUG = env_bool("DJANGO_DEBUG", True)
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,.onrender.com")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -143,6 +143,12 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175"
 )
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    # Allow all Vercel preview and production deployments
+    r"^https://.*\.vercel\.app$",
+    # Allow all Render subdomains
+    r"^https://.*\.onrender\.com$",
+]
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 
