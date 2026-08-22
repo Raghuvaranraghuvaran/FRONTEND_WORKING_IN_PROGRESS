@@ -298,7 +298,14 @@ export default function MerchantProducts() {
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-indigo-500 focus:bg-white focus:outline-none"
+            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 pr-8 text-sm text-slate-700 focus:border-indigo-500 focus:bg-white focus:outline-none"
+            style={{
+              appearance: 'auto',
+              WebkitAppearance: 'menulist',
+              MozAppearance: 'menulist',
+              cursor: 'pointer',
+              minWidth: 160,
+            }}
           >
             <option value="all">All Categories</option>
             {categories.map((c) => (
@@ -507,6 +514,12 @@ export default function MerchantProducts() {
                     value={formData.category_id}
                     onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none"
+                    style={{
+                      appearance: 'auto',
+                      WebkitAppearance: 'menulist',
+                      MozAppearance: 'menulist',
+                      cursor: 'pointer',
+                    }}
                   >
                     <option value="">Select Category</option>
                     {categories.map((c) => (

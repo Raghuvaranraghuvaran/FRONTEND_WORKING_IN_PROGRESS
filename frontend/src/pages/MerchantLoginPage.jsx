@@ -259,9 +259,15 @@ export default function MerchantLoginPage() {
                 </div>
                 <div style={{
                   background: `${A}0c`, border: `1px solid ${A}22`,
-                  borderRadius: 10, padding: 13, fontSize: 12.5, color: '#4b5563', marginBottom: 16, lineHeight: 1.55,
+                  borderRadius: 10, padding: 13, fontSize: 12.5, color: '#4b5563', marginBottom: 10, lineHeight: 1.55,
                 }}>
                   We'll send a 6-digit one-time code to this email. No password needed.
+                </div>
+                <div style={{
+                  background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
+                  borderRadius: 10, padding: '9px 13px', fontSize: 12, color: '#92400e', marginBottom: 16, lineHeight: 1.5,
+                }}>
+                  <strong>Demo mode:</strong> Use code <strong style={{ fontFamily: 'monospace', letterSpacing: '0.1em' }}>123456</strong> to verify.
                 </div>
                 <motion.button type="button" disabled={submitting || !form.email} onClick={sendOTP}
                   whileHover={{ scale: submitting ? 1 : 1.02 }} whileTap={{ scale: 0.97 }}
@@ -300,8 +306,13 @@ export default function MerchantLoginPage() {
             {hasGoogleSignIn() ? (
               <div id="merchant-google-signin" ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center' }} />
             ) : (
-              <button type="button" style={googleButton}>
-                <IconGoogle /> Continue with Google
+              <button type="button" disabled={submitting} style={googleButton} onClick={async () => {
+                setError(''); setSubmitting(true)
+                try { const s = await api.merchantGoogleSignIn('mock-credential'); setMerchant(s.admin); navigate('/merchant') }
+                catch (e) { setError(e.message) }
+                finally { setSubmitting(false) }
+              }}>
+                {submitting ? <><Spinner /> Signing in…</> : <><IconGoogle /> Continue with Google</>}
               </button>
             )}
 
