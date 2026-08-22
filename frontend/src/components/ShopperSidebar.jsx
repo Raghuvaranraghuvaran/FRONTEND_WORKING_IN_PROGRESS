@@ -40,7 +40,7 @@ function SidebarItem({ to, icon, label, active, badge, onClick }) {
 }
 
 export default function ShopperSidebar() {
-  const { shopper, setShopper, cart } = useApp()
+  const { shopper, setShopper, cart, wishlist } = useApp()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -50,11 +50,7 @@ export default function ShopperSidebar() {
     navigate('/')
   }
 
-  const isActive = (path) => {
-    if (path === '/') return location.pathname === '/'
-    return location.pathname === path || location.pathname.startsWith(path + '/')
-  }
-  const wishlistCount = 0 // TODO: implement wishlist
+  const wishlistCount = wishlist?.length || 0
 
   return (
     <aside style={{
@@ -78,16 +74,15 @@ export default function ShopperSidebar() {
 
       {/* Nav items */}
       <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <SidebarItem to="/dashboard" icon="🏠" label="Dashboard" active={isActive('/dashboard')} />
-        <SidebarItem to="/shop" icon="🛍️" label="Shop" active={isActive('/shop')} />
-        <SidebarItem to="/orders" icon="📦" label="My Orders" active={isActive('/orders')} />
-        <SidebarItem to="/orders" icon="🔄" label="Returns" active={isActive('/orders')} />
-        <SidebarItem to="/orders" icon="🔍" label="Track Return" active={isActive('/orders')} />
-        <SidebarItem icon="❤️" label="Wishlist" badge={wishlistCount || undefined} />
-        <SidebarItem icon="💾" label="Saved Items" />
-        <SidebarItem to="/cart" icon="💳" label="Cart" active={isActive('/cart')} badge={cart.length || undefined} />
-        <SidebarItem to="/profile" icon="📍" label="Addresses" active={isActive('/profile')} />
-        <SidebarItem icon="❓" label="Help & Support" />
+        <SidebarItem to="/dashboard" icon="🏠" label="Dashboard" active={location.pathname === '/dashboard'} />
+        <SidebarItem to="/shop" icon="🛍️" label="Shop" active={location.pathname === '/shop' || location.pathname.startsWith('/products/')} />
+        <SidebarItem to="/orders" icon="📦" label="My Orders" active={location.pathname === '/orders' || location.pathname.startsWith('/orders/')} />
+        <SidebarItem icon="🔄" label="Returns" />
+        <SidebarItem icon="🔍" label="Track Return" />
+        <SidebarItem to="/wishlist" icon="❤️" label="Wishlist" active={location.pathname === '/wishlist'} badge={wishlistCount || undefined} />
+        <SidebarItem to="/cart" icon="💳" label="Cart" active={location.pathname === '/cart'} badge={cart.length || undefined} />
+        <SidebarItem to="/profile" icon="📍" label="Addresses" active={location.pathname === '/profile'} />
+        <SidebarItem to="/help" icon="❓" label="Help & Support" active={location.pathname === '/help'} />
       </nav>
 
       {/* Bottom CTA - removed, moved to page footer */}

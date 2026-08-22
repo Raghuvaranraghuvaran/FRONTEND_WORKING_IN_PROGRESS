@@ -13,6 +13,8 @@ import CheckoutPage from './pages/CheckoutPage'
 import OrdersPage from './pages/OrdersPage'
 import ReturnRequestPage from './pages/ReturnRequestPage'
 import ProfilePage from './pages/ProfilePage'
+import WishlistPage from './pages/WishlistPage'
+import HelpPage from './pages/HelpPage'
 import MerchantLoginPage from './pages/MerchantLoginPage'
 import MerchantLayout from './pages/merchant/MerchantLayout'
 import MerchantDashboard from './pages/merchant/MerchantDashboard'
@@ -56,11 +58,13 @@ function AppRoutes() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/shop" element={<ShopPage />} />
         <Route path="/products/:productId" element={<ProductDetailPage />} />
+        <Route path="/wishlist" element={<WishlistPage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/orders/:orderId/return" element={<ReturnRequestPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/help" element={<HelpPage />} />
       </Route>
 
       <Route path="/login" element={<LoginPage />} />

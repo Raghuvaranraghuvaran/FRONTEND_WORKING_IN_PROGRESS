@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import Barcode from 'react-barcode'
+import { QRCodeSVG } from 'qrcode.react'
 import { api } from '../mock/api'
 import { useApp } from '../context/AppContext'
 import { formatDate } from '../lib/format'
@@ -120,23 +120,31 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Barcode Section */}
+        {/* QR Code Section */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="text-base font-semibold text-slate-900 mb-4">Member Barcode</h2>
+          <h2 className="text-base font-semibold text-slate-900 mb-4">Member QR Code</h2>
           <div className="flex flex-col items-center gap-3 bg-slate-50 rounded-xl p-6">
             <p className="text-sm text-slate-600">Your unique member ID</p>
             {shopper?.email && (
-              <Barcode 
-                value={shopper.email} 
-                width={2}
-                height={80}
-                displayValue={true}
-                background="#f8fafc"
-                lineColor="#1e293b"
-                fontSize={14}
-              />
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <QRCodeSVG 
+                  value={JSON.stringify({
+                    email: shopper.email,
+                    name: shopper.name,
+                    customerId: shopper.customer_id,
+                    memberSince: shopper.joined_at
+                  })}
+                  size={200}
+                  level="H"
+                  includeMargin={true}
+                />
+              </div>
             )}
-            <p className="text-xs text-slate-400 mt-2">Show this barcode at store for quick checkout</p>
+            <div className="text-center">
+              <p className="text-sm font-semibold text-slate-900">{shopper?.name}</p>
+              <p className="text-xs text-slate-500 mt-1">{shopper?.customer_id}</p>
+            </div>
+            <p className="text-xs text-slate-400 mt-2">Scan this QR code at store for quick checkout</p>
           </div>
         </div>
 

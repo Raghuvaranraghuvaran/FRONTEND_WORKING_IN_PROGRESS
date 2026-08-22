@@ -14,6 +14,13 @@ export function AppProvider({ children }) {
       return []
     }
   })
+  const [wishlist, setWishlist] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('returnguard_wishlist') || '[]')
+    } catch {
+      return []
+    }
+  })
   const [deviceReady, setDeviceReady] = useState(false)
 
   useEffect(() => {
@@ -25,6 +32,10 @@ export function AppProvider({ children }) {
   useEffect(() => {
     localStorage.setItem('returnguard_cart', JSON.stringify(cart))
   }, [cart])
+
+  useEffect(() => {
+    localStorage.setItem('returnguard_wishlist', JSON.stringify(wishlist))
+  }, [wishlist])
 
   useEffect(() => {
     const existing = api.getSession()
@@ -40,6 +51,8 @@ export function AppProvider({ children }) {
       setMerchant,
       cart,
       setCart,
+      wishlist,
+      setWishlist,
       deviceReady,
       addToCart(product) {
         let isNew = false
@@ -60,6 +73,21 @@ export function AppProvider({ children }) {
         })
         return isNew
       },
+      toggleWishlist(product) {
+        setWishlist((current) => {
+          const found = current.find((item) => item.id === product.id)
+          if (found) {
+            // Remove from wishlist
+            return current.filter((item) => item.id !== product.id)
+          } else {
+            // Add to wishlist
+            return [...current, product]
+          }
+        })
+      },
+      isInWishlist(productId) {
+        return wishlist.some((item) => item.id === productId)
+      },
       updateCartItem(productId, quantity) {
         setCart((current) =>
           quantity <= 0
@@ -71,7 +99,7 @@ export function AppProvider({ children }) {
         setCart([])
       },
     }),
-    [shopper, merchant, cart, deviceReady],
+    [shopper, merchant, cart, wishlist, deviceReady],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

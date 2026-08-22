@@ -59,12 +59,11 @@ function StatCard({ icon, label, value, subtext, color = 'purple' }) {
 }
 
 export default function ShopPage() {
-  const { shopper } = useApp()
+  const { shopper, toggleWishlist, isInWishlist, addToCart, wishlist } = useApp()
   const [categories, setCategories] = useState([])
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchParams, setSearchParams] = useSearchParams()
-  const [wishlist, setWishlist] = useState([])
   const [searchInput, setSearchInput] = useState(searchParams.get('q') || '')
   const activeCategory = searchParams.get('category') || 'all'
   const query = searchParams.get('q') || ''
@@ -81,8 +80,11 @@ export default function ShopPage() {
     })
   }, [activeCategory, query])
 
-  const toggleWishlist = (productId) => {
-    setWishlist((prev) => prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId])
+  const handleAddToCart = (product) => {
+    const added = addToCart(product)
+    if (!added) {
+      alert('Already in cart!')
+    }
   }
 
   const handleSearch = (e) => {
@@ -208,7 +210,6 @@ export default function ShopPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 18 }}>
               {products.map((product) => {
-                const isWishlisted = wishlist.includes(product.id)
                 const categoryName = categories.find((c) => c.id === product.category_id)?.name || 'Uncategorized'
                 return (
                   <div key={product.id} style={{
@@ -227,17 +228,17 @@ export default function ShopPage() {
                     </Link>
 
                     <button
-                      onClick={() => toggleWishlist(product.id)}
+                      onClick={() => toggleWishlist(product)}
                       style={{
                         position: 'absolute', top: 10, right: 10, width: 34, height: 34, borderRadius: '50%',
-                        background: isWishlisted ? '#fecdd3' : 'rgba(255,255,255,0.95)',
-                        border: '1px solid', borderColor: isWishlisted ? '#fb7185' : '#e2e8f0',
+                        background: isInWishlist(product.id) ? '#fecdd3' : 'rgba(255,255,255,0.95)',
+                        border: '1px solid', borderColor: isInWishlist(product.id) ? '#fb7185' : '#e2e8f0',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         cursor: 'pointer', transition: 'all .2s',
-                        color: isWishlisted ? '#e11d48' : '#64748b',
+                        color: isInWishlist(product.id) ? '#e11d48' : '#64748b',
                       }}
                     >
-                      <IconHeart filled={isWishlisted} />
+                      <IconHeart filled={isInWishlist(product.id)} />
                     </button>
 
                     <div style={{ padding: 12 }}>
@@ -257,11 +258,13 @@ export default function ShopPage() {
                         <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>
                           {INR.format(product.price)}
                         </div>
-                        <button style={{
-                          background: '#6366f1', color: '#fff', width: 34, height: 34, borderRadius: 8,
-                          border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          cursor: 'pointer', flexShrink: 0,
-                        }}>
+                        <button 
+                          onClick={() => handleAddToCart(product)}
+                          style={{
+                            background: '#6366f1', color: '#fff', width: 34, height: 34, borderRadius: 8,
+                            border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', flexShrink: 0,
+                          }}>
                           <IconCart />
                         </button>
                       </div>
