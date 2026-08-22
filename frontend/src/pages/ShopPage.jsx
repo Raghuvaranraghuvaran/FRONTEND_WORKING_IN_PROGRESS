@@ -242,8 +242,15 @@ export default function ShopPage() {
                     </button>
 
                     <div style={{ padding: 12 }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
-                        {categoryName}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 4 }}>
+                        <span style={{ fontSize: 10, fontWeight: 600, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          {categoryName}
+                        </span>
+                        {(product.merchant_name || product.merchant?.business_name) && (
+                          <span style={{ fontSize: 10.5, fontWeight: 500, color: '#64748b', background: '#f1f5f9', padding: '1px 6px', borderRadius: 4 }}>
+                            {product.merchant_name || product.merchant?.business_name}
+                          </span>
+                        )}
                       </div>
                       <Link to={`/products/${product.id}`} style={{ textDecoration: 'none' }}>
                         <h3 style={{

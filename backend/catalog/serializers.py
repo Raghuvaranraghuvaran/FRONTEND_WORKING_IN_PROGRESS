@@ -10,12 +10,16 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ProductListSerializer(serializers.ModelSerializer):
+    merchant_name = serializers.CharField(source="merchant.business_name", read_only=True, default="")
+
     class Meta:
         model = Product
-        fields = ("id", "merchant_id", "category_id", "name", "price", "stock", "image", "description")
+        fields = ("id", "merchant_id", "merchant_name", "category_id", "name", "price", "stock", "image", "description")
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
+    merchant_name = serializers.CharField(source="merchant.business_name", read_only=True, default="")
+
     class Meta:
         model = Product
-        fields = ("id", "merchant_id", "category_id", "name", "price", "stock", "image", "description", "is_active")
+        fields = ("id", "merchant_id", "merchant_name", "category_id", "name", "price", "stock", "image", "description", "is_active")

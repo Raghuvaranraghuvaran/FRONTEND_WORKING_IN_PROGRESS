@@ -87,6 +87,20 @@ export default function ProductDetailPage() {
           </div>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{product.name}</h1>
           <p className="mt-3 text-2xl font-bold text-slate-900">{INR.format(product.price)}</p>
+
+          {/* Merchant / Seller Information */}
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white shadow-sm">
+              🏪
+            </span>
+            <div>
+              <p className="text-xs font-medium text-slate-500">Merchant Store</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {product.merchant_name || product.merchant?.business_name || 'Verified Merchant Store'}
+              </p>
+            </div>
+          </div>
+
           <p className="mt-5 leading-7 text-slate-600">{product.description}</p>
           <p className="mt-2 text-sm text-slate-400">{product.stock} in stock</p>
 
