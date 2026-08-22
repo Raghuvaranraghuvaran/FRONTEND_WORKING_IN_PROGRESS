@@ -7,3 +7,5 @@ django-cors-headers>=4.3,<5.0
 google-auth>=2.30,<3.0
 celery>=5.3,<6.0
 redis>=5.0,<6.0
+gunicorn>=22.0,<23.0
+whitenoise>=6.5,<7.0
