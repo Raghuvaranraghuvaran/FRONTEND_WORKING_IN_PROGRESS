@@ -11,13 +11,14 @@ class MerchantSerializer(serializers.ModelSerializer):
         model = Merchant
         fields = (
             "id",
+            "merchant_username",
             "business_name",
             "store_slug",
             "admin_email",
             "plan_tier",
             "created_at",
         )
-        read_only_fields = ("id", "created_at")
+        read_only_fields = ("id", "merchant_username", "created_at")
 
 
 class MerchantRegisterSerializer(serializers.ModelSerializer):

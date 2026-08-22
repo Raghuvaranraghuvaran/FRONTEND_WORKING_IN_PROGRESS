@@ -540,25 +540,10 @@ export const api = {
     return clone(shopper)
   },
 
-  async merchantGoogleSignIn(credential) {
+  async merchantLogin({ username, password }) {
+    const cleanUsername = String(username || '').trim().toUpperCase()
     if (hasLiveApi()) {
-      const result = await live('/merchants/google/', { method: 'POST', body: { credential }, role: 'merchant' })
-      writeMerchantToken(result.tokens)
-      session.merchant = clone(result.admin)
-      if (result.merchant) persistMerchant(result.merchant)
-      saveSession()
-      return { admin: result.admin, merchant: result.merchant }
-    }
-    // Mock mode - simulate Google sign-in for merchant
-    await delay(700)
-    session.merchant = clone(store.merchantAdmin)
-    saveSession()
-    return { admin: clone(session.merchant), merchant: clone(store.merchant) }
-  },
-
-  async merchantLogin({ email, password }) {
-    if (hasLiveApi()) {
-      const result = await live('/merchants/login/', { method: 'POST', body: { email, password }, role: 'merchant' })
+      const result = await live('/merchants/login/', { method: 'POST', body: { username: cleanUsername, password }, role: 'merchant' })
       writeMerchantToken(result.tokens)
       session.merchant = clone(result.admin)
       if (result.merchant) {
@@ -568,12 +553,14 @@ export const api = {
       return { admin: result.admin, merchant: result.merchant }
     }
     await delay(600)
-    if (email === store.merchantAdmin.email && password === store.merchantAdmin.password) {
-      session.merchant = clone(store.merchantAdmin)
+    const list = store.merchantsList || [store.merchantAdmin]
+    const matched = list.find((m) => (m.merchant_username || '').toUpperCase() === cleanUsername || (m.email || '').toUpperCase() === cleanUsername)
+    if (matched && password === matched.password) {
+      session.merchant = clone(matched)
       saveSession()
       return { admin: clone(session.merchant), merchant: clone(store.merchant) }
     }
-    throw new Error('Invalid merchant credentials.')
+    throw new Error('Invalid username or password.')
   },
 
   async logout(role = 'shopper') {
@@ -1359,59 +1346,61 @@ export const api = {
     return clone(merchant)
   },
 
-  async registerMerchantAccount({ admin, businessName, storeSlug }) {
+  async registerMerchantAccount({ name, email, password, businessName, storeSlug }) {
     if (hasLiveApi()) {
-      const result = await live('/merchants/register/', {
+      return live('/merchants/register/', {
         method: 'POST',
         body: {
-          name: admin.name,
-          email: admin.email,
-          password: admin.password,
+          name,
+          email,
+          password,
           business_name: businessName,
           store_slug: storeSlug,
         },
       })
-      writeMerchantToken(result.tokens)
-      session.merchant = clone(result.admin)
-      if (result.merchant) persistMerchant(result.merchant)
-      saveSession()
-      return result
     }
     await delay(800)
     
-    // Check if merchant admin email already exists
-    if (admin.email === store.merchantAdmin.email) {
-      throw new Error('An account with this email already exists.')
+    // Check if email already registered
+    const list = store.merchantsList || [store.merchantAdmin]
+    if (list.some((m) => m.email.toLowerCase() === email.toLowerCase())) {
+      throw new Error('Email is already registered.')
     }
     
-    // Create new merchant admin
+    // Generate unique merchant username
+    const base = businessName.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 12) || 'MERCHANT'
+    const suffix = Math.floor(1000 + Math.random() * 9000)
+    const merchant_username = `${base}${suffix}`
+    
     const merchantAdmin = {
       id: 'admin_' + Date.now(),
-      name: admin.name,
-      email: admin.email,
-      password: admin.password,
+      name,
+      email,
+      password,
+      merchant_username,
       role: 'merchant_admin',
     }
     
-    // Create merchant record
     const merchant = {
       id: createMerchantId(storeSlug),
+      merchant_username,
       business_name: businessName,
       store_slug: storeSlug,
-      admin_email: admin.email,
+      admin_email: email,
       plan_tier: 'Pilot',
       created_at: new Date().toISOString(),
     }
     
-    // Update store
-    store.merchantAdmin = merchantAdmin
+    if (!store.merchantsList) store.merchantsList = [store.merchantAdmin]
+    store.merchantsList.push(merchantAdmin)
     persistMerchant(merchant)
-    session.merchant = clone(merchantAdmin)
-    saveSession()
     
     return {
-      admin: clone(merchantAdmin),
-      merchant: clone(merchant),
+      merchant_username,
+      email,
+      name,
+      business_name: businessName,
+      store_slug: storeSlug,
     }
   },
 

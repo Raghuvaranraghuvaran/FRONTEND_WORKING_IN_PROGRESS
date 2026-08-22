@@ -351,6 +351,7 @@ export const AUDIT_LOG = [
 
 export const MERCHANT = {
   id: 'merchant_1',
+  merchant_username: 'ARIAFASHION4827',
   business_name: 'Aria Fashion House',
   store_slug: 'aria-fashion-house',
   admin_email: 'demo@merchant.com',
@@ -361,6 +362,7 @@ export const MERCHANT = {
 export const MERCHANT_ADMIN = {
   id: 'admin_demo',
   merchant_id: 'merchant_1',
+  merchant_username: 'ARIAFASHION4827',
   email: 'demo@merchant.com',
   password: 'demo123',
   name: 'Demo Merchant',

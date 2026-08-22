@@ -14,6 +14,7 @@ class User(AbstractBaseUser, PermissionsMixin, TimestampedModel):
     )
 
     email = models.EmailField(unique=True)
+    merchant_username = models.CharField(max_length=64, unique=True, null=True, blank=True, db_index=True)
     name = models.CharField(max_length=255)
     phone = models.CharField(max_length=32, blank=True, default="")
     role = models.CharField(max_length=32, choices=ROLE_CHOICES, default=ROLE_SHOPPER)
