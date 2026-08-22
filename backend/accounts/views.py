@@ -60,35 +60,42 @@ class GoogleLoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = GoogleLoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        google_profile = verify_google_id_token(serializer.validated_data["credential"])
+        try:
+            serializer = GoogleLoginSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            google_profile = verify_google_id_token(serializer.validated_data["credential"])
 
-        user = User.objects.filter(email__iexact=google_profile["email"]).first()
-        if user is not None and not user.is_shopper:
-            from common.exceptions import AppError
+            user = User.objects.filter(email__iexact=google_profile["email"]).first()
+            created = False
+            if user is None:
+                user = User.objects.create_user(
+                    email=google_profile["email"],
+                    name=google_profile["name"],
+                    role=User.ROLE_SHOPPER,
+                )
+                created = True
+            elif user.role != User.ROLE_SHOPPER:
+                user.role = User.ROLE_SHOPPER
+                user.save(update_fields=["role"])
 
-            raise AppError("This Google account is not linked to a shopper account.", code="SHOPPER_ACCOUNT_REQUIRED")
-        created = False
-        if user is None:
-            user = User.objects.create_user(
-                email=google_profile["email"],
-                name=google_profile["name"],
-                role=User.ROLE_SHOPPER,
-            )
-            created = True
-            ShopperProfile.objects.create(
+            ShopperProfile.objects.get_or_create(
                 user=user,
-                customer_id=f"CUST-{user.id + 1000}",
+                defaults={"customer_id": f"CUST-{user.id + 1000}"},
             )
 
-        return success(
-            {
-                "tokens": tokens_for_user(user),
-                "user": ShopperSerializer(user).data,
-                "created": created,
-            }
-        )
+            return success(
+                {
+                    "tokens": tokens_for_user(user),
+                    "user": ShopperSerializer(user).data,
+                    "created": created,
+                }
+            )
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).exception("Google login error: %s", exc)
+            from common.exceptions import AppError
+            msg = str(exc) if str(exc) else "Google Sign-In verification failed."
+            raise AppError(msg, code="GOOGLE_LOGIN_FAILED")
 
 
 class LoginOTPRequestView(APIView):

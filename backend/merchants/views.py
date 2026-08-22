@@ -117,44 +117,31 @@ class MerchantGoogleLoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        from accounts.google_auth import verify_google_id_token
-        from accounts.serializers import GoogleLoginSerializer
-        from merchants.models import Merchant, MerchantProfile
+        try:
+            from accounts.google_auth import verify_google_id_token
+            from accounts.serializers import GoogleLoginSerializer
 
-        serializer = GoogleLoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        profile = verify_google_id_token(serializer.validated_data["credential"])
+            serializer = GoogleLoginSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            profile = verify_google_id_token(serializer.validated_data["credential"])
 
-        user = User.objects.filter(email__iexact=profile["email"]).first()
-        if user is None:
-            user = User.objects.create_user(
-                email=profile["email"],
-                name=profile["name"],
-                role=User.ROLE_MERCHANT_ADMIN,
-            )
-        elif user.role != User.ROLE_MERCHANT_ADMIN:
-            user.role = User.ROLE_MERCHANT_ADMIN
-            user.save(update_fields=["role"])
+            user = User.objects.filter(email__iexact=profile["email"]).first()
+            if user is None:
+                user = User.objects.create_user(
+                    email=profile["email"],
+                    name=profile["name"],
+                    role=User.ROLE_MERCHANT_ADMIN,
+                )
+            elif user.role != User.ROLE_MERCHANT_ADMIN:
+                user.role = User.ROLE_MERCHANT_ADMIN
+                user.save(update_fields=["role"])
 
-        # Link or create merchant tenant if not present
-        if not hasattr(user, "merchant_profile") or user.merchant_profile.merchant is None:
-            slug = profile["email"].split("@")[0].lower().replace(".", "-")[:40]
-            merchant, created = Merchant.objects.get_or_create(
-                store_slug=slug,
-                defaults={
-                    "business_name": f"{profile['name']}'s Store",
-                    "admin_email": profile["email"],
-                }
-            )
-            MerchantProfile.objects.update_or_create(
-                user=user,
-                defaults={"merchant": merchant}
-            )
-            if created:
-                _seed_default_categories(merchant)
-            user.refresh_from_db()
-
-        return success(merchant_login_payload(user))
+            return success(merchant_login_payload(user))
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).exception("Merchant Google login error: %s", exc)
+            msg = str(exc) if str(exc) else "Merchant Google Sign-In failed."
+            raise AppError(msg, code="GOOGLE_LOGIN_FAILED")
 
 
 class MerchantOTPRequestView(APIView):
