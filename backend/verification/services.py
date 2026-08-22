@@ -16,7 +16,7 @@ class OTPVerificationService:
     LOGIN_METHOD = "email_otp"
     LOGIN_PURPOSE = "login"
     LOGIN_WINDOW_SECONDS = 600
-    LOGIN_MAX_REQUESTS = 3
+    LOGIN_MAX_REQUESTS = 10
 
     def request_login_otp(self, *, email, role):
         user = self._login_user(email, role)
