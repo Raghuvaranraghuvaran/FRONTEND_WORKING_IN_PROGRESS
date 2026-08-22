@@ -1,161 +1,266 @@
-import { useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { AnimatePresence, motion } from 'framer-motion'
-import { api } from '../../mock/api'
+import { Outlet, useNavigate } from 'react-router-dom'
+import MerchantSidebar from '../../components/MerchantSidebar'
 import { useApp } from '../../context/AppContext'
-import BrandLogo from '../../components/BrandLogo'
-
-const navItems = [
-  { to: '/merchant', label: 'Dashboard', end: true },
-  { to: '/merchant/products', label: 'Products' },
-  { to: '/merchant/orders', label: 'Orders' },
-  { to: '/merchant/customers', label: 'Customers' },
-  { to: '/merchant/flagged-cases', label: 'Flagged' },
-  { to: '/merchant/delivery-agents', label: 'Agents' },
-  { to: '/merchant/analytics', label: 'Analytics' },
-  { to: '/merchant/fraud-config', label: 'Fraud' },
-  { to: '/merchant/audit-log', label: 'Audit' },
-  { to: '/merchant/onboarding', label: 'Setup' },
-  { to: '/merchant/settings', label: 'Settings' },
-]
+import { api } from '../../mock/api'
+import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 
 export default function MerchantLayout() {
-  const navigate = useNavigate()
   const { merchant, setMerchant } = useApp()
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const navigate = useNavigate()
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
 
-  const logout = async () => {
+  const handleLogout = async () => {
     await api.logout('merchant')
     setMerchant(null)
     navigate('/')
   }
 
-  const desktopLink = ({ isActive }) =>
-    `shrink-0 rounded-md px-2.5 py-1.5 text-[13px] font-medium leading-none transition-colors ${
-      isActive ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-    }`
-
-  const drawerLink = ({ isActive }) =>
-    `block rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
-      isActive ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'
-    }`
+  const notifications = [
+    { id: 1, text: '🔺 New High Risk Case detected', time: '2 mins ago' },
+    { id: 2, text: '🔴 New High Case detected', time: '15 mins ago' },
+    { id: 3, text: '✅ 3 Returns approved', time: '1 hour ago' },
+  ]
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
-        <div className="mx-auto flex h-14 max-w-[90rem] items-center gap-3 px-3 sm:px-5 lg:px-6">
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(true)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 lg:hidden"
-            aria-label="Open navigation"
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M2.5 4.5h13M2.5 9h13M2.5 13.5h13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-          </button>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
+      {/* Left Sidebar */}
+      <MerchantSidebar />
 
-          <div className="flex min-w-0 shrink-0 items-center gap-2">
-            <BrandLogo compact className="h-8 w-[8.75rem]" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold leading-tight text-slate-900">ReturnGuard</p>
-              <p className="hidden truncate text-[11px] leading-tight text-slate-500 sm:block">Aria Fashion House</p>
+      {/* Main Content Area */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {/* Top Bar */}
+        <header style={{
+          background: '#fff',
+          borderBottom: '1px solid #e2e8f0',
+          padding: '16px 28px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <input
+              type="search"
+              placeholder="Search..."
+              style={{
+                width: 300,
+                padding: '8px 16px',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0',
+                fontSize: 14,
+                outline: 'none',
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, position: 'relative' }}>
+            {/* Notification Bell */}
+            <div style={{ position: 'relative' }}>
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  border: '1px solid #e2e8f0',
+                  background: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  position: 'relative',
+                }}>
+                🔔
+                <span style={{
+                  position: 'absolute',
+                  top: 6,
+                  right: 6,
+                  width: 8,
+                  height: 8,
+                  background: '#ef4444',
+                  borderRadius: '50%',
+                }}></span>
+              </button>
+
+              {/* Notifications Dropdown */}
+              {showNotifications && (
+                <>
+                  <div 
+                    onClick={() => setShowNotifications(false)}
+                    style={{
+                      position: 'fixed',
+                      inset: 0,
+                      zIndex: 10,
+                    }}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    width: 320,
+                    background: '#fff',
+                    borderRadius: 12,
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+                    zIndex: 20,
+                  }}>
+                    <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0' }}>
+                      <h3 style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', margin: 0 }}>Notifications</h3>
+                    </div>
+                    <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                      {notifications.map(notif => (
+                        <div 
+                          key={notif.id}
+                          style={{
+                            padding: '12px 16px',
+                            borderBottom: '1px solid #f1f5f9',
+                            cursor: 'pointer',
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <p style={{ fontSize: 13, color: '#0f172a', margin: 0, marginBottom: 4 }}>{notif.text}</p>
+                          <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>{notif.time}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ padding: '10px 16px', textAlign: 'center', borderTop: '1px solid #e2e8f0' }}>
+                      <button style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#6366f1',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}>
+                        View all notifications
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* User Profile with Dropdown */}
+            <div style={{ position: 'relative' }}>
+              <div 
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '6px 12px',
+                  borderRadius: 10,
+                  border: '1px solid #e2e8f0',
+                  cursor: 'pointer',
+                  background: showProfileMenu ? '#f8fafc' : '#fff',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#f8fafc' }}
+                onMouseLeave={(e) => { if (!showProfileMenu) e.currentTarget.style.background = '#fff' }}
+              >
+                <div style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  fontSize: 14,
+                  fontWeight: 700,
+                }}>
+                  {merchant?.name?.charAt(0).toUpperCase() || 'H'}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
+                    Hi, {merchant?.name?.split(' ')[0] || 'Raghuvaran'}
+                  </span>
+                  <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                    {merchant?.email || 'merchant@example.com'}
+                  </span>
+                </div>
+                <ChevronDown size={16} color="#94a3b8" />
+              </div>
+
+              {/* Profile Dropdown */}
+              {showProfileMenu && (
+                <>
+                  <div 
+                    onClick={() => setShowProfileMenu(false)}
+                    style={{
+                      position: 'fixed',
+                      inset: 0,
+                      zIndex: 10,
+                    }}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    width: 200,
+                    background: '#fff',
+                    borderRadius: 12,
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+                    zIndex: 20,
+                    overflow: 'hidden',
+                  }}>
+                    <button
+                      onClick={() => {
+                        setShowProfileMenu(false)
+                        navigate('/merchant/settings')
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        background: 'none',
+                        border: 'none',
+                        textAlign: 'left',
+                        fontSize: 13,
+                        color: '#0f172a',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #f1f5f9',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      ⚙️ Settings
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowProfileMenu(false)
+                        handleLogout()
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        background: 'none',
+                        border: 'none',
+                        textAlign: 'left',
+                        fontSize: 13,
+                        color: '#dc2626',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      🚪 Logout
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
+        </header>
 
-          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 overflow-x-auto lg:flex">
-            {navItems.map((item) => (
-              <NavLink key={item.to} to={item.to} end={item.end} className={desktopLink}>
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
-
-          <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
-            <span className="hidden max-w-[160px] truncate text-xs text-slate-400 xl:block">{merchant?.email}</span>
-            <button
-              onClick={logout}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 whitespace-nowrap transition-colors hover:bg-slate-50"
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <AnimatePresence>
-        {drawerOpen && (
-          <>
-            <motion.div
-              key="backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
-              onClick={() => setDrawerOpen(false)}
-            />
-
-            <motion.aside
-              key="drawer"
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-white shadow-2xl lg:hidden"
-            >
-              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                <div className="flex items-center gap-2.5">
-                  <BrandLogo compact className="h-8 w-[8.75rem]" />
-                  <div>
-                    <p className="text-sm font-bold leading-tight text-slate-900">ReturnGuard</p>
-                    <p className="text-xs leading-tight text-slate-500">Aria Fashion House</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setDrawerOpen(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
-                  aria-label="Close navigation"
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                  </svg>
-                </button>
-              </div>
-
-              <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
-                {navItems.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    className={drawerLink}
-                    onClick={() => setDrawerOpen(false)}
-                  >
-                    {item.label}
-                  </NavLink>
-                ))}
-              </nav>
-
-              <div className="space-y-2 border-t border-slate-100 px-3 py-4">
-                {merchant?.email && (
-                  <p className="truncate px-4 text-xs text-slate-400">{merchant.email}</p>
-                )}
-                <button
-                  onClick={() => { setDrawerOpen(false); logout() }}
-                  className="w-full rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
-                >
-                  Sign out
-                </button>
-              </div>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-
-      <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <Outlet />
-      </main>
+        {/* Page Content */}
+        <main style={{ flex: 1, padding: '28px', overflowY: 'auto' }}>
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }

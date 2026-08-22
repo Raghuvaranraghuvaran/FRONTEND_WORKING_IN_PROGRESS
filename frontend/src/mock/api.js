@@ -1284,6 +1284,62 @@ export const api = {
     return clone(merchant)
   },
 
+  async registerMerchantAccount({ admin, businessName, storeSlug }) {
+    if (hasLiveApi()) {
+      const result = await live('/merchants/register/', {
+        method: 'POST',
+        body: {
+          name: admin.name,
+          email: admin.email,
+          password: admin.password,
+          business_name: businessName,
+          store_slug: storeSlug,
+        },
+      })
+      writeMerchantToken(result.tokens)
+      session.merchant = clone(result.admin)
+      if (result.merchant) persistMerchant(result.merchant)
+      saveSession()
+      return result
+    }
+    await delay(800)
+    
+    // Check if merchant admin email already exists
+    if (admin.email === store.merchantAdmin.email) {
+      throw new Error('An account with this email already exists.')
+    }
+    
+    // Create new merchant admin
+    const merchantAdmin = {
+      id: 'admin_' + Date.now(),
+      name: admin.name,
+      email: admin.email,
+      password: admin.password,
+      role: 'merchant_admin',
+    }
+    
+    // Create merchant record
+    const merchant = {
+      id: createMerchantId(storeSlug),
+      business_name: businessName,
+      store_slug: storeSlug,
+      admin_email: admin.email,
+      plan_tier: 'Pilot',
+      created_at: new Date().toISOString(),
+    }
+    
+    // Update store
+    store.merchantAdmin = merchantAdmin
+    persistMerchant(merchant)
+    session.merchant = clone(merchantAdmin)
+    saveSession()
+    
+    return {
+      admin: clone(merchantAdmin),
+      merchant: clone(merchant),
+    }
+  },
+
   async getFraudConfig() {
     if (hasLiveApi()) return live('/admin/fraud-config/', { role: 'merchant' })
     await delay(400)

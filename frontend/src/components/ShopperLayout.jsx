@@ -1,13 +1,23 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import ShopperSidebar from './ShopperSidebar'
 import { useApp } from '../context/AppContext'
+import { api } from '../mock/api'
 import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 
 // Top bar for shopper pages
 function ShopperTopBar() {
-  const { shopper } = useApp()
+  const { shopper, setShopper } = useApp()
+  const navigate = useNavigate()
   const [showNotifications, setShowNotifications] = useState(false)
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
+
+  const handleLogout = async () => {
+    await api.logout('shopper')
+    setShopper(null)
+    navigate('/')
+  }
 
   return (
     <div style={{
@@ -19,15 +29,17 @@ function ShopperTopBar() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        {/* User profile card - clickable */}
+        {/* User profile card with dropdown */}
         {shopper && (
-          <Link to="/profile" style={{ textDecoration: 'none' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-              borderRadius: 12, padding: '10px 14px', color: '#fff',
-              cursor: 'pointer', transition: 'transform .15s',
-            }}
+          <div style={{ position: 'relative' }}>
+            <div 
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                borderRadius: 12, padding: '10px 14px', color: '#fff',
+                cursor: 'pointer', transition: 'transform .15s',
+              }}
               onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
               onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             >
@@ -46,8 +58,78 @@ function ShopperTopBar() {
                   {shopper.email}
                 </div>
               </div>
+              <ChevronDown size={16} color="rgba(255,255,255,0.8)" />
             </div>
-          </Link>
+
+            {/* Profile Dropdown */}
+            {showProfileMenu && (
+              <>
+                <div 
+                  onClick={() => setShowProfileMenu(false)}
+                  style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 10,
+                  }}
+                />
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  width: 200,
+                  background: '#fff',
+                  borderRadius: 12,
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+                  zIndex: 20,
+                  overflow: 'hidden',
+                }}>
+                  <button
+                    onClick={() => {
+                      setShowProfileMenu(false)
+                      navigate('/profile')
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: 'none',
+                      border: 'none',
+                      textAlign: 'left',
+                      fontSize: 13,
+                      color: '#0f172a',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid #f1f5f9',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    👤 Profile
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowProfileMenu(false)
+                      handleLogout()
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: 'none',
+                      border: 'none',
+                      textAlign: 'left',
+                      fontSize: 13,
+                      color: '#dc2626',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    🚪 Logout
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         )}
 
         {/* Bell - clickable */}

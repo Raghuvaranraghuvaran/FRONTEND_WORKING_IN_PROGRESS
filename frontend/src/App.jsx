@@ -16,6 +16,7 @@ import ProfilePage from './pages/ProfilePage'
 import WishlistPage from './pages/WishlistPage'
 import HelpPage from './pages/HelpPage'
 import MerchantLoginPage from './pages/MerchantLoginPage'
+import MerchantRegisterPage from './pages/MerchantRegisterPage'
 import MerchantLayout from './pages/merchant/MerchantLayout'
 import MerchantDashboard from './pages/merchant/MerchantDashboard'
 import MerchantProducts from './pages/merchant/MerchantProducts'
@@ -70,6 +71,7 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/merchant/login" element={<MerchantLoginPage />} />
+      <Route path="/merchant/register" element={<MerchantRegisterPage />} />
       <Route
         path="/merchant"
         element={

@@ -20,6 +20,8 @@ export default function RegisterPage() {
     try {
       const shopper = await api.register(form)
       setShopper(shopper)
+      // Clear form
+      setForm({ name: '', email: '', phone: '', password: '', address: '' })
       navigate('/shop')
     } catch (err) {
       setError(err.message)

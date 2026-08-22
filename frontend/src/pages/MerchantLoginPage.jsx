@@ -307,7 +307,7 @@ export default function MerchantLoginPage() {
 
             <p style={{ textAlign: 'center', fontSize: 12.5, color: '#6b7280', marginTop: 16, marginBottom: 0 }}>
               New here?{' '}
-              <a href="#" style={{ color: A, fontWeight: 600, textDecoration: 'none' }}>Create an account</a>
+              <Link to="/merchant/register" style={{ color: A, fontWeight: 600, textDecoration: 'none' }}>Create an account</Link>
             </p>
           </div>
 

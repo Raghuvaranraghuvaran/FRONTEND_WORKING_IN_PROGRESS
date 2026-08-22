@@ -84,24 +84,6 @@ export default function ShopperSidebar() {
         <SidebarItem to="/profile" icon="📍" label="Addresses" active={location.pathname === '/profile'} />
         <SidebarItem to="/help" icon="❓" label="Help & Support" active={location.pathname === '/help'} />
       </nav>
-
-      {/* Bottom CTA - removed, moved to page footer */}
-
-      {/* Logout */}
-      {shopper && (
-        <button onClick={handleLogout} style={{
-          display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px',
-          borderRadius: 10, border: 'none', background: 'transparent',
-          color: '#dc2626', fontSize: 14, fontWeight: 500, cursor: 'pointer',
-          marginTop: 12, width: '100%', textAlign: 'left',
-        }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = '#fef2f2' }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-        >
-          <span style={{ fontSize: 18 }}>🚪</span>
-          <span>Logout</span>
-        </button>
-      )}
     </aside>
   )
 }
