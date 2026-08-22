@@ -12,6 +12,7 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState('COD')
   const [selectedAddressId, setSelectedAddressId] = useState(shopper?.addresses?.[0]?.id || 'custom')
   const [customAddress, setCustomAddress] = useState('')
+  const [altPhone, setAltPhone] = useState('')
   const [step, setStep] = useState('checkout')
   const [order, setOrder] = useState(null)
   const [payment, setPayment] = useState(null)
@@ -23,7 +24,10 @@ export default function CheckoutPage() {
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const addresses = shopper?.addresses || []
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId)
-  const deliveryAddressLine = selectedAddress ? selectedAddress.line : customAddress
+  const baseAddressLine = selectedAddress ? selectedAddress.line : customAddress
+  const deliveryAddressLine = altPhone.trim()
+    ? `${baseAddressLine.trim()} (Alt Phone: ${altPhone.trim()})`
+    : baseAddressLine.trim()
 
   if (cart.length === 0 && !order) {
     return (
@@ -331,13 +335,22 @@ export default function CheckoutPage() {
                     {addresses.length === 0 ? 'Enter Delivery Address' : '+ Deliver to a new address'}
                   </p>
                   {(selectedAddressId === 'custom' || addresses.length === 0) && (
-                    <textarea
-                      rows={2}
-                      value={customAddress}
-                      onChange={(e) => setCustomAddress(e.target.value)}
-                      placeholder="Enter flat/house no, street, locality, city and pincode"
-                      className="mt-2 w-full rounded-lg border border-slate-300 p-2.5 text-sm focus:border-indigo-500 focus:outline-none"
-                    />
+                    <div className="mt-2 space-y-2">
+                      <textarea
+                        rows={2}
+                        value={customAddress}
+                        onChange={(e) => setCustomAddress(e.target.value)}
+                        placeholder="Enter flat/house no, street, locality, city and pincode"
+                        className="w-full rounded-lg border border-slate-300 p-2.5 text-sm focus:border-indigo-500 focus:outline-none"
+                      />
+                      <input
+                        type="tel"
+                        value={altPhone}
+                        onChange={(e) => setAltPhone(e.target.value)}
+                        placeholder="Alternate phone number for delivery (Optional)"
+                        className="w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-indigo-500 focus:outline-none placeholder:text-slate-400"
+                      />
+                    </div>
                   )}
                 </div>
               </label>

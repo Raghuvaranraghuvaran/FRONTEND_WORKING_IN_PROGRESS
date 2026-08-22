@@ -89,8 +89,19 @@ export default function RegisterPage() {
                 required
                 value={form.address}
                 onChange={update('address')}
-                rows={3}
+                rows={2}
+                placeholder="Enter complete delivery address"
                 className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-300">Alternate phone (Optional)</label>
+              <input
+                type="tel"
+                value={form.altPhone || ''}
+                onChange={update('altPhone')}
+                placeholder="+91 Optional alternate contact number"
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
             <button

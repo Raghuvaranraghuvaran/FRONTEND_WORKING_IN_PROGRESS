@@ -192,11 +192,11 @@ export default function ProfilePage() {
             ))}
           </div>
 
-          <div className="mt-4 grid gap-2 sm:grid-cols-[120px_1fr_auto]">
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
             <select
               value={newAddress.label}
               onChange={(e) => setNewAddress({ ...newAddress, label: e.target.value })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              className="w-full sm:w-32 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
             >
               <option>Home</option>
               <option>Office</option>
@@ -205,13 +205,27 @@ export default function ProfilePage() {
             <input
               value={newAddress.line}
               onChange={(e) => setNewAddress({ ...newAddress, line: e.target.value })}
-              placeholder="New address"
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              placeholder="Address line (House, Street, City, Pincode)"
+              className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+            />
+            <input
+              value={newAddress.altPhone || ''}
+              onChange={(e) => setNewAddress({ ...newAddress, altPhone: e.target.value })}
+              placeholder="Alt phone (Optional)"
+              className="w-full sm:w-44 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none placeholder:text-slate-400"
             />
             <button
               type="button"
-              onClick={addAddress}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+              onClick={async () => {
+                if (!newAddress.line.trim()) return
+                const fullLine = newAddress.altPhone?.trim() 
+                  ? `${newAddress.line.trim()} (Alt: ${newAddress.altPhone.trim()})`
+                  : newAddress.line.trim()
+                const updated = await api.addAddress({ label: newAddress.label, line: fullLine })
+                setShopper(updated)
+                setNewAddress({ label: 'Home', line: '', altPhone: '' })
+              }}
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 transition-colors"
             >
               Add
             </button>
