@@ -17,6 +17,9 @@ import {
   RotateCcw,
   ChevronDown,
   Fingerprint,
+  ShoppingBag,
+  Store,
+  ChevronRight,
 } from 'lucide-react'
 
 /* ------------------------------------------------------------------ */
@@ -569,18 +572,18 @@ export default function LandingPage() {
         </div>
       </motion.nav>
 
-      {/* ── MOBILE MENU DRAWER ────────────────────────────────────────── */}
+      {/* ── MOBILE PORTAL SELECTION DRAWER (NO BLUR) ────────────────── */}
       <AnimatePresence>
         {navOpen && (
           <>
-            {/* Backdrop */}
+            {/* Backdrop: Darkened WITHOUT blur */}
             <motion.div
               key="backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-50 bg-black/60"
               onClick={() => setNavOpen(false)}
             />
 
@@ -590,85 +593,94 @@ export default function LandingPage() {
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-              className="fixed inset-y-0 right-0 z-50 flex w-[82vw] max-w-[340px] flex-col justify-between bg-white text-slate-900 shadow-2xl"
-              style={{ fontFamily: "'Inter', sans-serif" }}
+              transition={{ type: 'spring', stiffness: 340, damping: 32 }}
+              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[400px] flex-col justify-between bg-white text-slate-900 shadow-2xl p-6 sm:p-8 overflow-y-auto"
+              style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
             >
               <div>
                 {/* Close Button Top Row */}
-                <div className="flex items-center justify-end px-5 pt-5 pb-3">
+                <div className="flex items-center justify-end">
                   <button
                     onClick={() => setNavOpen(false)}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition-colors"
                     aria-label="Close menu"
                   >
                     <X size={22} strokeWidth={2.2} />
                   </button>
                 </div>
 
-                {/* Nav Links with Divider Lines */}
-                <nav className="mt-1 flex flex-col">
-                  <a
-                    href="#top"
-                    onClick={() => setNavOpen(false)}
-                    className="flex items-center justify-between border-b border-slate-100 px-6 py-3.5 text-[15px] font-medium text-slate-800 hover:bg-slate-50 hover:text-blue-600 transition-colors"
-                  >
-                    Home
-                  </a>
-                  <a
-                    href="#shop"
-                    onClick={() => setNavOpen(false)}
-                    className="flex items-center justify-between border-b border-slate-100 px-6 py-3.5 text-[15px] font-medium text-slate-800 hover:bg-slate-50 hover:text-blue-600 transition-colors"
-                  >
-                    Collection
-                  </a>
+                {/* Main Header with Centered Icon */}
+                <div className="flex flex-col items-center text-center mt-2 mb-8">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-600 mb-4 border border-blue-100 shadow-sm">
+                    <ShoppingBag size={28} strokeWidth={2} />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+                    Welcome Back
+                  </h2>
+                  <p className="text-sm text-slate-500 mt-1.5 font-normal">
+                    Select your portal to continue.
+                  </p>
+                </div>
+
+                {/* Portal Cards: Shopper and Merchant Only */}
+                <div className="space-y-4">
+                  {/* Shopper Login Card */}
                   <Link
-                    to="/shop"
+                    to="/login"
                     onClick={() => setNavOpen(false)}
-                    className="flex items-center justify-between border-b border-slate-100 px-6 py-3.5 text-[15px] font-medium text-slate-800 hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                    className="group flex items-center justify-between gap-4 rounded-2xl bg-[#0055ff] p-4 sm:p-5 text-white shadow-md shadow-blue-500/25 hover:bg-[#0047d6] active:scale-[0.98] transition-all"
                   >
-                    Shop Store
+                    <div className="flex items-center gap-3.5">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/20 text-white">
+                        <ShoppingBag size={20} strokeWidth={2} />
+                      </div>
+                      <div className="text-left">
+                        <h3 className="text-base font-bold text-white leading-tight">
+                          Shopper Login
+                        </h3>
+                        <p className="text-xs sm:text-sm text-blue-100 mt-0.5 font-normal">
+                          Access your orders, returns and rewards.
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronRight size={20} className="text-white/80 shrink-0 group-hover:translate-x-0.5 transition-transform" />
                   </Link>
-                  <a
-                    href="#drop"
+
+                  {/* Merchant Login Card */}
+                  <Link
+                    to="/merchant/login"
                     onClick={() => setNavOpen(false)}
-                    className="flex items-center justify-between border-b border-slate-100 px-6 py-3.5 text-[15px] font-medium text-slate-800 hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                    className="group flex items-center justify-between gap-4 rounded-2xl bg-white border border-slate-200/90 p-4 sm:p-5 text-slate-900 shadow-sm hover:border-blue-200 hover:bg-slate-50/60 active:scale-[0.98] transition-all"
                   >
-                    Early Access
-                  </a>
-                  <a
-                    href="#stories"
-                    onClick={() => setNavOpen(false)}
-                    className="flex items-center justify-between border-b border-slate-100 px-6 py-3.5 text-[15px] font-medium text-slate-800 hover:bg-slate-50 hover:text-blue-600 transition-colors"
-                  >
-                    Impact Stories
-                  </a>
-                  <a
-                    href="#top"
-                    onClick={() => setNavOpen(false)}
-                    className="flex items-center justify-between border-b border-slate-100 px-6 py-3.5 text-[15px] font-medium text-slate-800 hover:bg-slate-50 hover:text-blue-600 transition-colors"
-                  >
-                    Contact
-                  </a>
-                </nav>
+                    <div className="flex items-center gap-3.5">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                        <Store size={20} strokeWidth={2} />
+                      </div>
+                      <div className="text-left">
+                        <h3 className="text-base font-bold text-slate-900 leading-tight">
+                          Merchant Login
+                        </h3>
+                        <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-normal">
+                          Manage your store, orders and customers.
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronRight size={20} className="text-slate-400 shrink-0 group-hover:translate-x-0.5 group-hover:text-slate-600 transition-all" />
+                  </Link>
+                </div>
               </div>
 
-              {/* Bottom Buttons: Shopper Login & Merchant Login */}
-              <div className="border-t border-slate-100 p-5 space-y-2.5">
-                <Link
-                  to="/login"
-                  onClick={() => setNavOpen(false)}
-                  className="flex w-full items-center justify-center rounded-full bg-[#0055ff] py-3.5 px-6 text-[15px] font-semibold text-white shadow-sm hover:bg-[#0047d6] active:scale-[0.98] transition-all"
-                >
-                  Shopper Login
-                </Link>
-                <Link
-                  to="/merchant/login"
-                  onClick={() => setNavOpen(false)}
-                  className="flex w-full items-center justify-center rounded-full border border-slate-200 bg-white py-3 px-6 text-[14px] font-medium text-slate-700 hover:bg-slate-50 active:scale-[0.98] transition-all"
-                >
-                  Merchant Login
-                </Link>
+              {/* Bottom Security Trust Badge */}
+              <div className="mt-8 pt-6 border-t border-slate-100 flex items-start gap-3 text-left">
+                <ShieldCheck size={18} className="text-blue-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-semibold text-slate-800">
+                    Secure. Reliable. Trusted.
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-normal">
+                    Your data is protected with enterprise grade security.
+                  </p>
+                </div>
               </div>
             </motion.aside>
           </>
