@@ -859,7 +859,7 @@ export default function MerchantProducts() {
 
       {/* Bulk Product Upload Modal */}
       {bulkModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm overflow-y-auto">
           <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl my-8 max-h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
@@ -976,7 +976,7 @@ export default function MerchantProducts() {
                                 {item.category}
                               </span>
                             </td>
-                            <td className="py-2 px-3 font-semibold text-emerald-700">{INR(item.price)}</td>
+                            <td className="py-2 px-3 font-semibold text-emerald-700">{INR.format(item.price)}</td>
                             <td className="py-2 px-3 text-slate-600">{item.stock}</td>
                             <td className="py-2 px-3 text-slate-500 truncate max-w-[160px]">{item.description || '—'}</td>
                           </tr>

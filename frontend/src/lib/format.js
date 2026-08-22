@@ -1,8 +1,18 @@
-export const INR = new Intl.NumberFormat('en-IN', {
+const inrFormatter = new Intl.NumberFormat('en-IN', {
   style: 'currency',
   currency: 'INR',
   maximumFractionDigits: 0,
 })
+
+export function formatINR(val) {
+  return inrFormatter.format(Number(val) || 0)
+}
+
+export const INR = Object.assign(
+  (val) => inrFormatter.format(Number(val) || 0),
+  inrFormatter,
+  { format: (val) => inrFormatter.format(Number(val) || 0) }
+)
 
 export function formatDate(value) {
   if (!value) return '—'
