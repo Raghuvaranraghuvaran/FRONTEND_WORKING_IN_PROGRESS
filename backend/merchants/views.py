@@ -22,34 +22,23 @@ User = get_user_model()
 
 def _send_merchant_welcome_email(dest_email, merchant_username, business_name):
     """Asynchronously dispatches credential email to registered merchant."""
-    def _task():
-        try:
-            subject = "Your ReturnGuard Merchant Account"
-            message = (
-                "Welcome to ReturnGuard.\n\n"
-                "Your merchant account has been successfully created.\n\n"
-                f"Merchant Username:\n{merchant_username}\n\n"
-                f"Your account was registered with:\n{dest_email}\n\n"
-                "You can use your merchant username and password to access your Merchant Dashboard.\n\n"
-                "Please keep your credentials secure.\n\n"
-                "— The ReturnGuard Team"
-            )
-            print(f"\n[ReturnGuard Email] Sending welcome email to {dest_email} (Username: {merchant_username})...")
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[dest_email],
-                fail_silently=False,
-            )
-            print(f"[ReturnGuard Email] Successfully delivered welcome email to {dest_email}!\n")
-        except Exception as exc:
-            import logging
-            logging.getLogger(__name__).warning("Merchant welcome email failed: %s", exc)
-            print(f"[ReturnGuard Email Error] Failed to send email to {dest_email}: {exc}\n")
-
-    t = threading.Thread(target=_task, daemon=True)
-    t.start()
+    from common.mailer import send_async_email
+    subject = "Your ReturnGuard Merchant Account"
+    message = (
+        f"Welcome to ReturnGuard, {business_name}!\n\n"
+        "Your merchant account has been successfully created.\n\n"
+        f"Merchant Username: {merchant_username}\n"
+        f"Registered Email:  {dest_email}\n\n"
+        "You can use your Merchant Username and password to log in to your Merchant Portal:\n"
+        "https://return-guard.vercel.app/merchant/login\n\n"
+        "Please keep your credentials secure.\n\n"
+        "— The ReturnGuard Team"
+    )
+    send_async_email(
+        subject=subject,
+        message=message,
+        recipient_list=[dest_email],
+    )
 
 
 class MerchantRegisterView(APIView):

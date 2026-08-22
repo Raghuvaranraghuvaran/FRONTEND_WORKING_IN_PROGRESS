@@ -73,23 +73,12 @@ class OTPVerificationService:
         print(f"[ReturnGuard OTP] Code: {code}")
         print("==========================================\n")
 
-        # Dispatch email sending asynchronously so HTTP response is instant (<100ms)
-        import threading
-        def _async_send_mail(dest_email, otp_code):
-            try:
-                send_mail(
-                    subject="Your ReturnGuard sign-in code",
-                    message=f"Your ReturnGuard sign-in code is {otp_code}. It expires in 5 minutes.\n\nThank you,\nReturnGuard Team",
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[dest_email],
-                    fail_silently=True,
-                )
-            except Exception as exc:
-                import logging
-                logging.getLogger(__name__).warning("Async OTP email failed: %s", exc)
-
-        t = threading.Thread(target=_async_send_mail, args=(user.email, code), daemon=True)
-        t.start()
+        from common.mailer import send_async_email
+        send_async_email(
+            subject="Your ReturnGuard sign-in code",
+            message=f"Your ReturnGuard sign-in code is {code}. It expires in 5 minutes.\n\nThank you,\nReturnGuard Team",
+            recipient_list=[user.email],
+        )
 
         VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="sent")
         return {
