@@ -132,12 +132,6 @@ export default function MerchantLoginPage() {
             </p>
           </div>
 
-          {error && (
-            <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs font-medium text-rose-300">
-              {error}
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Merchant Username */}
             <div>
