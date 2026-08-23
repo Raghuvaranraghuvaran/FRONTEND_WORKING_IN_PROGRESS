@@ -183,7 +183,24 @@ export default function MerchantLoginPage() {
 
             {/* reCAPTCHA */}
             <div className="flex justify-center py-2">
-              <div ref={recaptchaRef} className="g-recaptcha"></div>
+              <div
+                style={{
+                  width: '304px',
+                  height: '76px',
+                  overflow: 'hidden',
+                  borderRadius: '4px',
+                  position: 'relative',
+                }}
+              >
+                <div
+                  ref={recaptchaRef}
+                  className="g-recaptcha"
+                  style={{
+                    position: 'relative',
+                    marginTop: '-22px',
+                  }}
+                ></div>
+              </div>
             </div>
 
             {/* Submit Button */}
