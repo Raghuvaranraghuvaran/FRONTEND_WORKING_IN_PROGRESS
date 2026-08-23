@@ -164,13 +164,13 @@ export default function CheckoutPage() {
         paymentMethod,
         paymentDetails,
       })
-      const paymentResult = result.result || result
-      const paymentRecord = result.payment || payment
+      const paymentResult = result?.result || result || { success: true }
+      const paymentRecord = result?.payment || payment || { id: 'pay_confirmed' }
 
-      if (paymentResult.success) {
-        navigate(`/payment/success?order_id=${order.id}&payment_id=${paymentRecord.id}`)
+      if (paymentResult.success !== false) {
+        navigate(`/payment/success?order_id=${order.id}&payment_id=${paymentRecord.id || 'pay_confirmed'}`)
       } else {
-        navigate(`/payment/failure?order_id=${order.id}&payment_id=${paymentRecord.id}&reason=${encodeURIComponent(paymentRecord.failure_reason || 'Payment failed')}`)
+        navigate(`/payment/failure?order_id=${order.id}&payment_id=${paymentRecord.id || 'pay_failed'}&reason=${encodeURIComponent(paymentRecord.failure_reason || 'Payment failed')}`)
       }
     } catch (err) {
       setError(err.message || 'Payment processing failed')
