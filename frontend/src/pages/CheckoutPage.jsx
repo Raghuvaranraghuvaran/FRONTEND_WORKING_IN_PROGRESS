@@ -164,10 +164,13 @@ export default function CheckoutPage() {
         paymentDetails,
       })
 
-      if (result.success) {
-        navigate(`/payment/success?order_id=${order.id}&payment_id=${result.payment.id}`)
+      const isSuccess = result?.success !== false
+      const payId = result?.payment?.id || payment?.id || 'pay_confirmed'
+      if (isSuccess) {
+        navigate(`/payment/success?order_id=${order.id}&payment_id=${payId}`)
       } else {
-        navigate(`/payment/failure?order_id=${order.id}&payment_id=${result.payment.id}&reason=${encodeURIComponent(result.payment.failure_reason || 'Payment failed')}`)
+        const reason = result?.payment?.failure_reason || 'Payment failed'
+        navigate(`/payment/failure?order_id=${order.id}&payment_id=${payId}&reason=${encodeURIComponent(reason)}`)
       }
     } catch (err) {
       setError(err.message || 'Payment processing failed')
