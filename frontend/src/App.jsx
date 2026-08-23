@@ -43,12 +43,14 @@ function StorefrontLayout() {
 }
 
 function RequireShopper({ children }) {
-  const { shopper } = useApp()
+  const { shopper, authReady } = useApp()
+  if (!authReady) return null
   return shopper ? children : <Navigate to="/login" replace />
 }
 
 function RequireMerchant({ children }) {
-  const { merchant } = useApp()
+  const { merchant, authReady } = useApp()
+  if (!authReady) return null
   return merchant ? children : <Navigate to="/merchant/login" replace />
 }
 

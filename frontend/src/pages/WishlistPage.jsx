@@ -1,12 +1,8 @@
 import { useApp } from '../context/AppContext'
-import { Heart, ShoppingCart, Trash2 } from 'lucide-react'
+import { Heart, Trash2 } from 'lucide-react'
 
 export default function WishlistPage() {
-  const { wishlist, toggleWishlist, addToCart } = useApp()
-
-  const handleAddToCart = (product) => {
-    addToCart(product, 1)
-  }
+  const { wishlist, toggleWishlist } = useApp()
 
   if (wishlist.length === 0) {
     return (
@@ -67,7 +63,7 @@ export default function WishlistPage() {
               <h3 className="text-sm font-semibold text-slate-900 line-clamp-2">{product.name}</h3>
               <p className="mt-1 text-xs text-slate-500 line-clamp-1">{product.description}</p>
               <div className="mt-3 flex items-center justify-between">
-                <span className="text-lg font-bold text-slate-900">₹{product.price.toLocaleString()}</span>
+                <span className="text-lg font-bold text-slate-900">{product.price ? `Rs. ${Number(product.price).toLocaleString()}` : ''}</span>
                 {product.stock > 0 ? (
                   <span className="text-xs font-medium text-emerald-600">In Stock</span>
                 ) : (
@@ -75,19 +71,13 @@ export default function WishlistPage() {
                 )}
               </div>
 
-              {/* Add to Cart Button */}
-              <button
-                onClick={() => handleAddToCart(product)}
-                disabled={product.stock === 0}
-                className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
-                  product.stock === 0
-                    ? 'cursor-not-allowed bg-slate-100 text-slate-400'
-                    : 'bg-indigo-600 text-white hover:bg-indigo-500'
-                }`}
+              {/* View Product Details */}
+              <a
+                href={`/products/${product.id}`}
+                className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all text-center no-underline"
               >
-                <ShoppingCart className="h-4 w-4" />
-                {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
-              </button>
+                View Product Details →
+              </a>
             </div>
           </div>
         ))}

@@ -11,6 +11,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderListSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    invoice = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -38,7 +39,15 @@ class OrderListSerializer(serializers.ModelSerializer):
             "created_at",
             "risk_context",
             "tracking_events",
+            "invoice",
         )
+
+    def get_invoice(self, obj):
+        invoice = getattr(obj, "invoice", None)
+        if invoice is None:
+            return None
+        from invoices.serializers import InvoiceSerializer
+        return InvoiceSerializer(invoice).data
 
 
 class CheckoutItemSerializer(serializers.Serializer):
@@ -58,4 +67,5 @@ class CheckoutSerializer(serializers.Serializer):
     discount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
     reward_points_used = serializers.IntegerField(required=False, default=0, min_value=0)
     address = serializers.CharField(required=False, allow_blank=True)
+    phone = serializers.CharField(required=False, allow_blank=True)
     device_token = serializers.CharField(required=False, allow_blank=True)

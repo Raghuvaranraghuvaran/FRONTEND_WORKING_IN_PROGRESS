@@ -8,12 +8,22 @@ import StatusBadge from '../components/StatusBadge'
 import PaymentGatewaySimulator from '../components/PaymentGatewaySimulator'
 import PaymentMethodSelector from '../components/PaymentMethodSelector'
 
+const DEFAULT_PRIMARY_ADDRESS = {
+  id: 'default_primary',
+  label: 'Default Delivery Address',
+  line: '14, Lake View Street, Adyar, Chennai, Tamil Nadu - 600020',
+}
+
 export default function CheckoutPage() {
   const navigate = useNavigate()
   const { shopper, setShopper, cart, clearCart, appliedCoupon } = useApp()
+
+  // --- All React state hooks strictly at the top level ---
   const [paymentMethod, setPaymentMethod] = useState('COD')
   const [paymentDetails, setPaymentDetails] = useState({})
-  const [selectedAddressId, setSelectedAddressId] = useState(shopper?.addresses?.[0]?.id || 'custom')
+  const [selectedAddressId, setSelectedAddressId] = useState(
+    shopper?.addresses?.[0]?.id || DEFAULT_PRIMARY_ADDRESS.id
+  )
   const [customAddress, setCustomAddress] = useState('')
   const [altPhone, setAltPhone] = useState('')
   const [step, setStep] = useState('checkout')
@@ -24,12 +34,15 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false)
   const [resolvingPayment, setResolvingPayment] = useState(false)
   const [processingPayment, setProcessingPayment] = useState(false)
-
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false)
   const [useRewardPoints, setUseRewardPoints] = useState(false)
   const [rewardPointsInput, setRewardPointsInput] = useState('')
 
-  const availableRewardPoints = shopper?.reward_points ?? 1000
+  const addresses = (shopper?.addresses && shopper.addresses.length > 0)
+    ? shopper.addresses
+    : [DEFAULT_PRIMARY_ADDRESS]
 
+  const availableRewardPoints = shopper?.reward_points ?? 1000
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
   const calculateDiscount = (coupon) => {
@@ -53,22 +66,30 @@ export default function CheckoutPage() {
   const rewardDiscount = Math.round(pointsToRedeem / 10)
   const finalTotal = Math.max(0, remainingBeforePoints - rewardDiscount)
 
-  const addresses = shopper?.addresses || []
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId)
-  const baseAddressLine = selectedAddress ? selectedAddress.line : customAddress
-  const deliveryAddressLine = altPhone.trim()
-    ? `${baseAddressLine.trim()} (Alt Phone: ${altPhone.trim()})`
-    : baseAddressLine.trim()
+  const baseAddressLine = selectedAddressId === 'custom'
+    ? customAddress.trim()
+    : (selectedAddress ? selectedAddress.line : DEFAULT_PRIMARY_ADDRESS.line)
 
-  if (cart.length === 0 && !order) {
-    return (
-      <main className="mx-auto max-w-3xl px-4 py-20 text-center">
-        <p className="text-lg font-semibold text-slate-900">Your cart is empty</p>
-        <Link to="/shop" className="mt-3 inline-block text-sm font-semibold text-indigo-600">
-          Browse products
-        </Link>
-      </main>
-    )
+  const deliveryAddressLine = altPhone.trim()
+    ? `${baseAddressLine} (Alt Phone: ${altPhone.trim()})`
+    : baseAddressLine
+
+  const handleInstantInvoiceDownload = async () => {
+    if (!order) return
+    setDownloadingInvoice(true)
+    try {
+      const invId = order.invoice?.id || order.id
+      const result = await api.downloadInvoice(invId)
+      if (!result.downloaded && result.download_url) {
+        window.open(result.download_url, '_blank')
+      }
+    } catch (err) {
+      console.error('Download invoice failed:', err)
+      alert('Unable to download invoice directly. You can also download it from My Orders.')
+    } finally {
+      setDownloadingInvoice(false)
+    }
   }
 
   const validatePaymentDetails = () => {
@@ -101,8 +122,8 @@ export default function CheckoutPage() {
     e.preventDefault()
     setError('')
 
-    if ((selectedAddressId === 'custom' || addresses.length === 0) && !customAddress.trim()) {
-      setError('Please enter your delivery address.')
+    if (selectedAddressId === 'custom' && !customAddress.trim()) {
+      setError('Please enter your alternate delivery address.')
       return
     }
 
@@ -111,7 +132,8 @@ export default function CheckoutPage() {
       return
     }
 
-    const effectiveAddress = deliveryAddressLine?.trim() || '14, Lake View Street, Adyar, Chennai 600020'
+    const effectiveAddress = deliveryAddressLine?.trim() || DEFAULT_PRIMARY_ADDRESS.line
+    const contactPhone = altPhone.trim() || shopper?.phone || ''
 
     try {
       if (paymentMethod !== 'COD') {
@@ -136,6 +158,7 @@ export default function CheckoutPage() {
         items: cart,
         paymentMethod,
         address: effectiveAddress,
+        phone: contactPhone,
         paymentDetails: paymentMethod !== 'COD' ? paymentDetails : undefined,
         couponCode: appliedCoupon?.code || null,
         discount: couponDiscount,
@@ -196,7 +219,7 @@ export default function CheckoutPage() {
       if (paymentResult.success !== false) {
         navigate(`/payment/success?order_id=${order.id}&payment_id=${paymentRecord.id || 'pay_confirmed'}`)
       } else {
-        navigate(`/payment/failure?order_id=${order.id}&payment_id=${paymentRecord.id || 'pay_failed'}&reason=${encodeURIComponent(paymentRecord.failure_reason || 'Payment failed')}`)
+        navigate(`/payment/failure?order_id=${order.id}&payment_id=${paymentRecord.id || 'pay_failed'}&reason=${encodeURIComponent(paymentRecord.failure_reason || paymentResult.message || 'Payment failed')}`)
       }
     } catch (err) {
       setError(err.message || 'Payment processing failed')
@@ -252,6 +275,18 @@ export default function CheckoutPage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  // Early return for empty cart (when not viewing a placed order step)
+  if (cart.length === 0 && !order) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-20 text-center">
+        <p className="text-lg font-semibold text-slate-900">Your cart is empty</p>
+        <Link to="/shop" className="mt-3 inline-block text-sm font-semibold text-indigo-600">
+          Browse products
+        </Link>
+      </main>
+    )
   }
 
   if (step === 'payment_processing') {
@@ -393,64 +428,97 @@ export default function CheckoutPage() {
   }
 
   if (step === 'confirmation' && order) {
+    const customerEmail = shopper?.email || order?.user?.email || 'your registered email'
+    const orderNumber = order?.order_number || (order?.id ? `#${order.id}` : '#1030')
+    const orderTotal = Number(order?.total) || 0
+
     return (
       <main className="mx-auto max-w-xl px-4 py-16 sm:px-6">
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-bold text-xl">
+        <div className="rounded-3xl border border-slate-200/80 bg-white p-8 sm:p-10 text-center shadow-xl">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 font-bold text-2xl shadow-xs">
             ✓
           </div>
-          <h1 className="mt-4 text-xl font-bold text-slate-900">Order {order.order_number || `#${order.id}`} Placed!</h1>
+          <h1 className="mt-4 text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Order {orderNumber} Placed!</h1>
           <p className="mt-2 text-sm text-slate-500">
-            Total {INR.format(order.total)} · {order.payment_method}
+            Total {INR.format(orderTotal)} · {order.payment_method?.replace(/_/g, ' ') || 'Cash on Delivery (COD)'}
           </p>
 
-          {/* Applied coupon badge on confirmation */}
+          {/* Applied coupon badge */}
           {order.coupon_code && (
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700 border border-purple-200">
-              🏷️ Coupon <strong className="font-mono">{order.coupon_code}</strong> applied ({INR.format(order.discount)} saved)
+              🏷️ Coupon <strong className="font-mono">{order.coupon_code}</strong> applied ({INR.format(Number(order.discount) || 0)} saved)
             </div>
           )}
 
-          {/* Applied reward points badge on confirmation */}
-          {order.reward_points_used > 0 && (
+          {/* Applied reward points badge */}
+          {Number(order.reward_points_used) > 0 && (
             <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200">
-              ⭐ <strong>{order.reward_points_used} reward points</strong> redeemed ({INR.format(order.reward_discount || Math.round(order.reward_points_used / 10))} saved)
+              ⭐ <strong>{order.reward_points_used} reward points</strong> redeemed ({INR.format(Number(order.reward_discount) || Math.round(order.reward_points_used / 10))} saved)
             </div>
           )}
 
-          <div className="mt-5 flex flex-wrap justify-center gap-2">
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
             <RiskBadge tier={order.risk_tier || 'Low'} />
-            {order.status && <StatusBadge status={order.status} />}
-            {order.payment_status && <StatusBadge status={order.payment_status} />}
+            <StatusBadge status={order.status || 'Confirmed'} />
+            <StatusBadge status={order.payment_status || 'Paid'} />
           </div>
-          {order.invoice && (
-            <div className="mt-5 rounded-xl bg-slate-50 p-4 text-left text-sm border border-slate-200">
-              <p className="font-semibold text-slate-900">Invoice {order.invoice.invoice_number}</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Generated {new Date(order.invoice.generated_at).toLocaleString('en-IN')}
-              </p>
-              {order.invoice.invoice_url && (
-                <a href={order.invoice.invoice_url} className="mt-2 inline-block text-xs font-semibold text-indigo-600">
-                  View invoice
-                </a>
-              )}
+
+          {/* Immediate Invoice Download Card */}
+          <div className="mt-6 rounded-2xl bg-gradient-to-br from-indigo-50/80 to-blue-50/50 p-5 text-left border border-indigo-100 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">📄</span>
+                  <p className="font-bold text-slate-900 text-sm">
+                    {order.invoice?.invoice_number ? `Invoice ${order.invoice.invoice_number}` : 'Official Order Invoice'}
+                  </p>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">
+                  Detailed PDF invoice with complete itemized pricing & order metadata.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleInstantInvoiceDownload}
+                disabled={downloadingInvoice}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50 transition cursor-pointer shrink-0"
+              >
+                {downloadingInvoice ? (
+                  <>
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>Downloading…</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>Download Invoice PDF</span>
+                  </>
+                )}
+              </button>
             </div>
-          )}
-          {order.payment_method === 'COD' && (
-            <p className="mt-5 text-xs text-slate-500">
-              An invoice will be generated once payment is collected on delivery.
-            </p>
-          )}
+
+            {/* Email Dispatch Notice */}
+            <div className="mt-3 pt-3 border-t border-indigo-100/80 flex items-start gap-2 text-xs text-indigo-900/80">
+              <span className="text-indigo-600 text-sm">✉️</span>
+              <p>
+                A copy of this invoice has been sent to <strong>{customerEmail}</strong>.
+              </p>
+            </div>
+          </div>
+
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link
               to="/orders"
-              className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 shadow-sm"
+              className="rounded-xl bg-slate-900 px-5 py-3 text-xs font-bold text-white hover:bg-slate-800 shadow-sm transition"
             >
-              View My Orders
+              View My Orders →
             </Link>
             <Link
               to="/shop"
-              className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-xl border border-slate-300 px-5 py-3 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
             >
               Continue Shopping
             </Link>
@@ -473,15 +541,23 @@ export default function CheckoutPage() {
 
       <form onSubmit={placeOrder} className="mt-6 grid gap-8 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
+          {/* Delivery Address Section */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-slate-900">Delivery Address</h2>
-            <div className="mt-3 space-y-3">
-              {addresses.map((address) => (
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <span>📍</span> Delivery Address
+              </h2>
+              <span className="text-xs text-slate-500">Choose where to deliver</span>
+            </div>
+
+            <div className="space-y-3">
+              {/* Default Registered Address */}
+              {addresses.map((address, idx) => (
                 <label
                   key={address.id}
                   className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
                     selectedAddressId === address.id
-                      ? 'border-indigo-600 bg-indigo-50/50'
+                      ? 'border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-500'
                       : 'border-slate-200 hover:bg-slate-50'
                   }`}
                 >
@@ -493,17 +569,25 @@ export default function CheckoutPage() {
                     onChange={() => setSelectedAddressId(address.id)}
                     className="mt-1 text-indigo-600 focus:ring-indigo-500"
                   />
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">{address.label}</p>
-                    <p className="mt-1 text-sm text-slate-600">{address.line}</p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-bold text-slate-900">{address.label || 'Registered Address'}</p>
+                      {idx === 0 && (
+                        <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200 uppercase tracking-wider">
+                          Default
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-sm text-slate-600 leading-relaxed">{address.line}</p>
                   </div>
                 </label>
               ))}
 
+              {/* Alternate Address Option */}
               <label
                 className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
-                  selectedAddressId === 'custom' || addresses.length === 0
-                    ? 'border-indigo-600 bg-indigo-50/50'
+                  selectedAddressId === 'custom'
+                    ? 'border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-500'
                     : 'border-slate-200 hover:bg-slate-50'
                 }`}
               >
@@ -511,43 +595,58 @@ export default function CheckoutPage() {
                   type="radio"
                   name="address"
                   value="custom"
-                  checked={selectedAddressId === 'custom' || addresses.length === 0}
+                  checked={selectedAddressId === 'custom'}
                   onChange={() => setSelectedAddressId('custom')}
                   className="mt-1 text-indigo-600 focus:ring-indigo-500"
                 />
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-slate-900">
-                    {addresses.length === 0 ? 'Enter Delivery Address' : '+ Deliver to a new address'}
-                  </p>
-                  {(selectedAddressId === 'custom' || addresses.length === 0) && (
-                    <div className="mt-2 space-y-2">
-                      <textarea
-                        rows={2}
-                        value={customAddress}
-                        onChange={(e) => { setCustomAddress(e.target.value); setError('') }}
-                        placeholder="Enter flat/house no, street, locality, city and pincode"
-                        className="w-full rounded-lg border border-slate-300 p-2.5 text-sm focus:border-indigo-500 focus:outline-none"
-                      />
-                      <div className="relative">
-                        <input
-                          type="tel"
-                          inputMode="numeric"
-                          pattern="[0-9]{10}"
-                          maxLength={10}
-                          value={altPhone}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/\D/g, '').slice(0, 10)
-                            setAltPhone(val)
-                            setError('')
-                          }}
-                          placeholder="10-digit mobile number (e.g. 9876543210)"
-                          className="w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-indigo-500 focus:outline-none placeholder:text-slate-400 font-mono"
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>➕</span> Deliver to Alternate / New Address
+                    </p>
+                    <span className="text-[11px] text-indigo-600 font-semibold">Custom</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">Specify a different shipping address or recipient contact number.</p>
+
+                  {selectedAddressId === 'custom' && (
+                    <div className="mt-3 space-y-2.5">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          Alternate Street Address <span className="text-rose-500">*</span>
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={customAddress}
+                          onChange={(e) => { setCustomAddress(e.target.value); setError('') }}
+                          placeholder="Enter complete building name, flat/house no, street, landmark, city and pincode"
+                          className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                         />
-                        {altPhone.length > 0 && (
-                          <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold ${altPhone.length === 10 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                            {altPhone.length}/10 digits
-                          </span>
-                        )}
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          Alternate Contact Mobile Number (Optional)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="tel"
+                            inputMode="numeric"
+                            pattern="[0-9]{10}"
+                            maxLength={10}
+                            value={altPhone}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, '').slice(0, 10)
+                              setAltPhone(val)
+                              setError('')
+                            }}
+                            placeholder="10-digit mobile number (e.g. 9876543210)"
+                            className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-400 font-mono bg-white"
+                          />
+                          {altPhone.length > 0 && (
+                            <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold ${altPhone.length === 10 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              {altPhone.length}/10 digits
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}

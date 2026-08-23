@@ -47,6 +47,7 @@ export function AppProvider({ children }) {
     }
   })
   const [deviceReady, setDeviceReady] = useState(false)
+  const [authReady, setAuthReady] = useState(false)
 
   useEffect(() => {
     const context = getDeviceContext()
@@ -71,13 +72,13 @@ export function AppProvider({ children }) {
   }, [appliedCoupon])
 
   useEffect(() => {
-    api.getCurrentShopper()
-      .then((currentShopper) => {
+    Promise.all([api.getCurrentShopper(), api.getCurrentMerchant()])
+      .then(([currentShopper, currentMerchant]) => {
         if (currentShopper) setShopper(currentShopper)
+        if (currentMerchant) setMerchant(currentMerchant)
       })
-      .catch(() => {
-        // Keep locally restored session
-      })
+      .catch(() => {})
+      .finally(() => setAuthReady(true))
   }, [])
 
   const value = useMemo(
@@ -93,6 +94,7 @@ export function AppProvider({ children }) {
       appliedCoupon,
       setAppliedCoupon,
       deviceReady,
+      authReady,
       addToCart(product, qty = 1) {
         if (!product) return
         const pId = product.id || product.product_id
@@ -161,7 +163,7 @@ export function AppProvider({ children }) {
         setAppliedCoupon(null)
       },
     }),
-    [shopper, merchant, cart, wishlist, appliedCoupon, deviceReady],
+    [shopper, merchant, cart, wishlist, appliedCoupon, deviceReady, authReady],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

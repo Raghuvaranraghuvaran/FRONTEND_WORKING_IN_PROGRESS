@@ -35,6 +35,7 @@ class CheckoutView(APIView):
                 discount=data.get("discount", 0),
                 reward_points_used=data.get("reward_points_used", 0),
                 address=data.get("address", ""),
+                phone=data.get("phone", ""),
                 device_token=data.get("device_token", ""),
             )
         except ValueError as exc:

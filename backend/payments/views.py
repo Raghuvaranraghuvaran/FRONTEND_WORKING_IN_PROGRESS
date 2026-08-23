@@ -67,18 +67,21 @@ class ProcessPaymentView(APIView):
         payment_service = PaymentService()
         result = payment_service.process_payment(payment, payment_data)
         
-        # If successful, trigger invoice generation and payment receipt email
+        # If successful, trigger official invoice generation and email with PDF
         if result['success']:
             transaction.on_commit(lambda: generate_and_send_invoice.delay(payment.order.id))
+        else:
+            # Send single payment failure notification email
             from common.mailer import send_async_email
+            failure_reason = result.get('message', payment.failure_reason or 'Payment declined by bank')
             send_async_email(
-                subject=f"Payment Successful: {payment.order.order_number}",
+                subject=f"Payment Failed for Order {payment.order.order_number}",
                 message=(
                     f"Hi {request.user.name or 'Customer'},\n\n"
-                    f"Your payment of ₹{payment.amount} for order {payment.order.order_number} was successful!\n\n"
-                    f"Transaction ID: {payment.transaction_id or 'TXN' + str(payment.id)}\n"
+                    f"We were unable to process your payment of Rs. {payment.amount} for order {payment.order.order_number}.\n\n"
+                    f"Failure Reason: {failure_reason}\n"
                     f"Payment Method: {payment.payment_method}\n\n"
-                    "Your invoice has been generated and your order is confirmed.\n\n"
+                    "You can retry your payment or select Cash on Delivery (COD) by visiting My Orders in your ReturnGuard account.\n\n"
                     "— ReturnGuard Team"
                 ),
                 recipient_list=[request.user.email],

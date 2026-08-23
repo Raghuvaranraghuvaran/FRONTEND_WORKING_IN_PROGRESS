@@ -375,13 +375,8 @@ export default function LoginPage() {
                 {hasGoogleSignIn() ? (
                   <div id="shopper-google-signin" ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center', minHeight: 40 }} />
                 ) : (
-                  <button type="button" disabled={submitting} style={googleButton} onClick={async () => {
-                    setError(''); setSubmitting(true)
-                    try { const s = await api.googleSignIn('mock-credential'); setShopper(s); navigate('/shop') }
-                    catch (e) { setError(e.message) }
-                    finally { setSubmitting(false) }
-                  }}>
-                    {submitting ? <><Spinner /> Signing in…</> : <><IconGoogle /> Continue with Google</>}
+                  <button type="button" disabled style={{ ...googleButton, opacity: 0.5, cursor: 'not-allowed' }}>
+                    <IconGoogle /> Google Sign-In unavailable
                   </button>
                 )}
               </>

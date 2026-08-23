@@ -10,6 +10,7 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState([])
   const [returns, setReturns] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [tab, setTab] = useState('orders')
   const [trackingOrderMap, setTrackingOrderMap] = useState({})
   const [activeTrackingId, setActiveTrackingId] = useState(null)
@@ -19,27 +20,42 @@ export default function OrdersPage() {
   const handleDownloadInvoice = async (invoiceId) => {
     try {
       const result = await api.downloadInvoice(invoiceId)
-      // In real implementation, this would trigger a file download
-      window.open(result.download_url, '_blank')
+      // For mock mode, open the URL; for live mode, the API already triggers the download
+      if (!result.downloaded && result.download_url) {
+        window.open(result.download_url, '_blank')
+      }
     } catch (error) {
       console.error('Error downloading invoice:', error)
       alert('Failed to download invoice. Please try again.')
     }
   }
 
-  useEffect(() => {
-    Promise.all([api.getShopperOrders(), api.getShopperReturns(), api.getAvailableCoupons()])
-      .then(([orderData, returnData, couponData]) => {
+  const loadData = () => {
+    setLoading(true)
+    setError(null)
+    
+    // Load orders and returns separately from coupons so a coupon failure doesn't break orders
+    const ordersPromise = Promise.all([api.getShopperOrders(), api.getShopperReturns()])
+    const couponsPromise = api.getAvailableCoupons().catch(() => [])
+    
+    Promise.all([ordersPromise, couponsPromise])
+      .then(([[orderData, returnData], couponData]) => {
         setOrders(Array.isArray(orderData) ? orderData : [])
         setReturns(Array.isArray(returnData) ? returnData : [])
         setCoupons(Array.isArray(couponData) ? couponData : [])
         setLoading(false)
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('Error loading orders:', err)
+        setError(err.message || 'Failed to load orders. Please try again.')
         setOrders([])
         setReturns([])
         setLoading(false)
       })
+  }
+
+  useEffect(() => {
+    loadData()
   }, [])
 
   const copyCode = (code) => {
@@ -122,7 +138,18 @@ export default function OrdersPage() {
           </div>
         </div>
       )}
-      {loading ? (
+      {error ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
+          <p className="text-sm font-semibold text-red-800 mb-1">Error loading orders</p>
+          <p className="text-xs text-red-600 mb-4">{error}</p>
+          <button
+            onClick={loadData}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      ) : loading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="h-24 animate-pulse rounded-2xl bg-slate-200" />

@@ -13,6 +13,9 @@ class Order(TimestampedModel):
     DELIVERY_CHOICES = (
         ("Processing", "Processing"),
         ("Pending Review", "Pending Review"),
+        ("Awaiting payment", "Awaiting payment"),
+        ("Payment failed", "Payment failed"),
+        ("Payment rejected", "Payment rejected"),
         ("In Transit", "In Transit"),
         ("Delivered", "Delivered"),
         ("Cancelled", "Cancelled"),

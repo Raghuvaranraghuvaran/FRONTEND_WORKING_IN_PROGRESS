@@ -21,7 +21,7 @@ class CheckoutService:
         self.payment_service = PaymentService()
 
     @transaction.atomic
-    def create_order(self, *, user, merchant, items, payment_method, payment_details=None, coupon_code="", discount=0, reward_points_used=0, address="", device_token=""):
+    def create_order(self, *, user, merchant, items, payment_method, payment_details=None, coupon_code="", discount=0, reward_points_used=0, address="", phone="", device_token=""):
         """
         Create order with enhanced payment method and reward points discount support
         
@@ -35,9 +35,26 @@ class CheckoutService:
             discount: Coupon or other discounts
             reward_points_used: Reward points redeemed (100 pts = ₹10)
             address: Delivery address
+            phone: Customer contact phone
             device_token: Device fingerprint
         """
         shopper = getattr(user, "shopper_profile", None)
+
+        # Prioritize explicit phone argument, otherwise extract from address string
+        import re
+        effective_phone = str(phone or "").strip()
+        if not effective_phone and address:
+            phone_match = re.search(r'(?:Phone|Mobile|Alt Phone|Contact)[:\s]*([0-9\+\-\s]{10,15})', str(address), re.IGNORECASE)
+            if phone_match:
+                effective_phone = re.sub(r'[^\d+]', '', phone_match.group(1))
+            else:
+                digits_match = re.search(r'\b[6-9]\d{9}\b', str(address))
+                if digits_match:
+                    effective_phone = digits_match.group(0)
+
+        if effective_phone and user.phone != effective_phone:
+            user.phone = effective_phone
+            user.save(update_fields=['phone'])
 
         order = Order.objects.create(
             order_number=self._next_order_number(merchant),
@@ -139,29 +156,7 @@ class CheckoutService:
             payment_details=payment_details
         )
 
-        # Trigger order confirmation email
-        from common.mailer import send_async_email
-        def _dispatch_order_email():
-            item_list = "\n".join([f"• {it.name} (Qty: {it.quantity}) - ₹{it.price}" for it in order.items.all()])
-            send_async_email(
-                subject=f"Order Confirmed: {order.order_number}",
-                message=(
-                    f"Hi {user.name or 'Customer'},\n\n"
-                    f"Thank you for your order! Your order {order.order_number} has been placed successfully.\n\n"
-                    f"Order Summary:\n"
-                    f"{item_list}\n\n"
-                    f"Total Amount: ₹{order.total}\n"
-                    f"Payment Method: {order.payment_method}\n"
-                    f"Delivery Status: {order.delivery_status or 'Processing'}\n\n"
-                    f"Thank you for shopping with ReturnGuard!\n\n"
-                    "— ReturnGuard Team"
-                ),
-                recipient_list=[user.email],
-            )
-
-        transaction.on_commit(_dispatch_order_email)
-
-        # For COD, trigger invoice generation immediately
+        # For COD: generate and send the official invoice email with PDF attachment immediately upon confirmation
         if payment_method == "COD":
             transaction.on_commit(lambda: generate_and_send_invoice.delay(order.id))
 
@@ -193,19 +188,26 @@ class CheckoutService:
             defaults={"risk_tier": risk.tier, "latest_score": risk.score},
         )
 
-    def _next_order_number(self, merchant):
-        last = (
-            Order.objects.filter(merchant=merchant)
-            .order_by("-id")
-            .values_list("order_number", flat=True)
-            .first()
-        )
-        if last:
-            try:
-                return f"#{int(last.lstrip('#') or 1028) + 1}"
-            except ValueError:
-                return "#1028"
-        return "#1028"
+    def _next_order_number(self, merchant=None):
+        import re
+        last_orders = Order.objects.order_by("-id").values_list("order_number", flat=True)[:50]
+        max_num = 1024
+        for on in last_orders:
+            numbers = re.findall(r"\d+", str(on))
+            if numbers:
+                try:
+                    num = int(numbers[-1])
+                    if num > max_num:
+                        max_num = num
+                except ValueError:
+                    pass
+
+        candidate_num = max_num + 1
+        while True:
+            candidate = f"#{candidate_num}"
+            if not Order.objects.filter(order_number=candidate).exists():
+                return candidate
+            candidate_num += 1
 
     def _slugify(self, name):
         return "".join(ch for ch in name.lower() if ch.isalnum() or ch == "-").replace(" ", "-")

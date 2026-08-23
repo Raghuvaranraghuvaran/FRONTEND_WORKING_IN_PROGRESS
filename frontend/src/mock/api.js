@@ -472,18 +472,15 @@ export const api = {
 
   async googleSignIn(credential) {
     if (hasLiveApi()) {
-      try {
-        const result = await live('/auth/google/', { method: 'POST', body: { credential: credential || 'mock-credential' } })
-        writeShopperToken(result.tokens)
-        const user = { ...result.user, reward_points: result.user.reward_points ?? 1000 }
-        session.shopper = clone(user)
-        saveSession()
-        return user
-      } catch (err) {
-        console.warn('Live Google auth failed, falling back to demo session:', err)
-      }
+      // When live backend is running, use real Google auth — no demo fallback
+      const result = await live('/auth/google/', { method: 'POST', body: { credential: credential || 'mock-credential' } })
+      writeShopperToken(result.tokens)
+      const user = { ...result.user, reward_points: result.user.reward_points ?? 1000 }
+      session.shopper = clone(user)
+      saveSession()
+      return user
     }
-    // Mock mode - simulate Google sign-in with demo user
+    // Mock mode (no live API) - simulate Google sign-in with demo user
     await delay(700)
     const demoShopper = store.shoppers.find((s) => s.email === 'demo@shopper.com')
     if (demoShopper) {
@@ -644,6 +641,7 @@ export const api = {
 
   // ---- Shopper ----
   async getCurrentShopper() {
+    const tokens = readTokens()
     if (hasLiveApi() && tokens.shopper?.access) {
       try {
         const user = await live('/auth/me/')
@@ -662,6 +660,25 @@ export const api = {
       session.shopper.reward_points = 1000
     }
     return clone(session.shopper)
+  },
+
+  async getCurrentMerchant() {
+    const tokens = readTokens()
+    if (hasLiveApi() && tokens.merchant?.access) {
+      try {
+        const merchant = await live('/merchants/me/', { role: 'merchant' })
+        if (merchant) {
+          persistMerchant(merchant)
+          session.merchant = clone(merchant)
+          saveSession()
+          return merchant
+        }
+      } catch (err) {
+        console.warn('Could not fetch live merchant profile, keeping active session:', err)
+      }
+    }
+    await delay(100)
+    return clone(session.merchant)
   },
 
   async updateProfile(patch) {
@@ -733,7 +750,7 @@ export const api = {
     return clone(order.tracking_events || [])
   },
 
-  async placeOrder({ items, paymentMethod, address: _address, paymentDetails, couponCode, discount: inputDiscount, rewardPointsUsed, rewardDiscount: inputRewardDiscount }) {
+  async placeOrder({ items, paymentMethod, address: _address, phone, paymentDetails, couponCode, discount: inputDiscount, rewardPointsUsed, rewardDiscount: inputRewardDiscount }) {
     const ptsUsed = Number(rewardPointsUsed) || 0
     const calculatedRewardDiscount = Number(inputRewardDiscount) || Math.round(ptsUsed / 10)
 
@@ -747,6 +764,8 @@ export const api = {
         })),
         payment_method: paymentMethod,
         payment_details: paymentDetails,
+        address: _address || undefined,
+        phone: phone || undefined,
         coupon_code: couponCode || undefined,
         discount: inputDiscount || undefined,
         reward_points_used: ptsUsed || undefined,
@@ -1655,6 +1674,13 @@ export const api = {
   },
 
   async getAvailableCoupons() {
+    if (hasLiveApi()) {
+      try {
+        return await live('/admin/coupons/', { role: 'merchant' })
+      } catch {
+        // Coupons endpoint may not exist or user may not have merchant role — fallback to mock
+      }
+    }
     await delay(200)
     const now = new Date()
     return clone(
@@ -1761,8 +1787,35 @@ export const api = {
 
   async downloadInvoice(invoiceId) {
     if (hasLiveApi()) {
-      // Return the download URL
-      return { download_url: `/api/invoices/${invoiceId}/download/` }
+      // Authenticated PDF download
+      const tokens = readTokens()
+      const token = tokens.shopper?.access
+      const API_BASE_URL = String(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+      const url = `${API_BASE_URL}/invoices/${invoiceId}/download/`
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download invoice (${response.status})`)
+      }
+      
+      const blob = await response.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      
+      // Trigger download
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = `Invoice-${invoiceId}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(blobUrl)
+      
+      return { download_url: url, downloaded: true }
     }
     await delay(300)
     const invoice = store.invoices.find((inv) => inv.id === invoiceId)
