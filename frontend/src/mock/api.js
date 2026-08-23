@@ -661,7 +661,7 @@ export const api = {
     return clone(order.tracking_events || [])
   },
 
-  async placeOrder({ items, paymentMethod, address: _address }) {
+  async placeOrder({ items, paymentMethod, address: _address, couponCode, discount: inputDiscount }) {
     if (hasLiveApi()) {
       const payload = {
         items: items.map((item) => ({
@@ -671,6 +671,8 @@ export const api = {
           price: Number(item.price),
         })),
         payment_method: paymentMethod,
+        coupon_code: couponCode || undefined,
+        discount: inputDiscount || undefined,
       }
       return live('/orders/checkout/', { method: 'POST', body: payload })
     }
@@ -683,9 +685,18 @@ export const api = {
       quantity: item.quantity,
       price: item.price,
     }))
-    const total = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    const discount = Math.max(0, Number(inputDiscount) || 0)
+    const total = Math.max(0, subtotal - discount)
     const risk = computeRisk({ paymentMethod })
     const isCod = paymentMethod === 'COD'
+
+    if (couponCode && store.coupons) {
+      const matchedCoupon = store.coupons.find((c) => c.code.toUpperCase() === couponCode.toUpperCase())
+      if (matchedCoupon) {
+        matchedCoupon.used_count = (matchedCoupon.used_count || 0) + 1
+      }
+    }
 
     // Order status/delivery status while a Prepaid gateway result is outstanding.
     // Per the payment/invoice notification matrix, COD orders confirm immediately;
@@ -705,6 +716,9 @@ export const api = {
       user_id: shopper.id,
       customer_name: shopper.name,
       items: orderItems,
+      subtotal,
+      discount,
+      coupon_code: couponCode || null,
       total,
       payment_method: paymentMethod,
       status: orderStatus,

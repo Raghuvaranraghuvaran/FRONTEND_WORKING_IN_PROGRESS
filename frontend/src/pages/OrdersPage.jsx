@@ -155,7 +155,12 @@ export default function OrdersPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-base font-bold text-slate-900">{INR.format(order.total)}</p>
-                      <p className="text-xs text-slate-500">
+                      {order.coupon_code && (
+                        <span className="inline-flex items-center gap-1 rounded bg-purple-50 px-1.5 py-0.5 text-[11px] font-semibold text-purple-700 border border-purple-200 mt-0.5">
+                          🏷️ {order.coupon_code} (−{INR.format(order.discount || 0)})
+                        </span>
+                      )}
+                      <p className="text-xs text-slate-500 mt-0.5">
                         {order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 1} item(s)
                       </p>
                     </div>

@@ -21,6 +21,13 @@ export function AppProvider({ children }) {
       return []
     }
   })
+  const [appliedCoupon, setAppliedCoupon] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('returnguard_coupon') || 'null')
+    } catch {
+      return null
+    }
+  })
   const [deviceReady, setDeviceReady] = useState(false)
 
   useEffect(() => {
@@ -38,6 +45,14 @@ export function AppProvider({ children }) {
   }, [wishlist])
 
   useEffect(() => {
+    if (appliedCoupon) {
+      localStorage.setItem('returnguard_coupon', JSON.stringify(appliedCoupon))
+    } else {
+      localStorage.removeItem('returnguard_coupon')
+    }
+  }, [appliedCoupon])
+
+  useEffect(() => {
     const existing = api.getSession()
     setShopper(existing.shopper)
     setMerchant(existing.merchant)
@@ -53,6 +68,8 @@ export function AppProvider({ children }) {
       setCart,
       wishlist,
       setWishlist,
+      appliedCoupon,
+      setAppliedCoupon,
       deviceReady,
       addToCart(product) {
         let isNew = false
@@ -65,6 +82,7 @@ export function AppProvider({ children }) {
           isNew = true
           return [...current, { 
             product_id: product.id, 
+            category_id: product.category_id,
             name: product.name, 
             price: Number(product.price), 
             quantity: 1,
@@ -97,9 +115,10 @@ export function AppProvider({ children }) {
       },
       clearCart() {
         setCart([])
+        setAppliedCoupon(null)
       },
     }),
-    [shopper, merchant, cart, wishlist, deviceReady],
+    [shopper, merchant, cart, wishlist, appliedCoupon, deviceReady],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

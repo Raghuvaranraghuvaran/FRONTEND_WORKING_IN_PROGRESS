@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../mock/api'
 import { useApp } from '../context/AppContext'
@@ -8,7 +8,7 @@ import StatusBadge from '../components/StatusBadge'
 import PaymentGatewaySimulator from '../components/PaymentGatewaySimulator'
 
 export default function CheckoutPage() {
-  const { shopper, cart, clearCart } = useApp()
+  const { shopper, cart, clearCart, appliedCoupon, setAppliedCoupon } = useApp()
   const [paymentMethod, setPaymentMethod] = useState('COD')
   const [selectedAddressId, setSelectedAddressId] = useState(shopper?.addresses?.[0]?.id || 'custom')
   const [customAddress, setCustomAddress] = useState('')
@@ -21,7 +21,89 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false)
   const [resolvingPayment, setResolvingPayment] = useState(false)
 
+  // Coupon state
+  const [coupons, setCoupons] = useState([])
+  const [couponInput, setCouponInput] = useState('')
+  const [couponError, setCouponError] = useState('')
+  const [copiedCode, setCopiedCode] = useState(null)
+
+  useEffect(() => {
+    api.getAvailableCoupons().then((data) => setCoupons(Array.isArray(data) ? data : []))
+  }, [])
+
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+
+  // Check if coupon applies to items in cart
+  const isCouponApplicable = (coupon) => {
+    const hasProductScope = coupon.applicable_product_ids && coupon.applicable_product_ids.length > 0
+    const hasCategoryScope = coupon.applicable_category_ids && coupon.applicable_category_ids.length > 0
+    if (!hasProductScope && !hasCategoryScope) return true
+    return cart.some((item) => {
+      if (hasProductScope && coupon.applicable_product_ids.includes(item.product_id)) return true
+      if (hasCategoryScope && coupon.applicable_category_ids.includes(item.category_id)) return true
+      return false
+    })
+  }
+
+  const applicableCoupons = coupons.filter((c) => isCouponApplicable(c))
+
+  const calculateDiscount = (coupon) => {
+    if (!coupon) return 0
+    if (coupon.min_order_value > 0 && subtotal < coupon.min_order_value) return 0
+    if (coupon.discount_type === 'percentage') {
+      return Math.round((subtotal * coupon.discount_value) / 100)
+    }
+    return Math.min(coupon.discount_value, subtotal)
+  }
+
+  const couponDiscount = calculateDiscount(appliedCoupon)
+  const finalTotal = Math.max(0, subtotal - couponDiscount)
+
+  const handleApplyCoupon = () => {
+    setCouponError('')
+    const code = couponInput.trim().toUpperCase()
+    if (!code) {
+      setCouponError('Please enter a coupon code.')
+      return
+    }
+    const found = coupons.find((c) => c.code === code)
+    if (!found) {
+      setCouponError('Invalid coupon code.')
+      return
+    }
+    if (!isCouponApplicable(found)) {
+      setCouponError('This coupon is not applicable to items in your cart.')
+      return
+    }
+    if (found.min_order_value > 0 && subtotal < found.min_order_value) {
+      setCouponError(`Minimum order value of ${INR.format(found.min_order_value)} required.`)
+      return
+    }
+    setAppliedCoupon(found)
+    setCouponInput('')
+  }
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null)
+    setCouponError('')
+  }
+
+  const handleQuickApply = (coupon) => {
+    setCouponError('')
+    if (coupon.min_order_value > 0 && subtotal < coupon.min_order_value) {
+      setCouponError(`Min order ${INR.format(coupon.min_order_value)} required for ${coupon.code}.`)
+      return
+    }
+    setAppliedCoupon(coupon)
+    setCouponInput('')
+  }
+
+  const copyCode = (code) => {
+    navigator.clipboard.writeText(code).catch(() => {})
+    setCopiedCode(code)
+    setTimeout(() => setCopiedCode(null), 1500)
+  }
+
   const addresses = shopper?.addresses || []
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId)
   const baseAddressLine = selectedAddress ? selectedAddress.line : customAddress
@@ -60,6 +142,8 @@ export default function CheckoutPage() {
         items: cart,
         paymentMethod,
         address: effectiveAddress,
+        couponCode: appliedCoupon?.code || null,
+        discount: couponDiscount,
       })
 
       const placedOrder = placed.order || placed
@@ -198,23 +282,24 @@ export default function CheckoutPage() {
           <p className="mt-2 text-sm text-slate-500">
             This action requires SMS verification to confirm your order.
           </p>
-          <div className="mt-3 inline-block rounded-lg bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200">
-            Demo OTP: <strong>123456</strong>
-          </div>
-          {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
           <form onSubmit={confirmOtp} className="mt-6 space-y-4">
-            <input
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="123456"
-              inputMode="numeric"
-              className="w-full rounded-lg border border-slate-300 px-3 py-3 text-center text-lg tracking-[0.5em] focus:border-indigo-500 focus:outline-none"
-            />
+            <div>
+              <input
+                type="text"
+                placeholder="Enter 6-digit OTP (e.g. 123456)"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 p-3 text-center text-lg font-bold tracking-widest focus:border-indigo-500 focus:outline-none"
+              />
+              <p className="mt-2 text-xs text-slate-400">Default test OTP: 123456</p>
+            </div>
+            {error && <p className="text-xs text-rose-600">{error}</p>}
             <button
+              type="submit"
               disabled={submitting}
-              className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60 transition shadow-sm"
+              className="w-full rounded-xl bg-indigo-600 p-3 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
             >
-              {submitting ? 'Verifying…' : 'Verify & Confirm Order'}
+              {submitting ? 'Verifying…' : 'Verify & Place Order'}
             </button>
           </form>
         </div>
@@ -233,6 +318,14 @@ export default function CheckoutPage() {
           <p className="mt-2 text-sm text-slate-500">
             Total {INR.format(order.total)} · {order.payment_method}
           </p>
+
+          {/* Applied coupon badge on confirmation */}
+          {order.coupon_code && (
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700 border border-purple-200">
+              🏷️ Coupon <strong className="font-mono">{order.coupon_code}</strong> applied ({INR.format(order.discount)} saved)
+            </div>
+          )}
+
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             <RiskBadge tier={order.risk_tier || 'Low'} />
             {order.status && <StatusBadge status={order.status} />}
@@ -286,7 +379,7 @@ export default function CheckoutPage() {
         )}
       </div>
 
-      <form onSubmit={placeOrder} className="mt-6 grid gap-8 lg:grid-cols-[1fr_320px]">
+      <form onSubmit={placeOrder} className="mt-6 grid gap-8 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-base font-semibold text-slate-900">Delivery Address</h2>
@@ -389,6 +482,117 @@ export default function CheckoutPage() {
             </div>
           </div>
 
+          {/* Coupon Section */}
+          <div className="rounded-2xl border border-purple-200 bg-white p-6 shadow-sm">
+            <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              🏷️ Apply Coupon Code
+            </h2>
+            <div className="mt-3 flex gap-2">
+              <input
+                type="text"
+                value={couponInput}
+                onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError('') }}
+                placeholder="Enter coupon code (e.g. SAVE10)"
+                className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono tracking-wider uppercase focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+              <button
+                type="button"
+                onClick={handleApplyCoupon}
+                className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors shadow-sm"
+              >
+                Apply
+              </button>
+            </div>
+            {couponError && <p className="mt-2 text-xs text-rose-600 font-medium">{couponError}</p>}
+
+            {/* Applied Coupon Banner */}
+            {appliedCoupon && (
+              <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">✓</span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-bold text-emerald-900 tracking-wider">{appliedCoupon.code}</span>
+                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded">
+                        {appliedCoupon.discount_type === 'percentage'
+                          ? `${appliedCoupon.discount_value}% off`
+                          : `₹${appliedCoupon.discount_value} off`}
+                      </span>
+                    </div>
+                    <p className="text-xs text-emerald-700 mt-0.5">
+                      Coupon applied! Saving <strong className="font-bold">{INR.format(couponDiscount)}</strong>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveCoupon}
+                  className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+
+            {/* Available Coupons list */}
+            {!appliedCoupon && applicableCoupons.length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs text-slate-500 font-semibold mb-2 uppercase tracking-wider">Available coupons:</p>
+                <div className="space-y-2">
+                  {applicableCoupons.map((coupon) => (
+                    <div
+                      key={coupon.id}
+                      className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3 hover:border-purple-200 hover:bg-purple-50/30 transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="rounded-lg px-2.5 py-1 text-xs font-bold tracking-wider"
+                          style={{
+                            fontFamily: 'monospace',
+                            background: coupon.discount_type === 'percentage' ? '#ede9fe' : '#dcfce7',
+                            color: coupon.discount_type === 'percentage' ? '#7c3aed' : '#16a34a',
+                            border: `1px dashed ${coupon.discount_type === 'percentage' ? '#a78bfa' : '#86efac'}`,
+                          }}
+                        >
+                          {coupon.code}
+                        </span>
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">
+                            {coupon.discount_type === 'percentage'
+                              ? `${coupon.discount_value}% off`
+                              : `₹${coupon.discount_value} off`}
+                            {coupon.min_order_value > 0 && (
+                              <span className="ml-1.5 text-[11px] font-normal text-slate-500">
+                                (on orders above {INR.format(coupon.min_order_value)})
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-slate-500">{coupon.description || 'Applicable to your items'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => copyCode(coupon.code)}
+                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                        >
+                          {copiedCode === coupon.code ? '✓ Copied' : 'Copy'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickApply(coupon)}
+                          className="rounded-lg bg-indigo-600 px-3.5 py-1 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors shadow-sm"
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-base font-semibold text-slate-900">Order Items</h2>
             <div className="mt-3 space-y-2">
@@ -410,6 +614,12 @@ export default function CheckoutPage() {
             <span>Subtotal</span>
             <span className="font-semibold text-slate-900">{INR.format(subtotal)}</span>
           </div>
+          {appliedCoupon && couponDiscount > 0 && (
+            <div className="mt-2 flex justify-between text-sm">
+              <span className="text-emerald-700 font-medium flex items-center gap-1">🏷️ {appliedCoupon.code}</span>
+              <span className="font-semibold text-emerald-700">−{INR.format(couponDiscount)}</span>
+            </div>
+          )}
           <div className="mt-2 flex justify-between text-sm text-slate-600">
             <span>Delivery</span>
             <span className="font-semibold text-emerald-600">Free</span>
@@ -417,7 +627,7 @@ export default function CheckoutPage() {
           <div className="my-4 h-px bg-slate-200" />
           <div className="flex justify-between text-base font-bold text-slate-900">
             <span>Total Amount</span>
-            <span className="text-indigo-600">{INR.format(subtotal)}</span>
+            <span className="text-indigo-600">{INR.format(finalTotal)}</span>
           </div>
 
           {error && (
