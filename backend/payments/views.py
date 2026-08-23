@@ -67,9 +67,22 @@ class ProcessPaymentView(APIView):
         payment_service = PaymentService()
         result = payment_service.process_payment(payment, payment_data)
         
-        # If successful, trigger invoice generation
+        # If successful, trigger invoice generation and payment receipt email
         if result['success']:
             transaction.on_commit(lambda: generate_and_send_invoice.delay(payment.order.id))
+            from common.mailer import send_async_email
+            send_async_email(
+                subject=f"Payment Successful: {payment.order.order_number}",
+                message=(
+                    f"Hi {request.user.name or 'Customer'},\n\n"
+                    f"Your payment of ₹{payment.amount} for order {payment.order.order_number} was successful!\n\n"
+                    f"Transaction ID: {payment.transaction_id or 'TXN' + str(payment.id)}\n"
+                    f"Payment Method: {payment.payment_method}\n\n"
+                    "Your invoice has been generated and your order is confirmed.\n\n"
+                    "— ReturnGuard Team"
+                ),
+                recipient_list=[request.user.email],
+            )
         
         # Refresh payment from DB
         payment.refresh_from_db()

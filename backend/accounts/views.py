@@ -20,7 +20,24 @@ from .serializers import (
 from .services import tokens_for_user
 from verification.services import OTPVerificationService
 
+from common.mailer import send_async_email
+
 User = get_user_model()
+
+
+def _send_welcome_email(user):
+    if not user or not user.email:
+        return
+    send_async_email(
+        subject="Welcome to ReturnGuard!",
+        message=(
+            f"Hello {user.name or 'Shopper'},\n\n"
+            f"Welcome to ReturnGuard! Your account ({user.email}) has been successfully created.\n\n"
+            "You can browse products, manage orders, and track deliveries smoothly.\n\n"
+            "— The ReturnGuard Team"
+        ),
+        recipient_list=[user.email],
+    )
 
 
 class RegisterView(APIView):
@@ -30,6 +47,7 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        _send_welcome_email(user)
         return success(
             {"tokens": tokens_for_user(user), "user": ShopperSerializer(user).data},
             status=status.HTTP_201_CREATED,
@@ -82,6 +100,9 @@ class GoogleLoginView(APIView):
                 user=user,
                 defaults={"customer_id": f"CUST-{user.id + 1000}"},
             )
+
+            if created:
+                _send_welcome_email(user)
 
             return success(
                 {
