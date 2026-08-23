@@ -19,7 +19,12 @@ class Order(TimestampedModel):
     )
     PAYMENT_METHOD_CHOICES = (
         ("COD", "Cash on Delivery"),
-        ("Prepaid", "Prepaid"),
+        ("UPI", "UPI"),
+        ("CREDIT_CARD", "Credit Card"),
+        ("DEBIT_CARD", "Debit Card"),
+        ("NET_BANKING", "Net Banking"),
+        ("MOBILE_BANKING", "Mobile Banking"),
+        ("Prepaid", "Prepaid"),  # Legacy support
     )
 
     order_number = models.CharField(max_length=32, unique=True)
