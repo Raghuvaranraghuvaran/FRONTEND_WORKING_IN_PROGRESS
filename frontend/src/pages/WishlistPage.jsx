@@ -5,10 +5,7 @@ export default function WishlistPage() {
   const { wishlist, toggleWishlist, addToCart } = useApp()
 
   const handleAddToCart = (product) => {
-    const added = addToCart(product)
-    if (!added) {
-      alert('This item is already in your cart!')
-    }
+    addToCart(product, 1)
   }
 
   if (wishlist.length === 0) {

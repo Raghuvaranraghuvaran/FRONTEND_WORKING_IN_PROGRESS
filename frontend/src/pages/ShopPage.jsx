@@ -71,6 +71,7 @@ export default function ShopPage() {
   const [selectedMerchant, setSelectedMerchant] = useState('all')
   const [coupons, setCoupons] = useState([])
   const [returns, setReturns] = useState([])
+  const [addedToast, setAddedToast] = useState(null)
 
   const activeCategory = searchParams.get('category') || 'all'
   const query = searchParams.get('q') || ''
@@ -97,6 +98,7 @@ export default function ShopPage() {
       }
       setCategories(unique)
     })
+    api.getAvailableCoupons().then((data) => setCoupons(Array.isArray(data) ? data : []))
   }, [])
 
   useEffect(() => {
@@ -106,10 +108,6 @@ export default function ShopPage() {
       setLoading(false)
     })
   }, [activeCategory, query])
-
-  useEffect(() => {
-    api.getAvailableCoupons().then((data) => setCoupons(Array.isArray(data) ? data : []))
-  }, [])
 
   const getBestCoupon = (product) => {
     const applicable = coupons.filter((c) => {
@@ -125,10 +123,9 @@ export default function ShopPage() {
   }
 
   const handleAddToCart = (product) => {
-    const added = addToCart(product)
-    if (!added) {
-      alert('Already in cart!')
-    }
+    addToCart(product, 1)
+    setAddedToast(product.name)
+    setTimeout(() => setAddedToast(null), 2500)
   }
 
   const handleSearch = (e) => {
@@ -514,14 +511,60 @@ export default function ShopPage() {
                   {n}
                 </button>
               ))}
-              <button style={{
-                width: 34, height: 34, border: '1.5px solid #e2e8f0', background: '#fff',
-                borderRadius: 8, cursor: 'pointer', fontSize: 14, color: '#64748b',
-              }}>→</button>
             </div>
           </>
         )}
       </div>
+
+      {/* Cart Toast Notification */}
+      {addedToast && (
+        <div style={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          zIndex: 9999,
+          background: '#0f172a',
+          color: '#fff',
+          padding: '12px 20px',
+          borderRadius: 12,
+          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          animation: 'fadeIn 0.2s ease-out',
+        }}>
+          <span style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 24,
+            height: 24,
+            borderRadius: '50%',
+            background: '#10b981',
+            color: '#fff',
+            fontSize: 14,
+            fontWeight: 'bold',
+          }}>✓</span>
+          <div style={{ fontSize: 13 }}>
+            <span style={{ fontWeight: 600 }}>Added to cart:</span> {addedToast}
+          </div>
+          <Link
+            to="/cart"
+            style={{
+              marginLeft: 8,
+              background: '#6366f1',
+              color: '#fff',
+              padding: '6px 12px',
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            View Cart ({cart.length}) →
+          </Link>
+        </div>
+      )}
     </div>
   )
 }

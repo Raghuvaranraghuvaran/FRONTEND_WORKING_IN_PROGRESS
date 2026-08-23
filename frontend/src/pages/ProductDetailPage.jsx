@@ -66,12 +66,7 @@ export default function ProductDetailPage() {
   }
 
   const handleAdd = () => {
-    if (isInCart) {
-      setMessage('Already in cart! You can adjust quantity on the Cart page.')
-      window.setTimeout(() => setMessage(''), 3000)
-      return
-    }
-    addToCart(product)
+    addToCart(product, 1)
     setMessage('✓ Added to cart successfully!')
     window.setTimeout(() => setMessage(''), 2500)
   }

@@ -93,47 +93,68 @@ export function AppProvider({ children }) {
       appliedCoupon,
       setAppliedCoupon,
       deviceReady,
-      addToCart(product) {
-        let isNew = false
+      addToCart(product, qty = 1) {
+        if (!product) return
+        const pId = product.id || product.product_id
         setCart((current) => {
-          const found = current.find((item) => item.product_id === product.id)
-          if (found) {
-            // Product is already in cart, do not duplicate
-            return current
+          const list = Array.isArray(current) ? [...current] : []
+          const index = list.findIndex((item) => String(item.product_id) === String(pId))
+          if (index >= 0) {
+            list[index] = {
+              ...list[index],
+              quantity: (Number(list[index].quantity) || 1) + (Number(qty) || 1),
+            }
+            return list
           }
-          isNew = true
-          return [...current, { 
-            product_id: product.id, 
-            category_id: product.category_id,
-            name: product.name, 
-            price: Number(product.price), 
-            quantity: 1,
-            image: product.image // Add product image
-          }]
+          return [
+            ...list,
+            {
+              product_id: pId,
+              category_id: product.category_id,
+              name: product.name,
+              price: Number(product.price),
+              quantity: Number(qty) || 1,
+              image: product.image,
+            },
+          ]
         })
-        return isNew
+      },
+      removeFromCart(productId) {
+        setCart((current) =>
+          (Array.isArray(current) ? current : []).filter(
+            (item) => String(item.product_id) !== String(productId)
+          )
+        )
       },
       toggleWishlist(product) {
+        if (!product) return
+        const pId = product.id || product.product_id
         setWishlist((current) => {
-          const found = current.find((item) => item.id === product.id)
+          const list = Array.isArray(current) ? [...current] : []
+          const found = list.find((item) => String(item.id || item.product_id) === String(pId))
           if (found) {
-            // Remove from wishlist
-            return current.filter((item) => item.id !== product.id)
+            return list.filter((item) => String(item.id || item.product_id) !== String(pId))
           } else {
-            // Add to wishlist
-            return [...current, product]
+            return [...list, product]
           }
         })
       },
       isInWishlist(productId) {
-        return wishlist.some((item) => item.id === productId)
+        return (Array.isArray(wishlist) ? wishlist : []).some(
+          (item) => String(item.id || item.product_id) === String(productId)
+        )
       },
       updateCartItem(productId, quantity) {
-        setCart((current) =>
-          quantity <= 0
-            ? current.filter((item) => item.product_id !== productId)
-            : current.map((item) => (item.product_id === productId ? { ...item, quantity } : item)),
-        )
+        setCart((current) => {
+          const list = Array.isArray(current) ? [...current] : []
+          const num = Number(quantity)
+          if (num <= 0) {
+            return list.filter((item) => String(item.product_id) !== String(productId))
+          }
+          return list.map((item) =>
+            String(item.product_id) === String(productId) ? { ...item, quantity: num } : item
+          )
+        })
       },
       clearCart() {
         setCart([])
