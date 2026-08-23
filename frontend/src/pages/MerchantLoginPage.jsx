@@ -73,6 +73,9 @@ export default function MerchantLoginPage() {
   const fillDemo = () => {
     setUsername('ARIAFASHION4827')
     setPassword('demo123')
+    setIsVerified(true)
+    setIsVerifying(false)
+    setRecaptchaToken(`verified_token_demo_${Date.now()}`)
     setError('')
   }
 

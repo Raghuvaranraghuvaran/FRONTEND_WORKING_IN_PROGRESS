@@ -178,24 +178,18 @@ export default function ProductDetailPage() {
             {isInCart ? (
               <Link
                 to="/cart"
-                className="flex-1 rounded-xl bg-emerald-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-emerald-500 shadow-sm"
+                className="flex-1 rounded-xl bg-emerald-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-emerald-500 shadow-sm transition"
               >
                 ✓ View in Cart ({cartItem.quantity})
               </Link>
             ) : (
               <button
                 onClick={handleAdd}
-                className="flex-1 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-500 shadow-sm transition"
+                className="flex-1 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-500 shadow-sm transition cursor-pointer"
               >
                 Add to cart
               </button>
             )}
-            <Link
-              to="/cart"
-              className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
-            >
-              Go to cart
-            </Link>
           </div>
         </div>
       </div>
