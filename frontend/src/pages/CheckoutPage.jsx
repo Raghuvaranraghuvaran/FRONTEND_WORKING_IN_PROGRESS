@@ -10,7 +10,7 @@ import PaymentMethodSelector from '../components/PaymentMethodSelector'
 
 export default function CheckoutPage() {
   const navigate = useNavigate()
-  const { shopper, cart, clearCart, appliedCoupon } = useApp()
+  const { shopper, setShopper, cart, clearCart, appliedCoupon } = useApp()
   const [paymentMethod, setPaymentMethod] = useState('COD')
   const [paymentDetails, setPaymentDetails] = useState({})
   const [selectedAddressId, setSelectedAddressId] = useState(shopper?.addresses?.[0]?.id || 'custom')
