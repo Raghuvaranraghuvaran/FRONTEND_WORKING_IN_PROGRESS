@@ -1,8 +1,5 @@
 const API_BASE_URL = String(
-  import.meta.env.VITE_API_URL ||
-  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'http://localhost:8000/api'
-    : 'https://frontend-working-in-progress.onrender.com/api')
+  import.meta.env.VITE_API_URL || ''
 ).replace(/\/$/, '')
 
 export function hasLiveApi() {
