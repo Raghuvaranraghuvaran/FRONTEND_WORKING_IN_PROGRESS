@@ -74,8 +74,8 @@ export default function StorefrontHeader() {
           {shopper ? (
             <div className="hidden items-center gap-2 md:flex">
               {!isLandingPage && (
-                <Link to="/profile" className="max-w-[120px] truncate rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                  {shopper.name}
+                <Link to="/profile" className="max-w-[180px] truncate rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                  {shopper.email || shopper.name}
                 </Link>
               )}
               {!isLandingPage && (
@@ -185,7 +185,7 @@ export default function StorefrontHeader() {
                   transition={{ delay: 0.1, duration: 0.35 }}
                 >
                   <h1 className="text-[26px] sm:text-[34px] font-bold text-white text-center m-0 leading-tight">
-                    {shopper ? `Hello, ${shopper.name}` : 'Welcome Back'}
+                    {shopper ? `Hello, ${shopper.email || shopper.name}` : 'Welcome Back'}
                   </h1>
                   <p className="text-[14px] sm:text-[16px] text-[#9aa9bf] text-center mt-2 mb-6 sm:mb-8 font-normal">
                     {shopper ? 'Navigate your account & portal' : 'Choose your portal to continue'}
@@ -337,3 +337,5 @@ export default function StorefrontHeader() {
     </header>
   )
 }
+
+

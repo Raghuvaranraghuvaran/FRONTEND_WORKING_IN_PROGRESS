@@ -89,7 +89,7 @@ export default function ProfilePage() {
               fontWeight: 700,
               border: '4px solid #e2e8f0',
             }}>
-              {!profilePhoto && shopper?.name.charAt(0).toUpperCase()}
+              {!profilePhoto && (shopper?.email || shopper?.name || 'U').charAt(0).toUpperCase()}
             </div>
             <div className="flex flex-col gap-2">
               <input
@@ -130,7 +130,6 @@ export default function ProfilePage() {
                 <QRCodeSVG 
                   value={JSON.stringify({
                     email: shopper.email,
-                    name: shopper.name,
                     customerId: shopper.customer_id,
                     memberSince: shopper.joined_at
                   })}
@@ -141,7 +140,7 @@ export default function ProfilePage() {
               </div>
             )}
             <div className="text-center">
-              <p className="text-sm font-semibold text-slate-900">{shopper?.name}</p>
+              <p className="text-sm font-semibold text-slate-900">{shopper?.email}</p>
               <p className="text-xs text-slate-500 mt-1">{shopper?.customer_id}</p>
             </div>
             <p className="text-xs text-slate-400 mt-2">Scan this QR code at store for quick checkout</p>

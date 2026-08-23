@@ -1,38 +1,49 @@
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
-import { api } from '../mock/api'
 import React from 'react'
-import BrandLogo from './BrandLogo'
-import { X, LogOut } from 'lucide-react'
+import { X } from 'lucide-react'
 
 // ── Sidebar nav item ──────────────────────────────────────────────────────────
 function SidebarItem({ to, icon, label, active, badge, onClick }) {
   const El = to ? Link : 'button'
-  const [isHovering, setIsHovering] = React.useState(false)
 
   return (
     <El
       to={to}
       onClick={onClick}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
       style={{
-        display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px',
-        borderRadius: 10, textDecoration: 'none', border: 'none',
-        background: active ? '#6366f1' : isHovering ? 'rgba(99, 102, 241, 0.08)' : 'transparent',
-        color: active ? '#fff' : isHovering ? '#4f46e5' : '#475569',
+        display: 'flex', alignItems: 'center', gap: 14,
+        padding: '13px 16px',
+        borderRadius: 12, textDecoration: 'none', border: 'none',
+        background: active
+          ? 'linear-gradient(135deg, #6366f1, #7c3aed)'
+          : 'transparent',
+        color: active ? '#fff' : '#475569',
         fontSize: 14, fontWeight: active ? 600 : 500,
         cursor: 'pointer', transition: 'all .15s', width: '100%',
-        textAlign: 'left',
+        textAlign: 'left', boxSizing: 'border-box',
+        boxShadow: active ? '0 4px 12px rgba(99,102,241,0.3)' : 'none',
+      }}
+      onMouseEnter={(e) => {
+        if (!active) {
+          e.currentTarget.style.background = 'rgba(99,102,241,0.08)'
+          e.currentTarget.style.color = '#4f46e5'
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          e.currentTarget.style.background = 'transparent'
+          e.currentTarget.style.color = '#475569'
+        }
       }}
     >
-      <span style={{ fontSize: 18 }}>{icon}</span>
-      <span style={{ flex: 1 }}>{label}</span>
-      {badge !== undefined && (
+      <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{icon}</span>
+      <span style={{ flex: 1, fontSize: 14 }}>{label}</span>
+      {badge !== undefined && badge > 0 && (
         <span style={{
           background: active ? 'rgba(255,255,255,0.25)' : '#6366f1',
-          color: '#fff',
-          fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 10,
+          color: '#fff', fontSize: 11, fontWeight: 700,
+          padding: '2px 8px', borderRadius: 20, minWidth: 22, textAlign: 'center',
         }}>
           {badge}
         </span>
@@ -42,69 +53,94 @@ function SidebarItem({ to, icon, label, active, badge, onClick }) {
 }
 
 export default function ShopperSidebar({ onClose }) {
-  const { shopper, setShopper, cart, wishlist } = useApp()
-  const navigate = useNavigate()
+  const { wishlist } = useApp()
   const location = useLocation()
-
-  const handleLogout = async () => {
-    if (onClose) onClose()
-    await api.logout('shopper')
-    setShopper(null)
-    navigate('/')
-  }
-
   const wishlistCount = wishlist?.length || 0
-  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
   const handleNav = () => {
     if (onClose) onClose()
   }
 
   return (
-    <div className="flex h-full w-full flex-col justify-between p-5 bg-white">
-      <div>
-        {/* Brand logo & Mobile Close button */}
-        <div className="flex items-center justify-between mb-6">
-          <Link to="/shop" onClick={handleNav} className="inline-flex items-center">
-            <BrandLogo className="h-9 w-auto" />
-          </Link>
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="md:hidden flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
-              aria-label="Close sidebar"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          )}
-        </div>
-
-        {/* Navigation Items */}
-        <nav className="flex flex-col gap-1">
-          <SidebarItem to="/dashboard" icon="🏠" label="Dashboard" active={location.pathname === '/dashboard'} onClick={handleNav} />
-          <SidebarItem to="/shop" icon="🛍️" label="Shop" active={location.pathname === '/shop' || location.pathname.startsWith('/products/')} onClick={handleNav} />
-          <SidebarItem to="/orders" icon="📦" label="My Orders" active={location.pathname === '/orders' || location.pathname.startsWith('/orders/')} onClick={handleNav} />
-          <SidebarItem to="/returns" icon="🔄" label="Returns" active={location.pathname === '/returns'} onClick={handleNav} />
-          <SidebarItem to="/wishlist" icon="❤️" label="Wishlist" active={location.pathname === '/wishlist'} badge={wishlistCount || undefined} onClick={handleNav} />
-          <SidebarItem to="/cart" icon="💳" label="Cart" active={location.pathname === '/cart'} badge={cartCount || undefined} onClick={handleNav} />
-          <SidebarItem to="/profile" icon="📍" label="Addresses" active={location.pathname === '/profile'} onClick={handleNav} />
-        </nav>
-      </div>
-
-      {/* Shopper info / Sign out footer */}
-      {shopper && (
-        <div className="pt-4 mt-4 border-t border-slate-100">
+    <div style={{
+      display: 'flex', flexDirection: 'column', height: '100%',
+      background: '#fff', padding: 0,
+    }}>
+      {/* ── Drawer header (mobile only) ─────────────────────────────────── */}
+      {onClose && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '18px 20px 14px',
+          borderBottom: '1px solid #f1f5f9',
+        }}>
+          <div>
+            <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>Navigation</p>
+            <p style={{ margin: '2px 0 0', fontSize: 12, color: '#94a3b8' }}>Shopper menu</p>
+          </div>
           <button
             type="button"
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition"
+            onClick={onClose}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 36, height: 36, borderRadius: 10, border: '1px solid #e2e8f0',
+              background: '#f8fafc', color: '#64748b', cursor: 'pointer',
+            }}
+            aria-label="Close sidebar"
           >
-            <LogOut className="h-4 w-4" />
-            <span>Sign Out</span>
+            <X style={{ width: 18, height: 18 }} />
           </button>
         </div>
       )}
+
+      {/* ── Desktop header (when no onClose) ──────────────────────────── */}
+      {!onClose && (
+        <div style={{ padding: '20px 16px 12px', borderBottom: '1px solid #f1f5f9' }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Quick Navigation
+          </p>
+        </div>
+      )}
+
+      {/* ── Nav Items ────────────────────────────────────────────────── */}
+      <nav style={{ flex: 1, padding: '12px 12px', display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
+        <SidebarItem
+          to="/dashboard" icon="🏠" label="Dashboard"
+          active={location.pathname === '/dashboard'} onClick={handleNav}
+        />
+        <SidebarItem
+          to="/shop" icon="🛍️" label="Shop"
+          active={location.pathname === '/shop' || location.pathname.startsWith('/products/')} onClick={handleNav}
+        />
+        <SidebarItem
+          to="/orders" icon="📦" label="My Orders"
+          active={location.pathname === '/orders' || location.pathname.startsWith('/orders/')} onClick={handleNav}
+        />
+        <SidebarItem
+          to="/returns" icon="🔄" label="Returns"
+          active={location.pathname === '/returns'} onClick={handleNav}
+        />
+        <SidebarItem
+          to="/wishlist" icon="❤️" label="Wishlist"
+          active={location.pathname === '/wishlist'}
+          badge={wishlistCount}
+          onClick={handleNav}
+        />
+        <SidebarItem
+          to="/profile" icon="📍" label="Addresses"
+          active={location.pathname === '/profile'} onClick={handleNav}
+        />
+      </nav>
+
+      {/* ── Footer area ──────────────────────────────────────────────── */}
+      <div style={{
+        padding: '12px 16px 16px',
+        borderTop: '1px solid #f1f5f9',
+        background: '#fafbfc',
+      }}>
+        <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>
+          🛡️ ReturnGuard Verified Storefront
+        </p>
+      </div>
     </div>
   )
 }

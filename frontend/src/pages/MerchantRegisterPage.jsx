@@ -95,153 +95,144 @@ export default function MerchantRegisterPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#070b14] px-4 py-12 text-slate-100 relative">
+    <>
+      <style>{`
+        .mr-card-input:focus { border-color:#0d9488 !important; box-shadow:0 0 0 3px rgba(13,148,136,0.15) !important; }
+      `}</style>
+      {/* Background */}
+      <div style={{ position:'fixed', inset:0, zIndex:0, background:'linear-gradient(135deg, #0f172a 0%, #134e4a 40%, #0f172a 100%)' }} />
+      <div style={{ position:'fixed', inset:0, zIndex:1, backgroundImage:`url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2314b8a6' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
+      <div style={{ position:'fixed', inset:0, zIndex:2, background:'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(20,184,166,0.18) 0%, transparent 70%)' }} />
+
+      <main style={{ position:'relative', zIndex:3, minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px 16px', fontFamily:"'Segoe UI', Roboto, Arial, sans-serif" }}>
       <div className="w-full max-w-lg">
         {/* Brand Logo Header */}
-        <div className="mb-6 flex flex-col items-center text-center">
-          <Link to="/" className="inline-block transition-transform hover:scale-105">
-            <BrandLogo className="h-10 w-auto" />
+        <div style={{ marginBottom:24, display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
+          <Link to="/" style={{ display:'inline-block', textDecoration:'none' }}>
+            <BrandLogo className="h-11 w-auto" />
           </Link>
-          <p className="mt-2 text-xs font-medium text-slate-400 tracking-wide">
-            Enterprise E-Commerce Return & Fraud Protection
-          </p>
+          <div style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(20,184,166,0.15)', border:'1px solid rgba(20,184,166,0.35)', borderRadius:20, padding:'4px 12px' }}>
+            <span style={{ width:6, height:6, borderRadius:'50%', background:'#2dd4bf', flexShrink:0, boxShadow:'0 0 6px #2dd4bf' }} />
+            <span style={{ fontSize:11, fontWeight:600, color:'#5eead4', letterSpacing:'0.06em' }}>MERCHANT PORTAL</span>
+          </div>
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-slate-800/80 bg-[#0d1424] p-8 shadow-2xl backdrop-blur-md">
-          <div className="border-b border-slate-800/80 pb-4 mb-6">
-            <h1 className="text-2xl font-bold text-white tracking-tight">Create Merchant Account</h1>
-            <p className="mt-1 text-xs text-slate-400">
+        <div style={{ background:'rgba(255,255,255,0.06)', backdropFilter:'blur(32px) saturate(1.5)', WebkitBackdropFilter:'blur(32px) saturate(1.5)', borderRadius:24, border:'1px solid rgba(255,255,255,0.12)', boxShadow:'0 24px 64px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)', padding:'32px 28px 28px', position:'relative', overflow:'hidden' }}>
+          <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:'linear-gradient(90deg, transparent, #14b8a6, #0d9488, transparent)' }} />
+          <div style={{ marginBottom:24 }}>
+            <h1 style={{ fontSize:22, fontWeight:800, color:'#f8fafc', margin:'0 0 4px', letterSpacing:'-0.02em' }}>Create Merchant Account</h1>
+            <p style={{ fontSize:12.5, color:'rgba(148,163,184,0.9)', margin:0 }}>
               Register your business to begin managing returns and risk scoring.
             </p>
           </div>
 
           {error && (
-            <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs font-medium text-rose-300">
+            <div style={{ marginBottom:16, borderRadius:10, padding:'10px 14px', fontSize:12.5, fontWeight:600, background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.25)', color:'#fca5a5' }}>
               {error}
             </div>
           )}
 
-          <form onSubmit={submit} className="space-y-5">
+          <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:16 }}>
             {/* Personal Information */}
-            <div className="space-y-3.5">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-teal-400">
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              <div style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'#5eead4' }}>
                 Personal Information
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Your Name *</label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>Your Name *</label>
+                <div style={{ position:'relative' }}>
+                  <User style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569' }} />
                   <input
-                    type="text"
-                    required
-                    value={form.name}
-                    onChange={update('name')}
-                    className="w-full rounded-xl border border-slate-700/80 bg-[#070b14] pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    type="text" required value={form.name} onChange={update('name')}
+                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
                     placeholder="e.g. Sai Kumar"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Your Email *</label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>Your Email *</label>
+                <div style={{ position:'relative' }}>
+                  <Mail style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569' }} />
                   <input
-                    type="email"
-                    required
-                    value={form.email}
-                    onChange={update('email')}
-                    className="w-full rounded-xl border border-slate-700/80 bg-[#070b14] pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    type="email" required value={form.email} onChange={update('email')}
+                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
                     placeholder="merchant@gmail.com"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Password *</label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>Password *</label>
+                <div style={{ position:'relative' }}>
+                  <Lock style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569' }} />
                   <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    minLength={6}
-                    value={form.password}
-                    onChange={update('password')}
-                    className="w-full rounded-xl border border-slate-700/80 bg-[#070b14] pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    type={showPassword ? 'text' : 'password'} required minLength={6} value={form.password} onChange={update('password')}
+                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:42, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
                     placeholder="Minimum 6 characters"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#64748b', padding:0, display:'flex', alignItems:'center' }}>
+                    {showPassword ? <EyeOff style={{ width:15, height:15 }} /> : <Eye style={{ width:15, height:15 }} />}
                   </button>
                 </div>
               </div>
             </div>
 
             {/* Business Information */}
-            <div className="border-t border-slate-800/80 pt-5 space-y-3.5">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-teal-400">
+            <div style={{ borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:16, display:'flex', flexDirection:'column', gap:12 }}>
+              <div style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'#5eead4' }}>
                 Business Information
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Business Name *</label>
-                <div className="relative">
-                  <Store className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>Business Name *</label>
+                <div style={{ position:'relative' }}>
+                  <Store style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569' }} />
                   <input
-                    type="text"
-                    required
-                    value={form.businessName}
-                    onChange={update('businessName')}
-                    className="w-full rounded-xl border border-slate-700/80 bg-[#070b14] pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    type="text" required value={form.businessName} onChange={update('businessName')}
+                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
                     placeholder="e.g. Sai Fashion Store"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Store Slug *</label>
-                <div className="relative">
-                  <Tag className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>Store Slug *</label>
+                <div style={{ position:'relative' }}>
+                  <Tag style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569' }} />
                   <input
-                    type="text"
-                    required
-                    value={form.storeSlug}
-                    onChange={update('storeSlug')}
-                    className="w-full rounded-xl border border-slate-700/80 bg-[#070b14] pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    type="text" required value={form.storeSlug} onChange={update('storeSlug')}
+                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', fontFamily:'monospace', outline:'none', transition:'border-color .15s' }}
                     placeholder="sai-fashion-store"
                   />
                 </div>
-                <p className="mt-1 text-[11px] text-slate-500">
+                <p style={{ marginTop:5, fontSize:11, color:'#64748b' }}>
                   Unique identifier used in URLs (lowercase letters, numbers, hyphens).
                 </p>
               </div>
             </div>
 
             <button
-              type="submit"
-              disabled={submitting}
-              className="mt-2 w-full rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 py-3 text-xs font-bold text-slate-950 uppercase tracking-wider hover:from-teal-400 hover:to-emerald-400 transition-all shadow-lg shadow-teal-500/20 disabled:opacity-50 cursor-pointer"
+              type="submit" disabled={submitting}
+              style={{ width:'100%', border:'none', padding:'13px 0', borderRadius:12, fontSize:13, fontWeight:700, color:'#fff', cursor: submitting ? 'not-allowed' : 'pointer', background: submitting ? 'rgba(13,148,136,0.5)' : 'linear-gradient(135deg, #0d9488, #0f766e)', display:'flex', alignItems:'center', justifyContent:'center', gap:8, boxShadow: submitting ? 'none' : '0 4px 20px rgba(13,148,136,0.45)', letterSpacing:'0.04em', textTransform:'uppercase', transition:'all .15s', opacity: submitting ? 0.7 : 1 }}
             >
-              {submitting ? 'Creating account…' : 'Create merchant account'}
+              {submitting ? 'Creating account…' : 'Create Merchant Account'}
             </button>
           </form>
 
-          <p className="mt-6 text-center text-xs text-slate-400">
-            Already have a merchant account?{' '}
-            <Link to="/merchant/login" className="font-semibold text-teal-400 hover:text-teal-300">
+          <p style={{ marginTop:20, textAlign:'center', fontSize:12.5, color:'#64748b' }}>
+            Already have an account?{' '}
+            <Link to="/merchant/login" style={{ color:'#2dd4bf', fontWeight:600, textDecoration:'none' }}>
               Sign in with username
             </Link>
           </p>
         </div>
 
-        <p className="mt-6 text-center text-xs text-slate-500">
-          <Link to="/" className="hover:text-slate-300 transition-colors">
+        <p style={{ textAlign:'center', marginTop:20 }}>
+          <Link to="/" style={{ fontSize:12.5, color:'rgba(148,163,184,0.7)', textDecoration:'none', fontWeight:500 }}>
             ← Back to Storefront
           </Link>
         </p>
@@ -249,63 +240,63 @@ export default function MerchantRegisterPage() {
 
       {/* Success Popup Modal */}
       {successData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-[#0d1424] p-6 shadow-2xl text-slate-100 animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl text-slate-900 animate-in fade-in zoom-in duration-200">
             {/* Header */}
-            <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-teal-500/15 text-teal-400 border border-teal-500/30">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-teal-600 border border-teal-200">
                 <ShieldCheck className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">Merchant Account Created Successfully</h3>
-                <p className="text-xs text-slate-400">Your account has been created successfully.</p>
+                <h3 className="text-base font-bold text-slate-900">Merchant Account Created Successfully</h3>
+                <p className="text-xs text-slate-500">Your account has been created successfully.</p>
               </div>
             </div>
 
             {/* Credentials box */}
-            <div className="my-5 space-y-3.5 rounded-xl border border-slate-800 bg-[#070b14] p-4">
+            <div className="my-5 space-y-3.5 rounded-xl border border-slate-200 bg-slate-50 p-4">
               {/* Registered Email */}
               <div>
-                <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
                   Registered Email
                 </span>
-                <span className="text-xs font-semibold text-slate-200">{successData.email}</span>
+                <span className="text-xs font-semibold text-slate-800">{successData.email}</span>
               </div>
 
               {/* Merchant Username */}
-              <div className="flex items-center justify-between border-t border-slate-800/60 pt-3">
+              <div className="flex items-center justify-between border-t border-slate-200/80 pt-3">
                 <div>
-                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Merchant Username
                   </span>
-                  <span className="font-mono text-sm font-bold text-teal-400 tracking-wider">
+                  <span className="font-mono text-sm font-bold text-teal-700 tracking-wider">
                     {successData.merchant_username}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleCopy(successData.merchant_username, 'username')}
-                  className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                  className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
                 >
                   {copiedUsername ? (
                     <>
-                      <Check className="h-3.5 w-3.5 text-emerald-400" /> Copied
+                      <Check className="h-3.5 w-3.5 text-emerald-600" /> Copied
                     </>
                   ) : (
                     <>
-                      <Copy className="h-3.5 w-3.5 text-slate-400" /> Copy Username
+                      <Copy className="h-3.5 w-3.5 text-slate-500" /> Copy Username
                     </>
                   )}
                 </button>
               </div>
 
               {/* Password */}
-              <div className="flex items-center justify-between border-t border-slate-800/60 pt-3">
+              <div className="flex items-center justify-between border-t border-slate-200/80 pt-3">
                 <div>
-                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Password
                   </span>
-                  <span className="font-mono text-xs text-slate-200">
+                  <span className="font-mono text-xs text-slate-800">
                     {showModalPassword ? successData.password : '••••••••••••'}
                   </span>
                 </div>
@@ -313,7 +304,7 @@ export default function MerchantRegisterPage() {
                   <button
                     type="button"
                     onClick={() => setShowModalPassword(!showModalPassword)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
                     title={showModalPassword ? 'Hide Password' : 'Show Password'}
                   >
                     {showModalPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -321,15 +312,15 @@ export default function MerchantRegisterPage() {
                   <button
                     type="button"
                     onClick={() => handleCopy(successData.password, 'password')}
-                    className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                    className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
                   >
                     {copiedPassword ? (
                       <>
-                        <Check className="h-3.5 w-3.5 text-emerald-400" /> Copied
+                        <Check className="h-3.5 w-3.5 text-emerald-600" /> Copied
                       </>
                     ) : (
                       <>
-                        <Copy className="h-3.5 w-3.5 text-slate-400" /> Copy Password
+                        <Copy className="h-3.5 w-3.5 text-slate-500" /> Copy Password
                       </>
                     )}
                   </button>
@@ -338,8 +329,8 @@ export default function MerchantRegisterPage() {
             </div>
 
             {/* Notice */}
-            <div className="rounded-xl border border-teal-500/20 bg-teal-500/5 p-3 text-xs text-teal-300/90 flex items-start gap-2">
-              <Mail className="h-4 w-4 shrink-0 mt-0.5 text-teal-400" />
+            <div className="rounded-xl border border-teal-200 bg-teal-50/70 p-3 text-xs text-teal-800 flex items-start gap-2">
+              <Mail className="h-4 w-4 shrink-0 mt-0.5 text-teal-600" />
               <span>Your merchant credentials have been sent to your registered email.</span>
             </div>
 
@@ -348,7 +339,7 @@ export default function MerchantRegisterPage() {
               <button
                 type="button"
                 onClick={() => navigate('/merchant/login')}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 py-3 text-xs font-bold text-slate-950 uppercase tracking-wider hover:from-teal-400 hover:to-emerald-400 transition-all shadow-lg shadow-teal-500/20"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 py-3 text-xs font-bold text-white uppercase tracking-wider transition-all shadow-md shadow-teal-600/20 cursor-pointer"
               >
                 Continue to Login <ArrowRight className="h-4 w-4" />
               </button>
@@ -357,5 +348,6 @@ export default function MerchantRegisterPage() {
         </div>
       )}
     </main>
+    </>
   )
 }

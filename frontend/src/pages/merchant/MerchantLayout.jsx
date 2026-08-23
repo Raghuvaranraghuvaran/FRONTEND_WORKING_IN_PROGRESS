@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, Link } from 'react-router-dom'
-import { useState } from 'react'
-import { Menu, X, ChevronDown, Bell, LogOut, Search } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Menu, ChevronDown, Bell, LogOut, Search } from 'lucide-react'
 import MerchantSidebar from '../../components/MerchantSidebar'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../mock/api'
@@ -12,6 +12,38 @@ export default function MerchantLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
+
+
+  const notifRef = useRef(null)
+  const profileRef = useRef(null)
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setShowNotifications(false)
+      }
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setShowProfileMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const toggleNotifications = () => {
+    setShowNotifications(prev => {
+      if (!prev) setShowProfileMenu(false)
+      return !prev
+    })
+  }
+
+  const toggleProfileMenu = () => {
+    setShowProfileMenu(prev => {
+      if (!prev) setShowNotifications(false)
+      return !prev
+    })
+  }
 
   const handleLogout = async () => {
     await api.logout('merchant')
@@ -28,17 +60,17 @@ export default function MerchantLayout() {
   ]
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       {/* ── Mobile & Desktop Header ────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-[#0d1424]/95 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur-md">
         <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
           
-          {/* Left: Mobile Hamburger button & Brand */}
+          {/* Left: Mobile Hamburger button & Brand Logo */}
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-[#070b14] text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              className="lg:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
               aria-label="Open merchant navigation"
             >
               <Menu className="h-5 w-5" />
@@ -52,11 +84,11 @@ export default function MerchantLayout() {
           {/* Center / Search bar (hidden on mobile, visible on tablet/desktop) */}
           <div className="hidden sm:flex items-center flex-1 max-w-xs mx-6">
             <div className="relative w-full">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
               <input
                 type="search"
                 placeholder="Search orders, customers, SKUs…"
-                className="w-full rounded-xl border border-slate-800 bg-[#070b14] pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-teal-500 focus:outline-none"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none transition-all"
               />
             </div>
           </div>
@@ -64,11 +96,11 @@ export default function MerchantLayout() {
           {/* Right: Notification & Merchant Profile */}
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Notification Bell */}
-            <div className="relative">
+            <div className="relative" ref={notifRef}>
               <button
                 type="button"
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-[#070b14] text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 transition cursor-pointer"
+                onClick={toggleNotifications}
+                className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
                 title="Notifications"
               >
                 <Bell className="h-4 w-4" />
@@ -79,16 +111,16 @@ export default function MerchantLayout() {
 
               {/* Notification Popover */}
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-800 bg-[#0d1424] p-3 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800 px-1">
-                    <span className="text-xs font-bold text-white">Risk Alerts</span>
-                    <span className="text-[10px] font-semibold text-teal-400">Live</span>
+                <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 px-1">
+                    <span className="text-xs font-bold text-slate-900">Risk Alerts</span>
+                    <span className="text-[10px] font-semibold text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded-full border border-teal-200">Live</span>
                   </div>
-                  <div className="divide-y divide-slate-800/60 max-h-64 overflow-y-auto">
+                  <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
                     {notifications.map((n) => (
-                      <div key={n.id} className="py-2.5 px-1 hover:bg-slate-800/40 rounded-lg transition cursor-pointer">
-                        <p className="text-xs text-slate-200">{n.text}</p>
-                        <span className="text-[10px] text-slate-500 mt-0.5 block">{n.time}</span>
+                      <div key={n.id} className="py-2.5 px-1 hover:bg-slate-50 rounded-lg transition cursor-pointer">
+                        <p className="text-xs font-medium text-slate-800">{n.text}</p>
+                        <span className="text-[10px] text-slate-400 mt-0.5 block">{n.time}</span>
                       </div>
                     ))}
                   </div>
@@ -97,56 +129,56 @@ export default function MerchantLayout() {
             </div>
 
             {/* Merchant User Badge */}
-            <div className="relative">
+            <div className="relative" ref={profileRef}>
               <button
                 type="button"
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-500/20 to-emerald-500/10 border border-teal-500/30 px-3 py-1.5 text-xs font-semibold text-teal-300 hover:border-teal-500/50 transition cursor-pointer"
+                onClick={toggleProfileMenu}
+                className="flex items-center gap-2 rounded-xl bg-teal-50 border border-teal-200/80 px-3 py-1.5 text-xs font-semibold text-teal-800 hover:bg-teal-100/70 transition cursor-pointer shadow-2xs"
               >
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500/20 text-xs font-bold text-teal-400">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-600 text-xs font-bold text-white">
                   🏪
                 </div>
-                <span className="hidden sm:inline-block max-w-[120px] truncate">
+                <span className="hidden sm:inline-block max-w-[120px] truncate font-bold">
                   {merchant?.business_name || 'Merchant Admin'}
                 </span>
-                <ChevronDown className="h-3.5 w-3.5 text-teal-400 opacity-80" />
+                <ChevronDown className="h-3.5 w-3.5 text-teal-600 opacity-80" />
               </button>
 
               {/* Profile Dropdown */}
               {showProfileMenu && (
-                <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-800 bg-[#0d1424] p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="px-3 py-2 border-b border-slate-800">
-                    <p className="text-xs font-bold text-white truncate">{merchant?.business_name || 'Store'}</p>
-                    <p className="text-[10px] font-mono text-teal-400 truncate">{merchant?.merchant_username || 'ADMIN'}</p>
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-2 border-b border-slate-100">
+                    <p className="text-xs font-bold text-slate-900 truncate">{merchant?.business_name || 'Store'}</p>
+                    <p className="text-[10px] font-mono text-teal-600 font-semibold truncate">{merchant?.merchant_username || 'ADMIN'}</p>
                   </div>
                   <div className="py-1">
                     <Link
                       to="/merchant"
                       onClick={() => setShowProfileMenu(false)}
-                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800/80 hover:text-white"
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                     >
                       📊 Dashboard
                     </Link>
                     <Link
                       to="/merchant/orders"
                       onClick={() => setShowProfileMenu(false)}
-                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800/80 hover:text-white"
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                     >
                       📦 Manage Orders
                     </Link>
                     <Link
                       to="/merchant/settings"
                       onClick={() => setShowProfileMenu(false)}
-                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800/80 hover:text-white"
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                     >
                       ⚙️ Store Settings
                     </Link>
                   </div>
-                  <div className="pt-1 border-t border-slate-800">
+                  <div className="pt-1 border-t border-slate-100">
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer"
                     >
                       <LogOut className="h-3.5 w-3.5" /> Log Out
                     </button>
@@ -160,9 +192,11 @@ export default function MerchantLayout() {
 
       {/* ── Main Container: Sidebar + Content ───────────────────────────────── */}
       <div className="flex flex-1 relative">
+
+
         
         {/* Desktop Fixed Left Sidebar */}
-        <aside className="hidden lg:block w-60 shrink-0 border-r border-slate-800/80 bg-[#0d1424] min-h-[calc(100vh-4rem)]">
+        <aside className="hidden lg:block w-60 shrink-0 border-r border-slate-200 bg-white min-h-[calc(100vh-4rem)]">
           <MerchantSidebar />
         </aside>
 
@@ -172,17 +206,17 @@ export default function MerchantLayout() {
             {/* Dark Backdrop */}
             <div
               onClick={() => setMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/75 backdrop-blur-xs transition-opacity duration-300"
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300"
             />
             {/* Drawer */}
-            <div className="relative w-4/5 max-w-xs bg-[#0d1424] h-full shadow-2xl z-10 flex flex-col border-r border-slate-800">
+            <div className="relative w-4/5 max-w-xs bg-white h-full shadow-2xl z-10 flex flex-col border-r border-slate-200">
               <MerchantSidebar onClose={() => setMobileMenuOpen(false)} />
             </div>
           </div>
         )}
 
         {/* Main Routed Page Content */}
-        <main className="flex-1 min-w-0 overflow-y-auto bg-[#070b14] p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 min-w-0 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

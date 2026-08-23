@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../mock/api'
 import { formatDate, INR } from '../../lib/format'
-import { TrendingUp, AlertTriangle, Clock, DollarSign, ArrowUpRight, Filter, ExternalLink, CheckCircle2 } from 'lucide-react'
+import { TrendingUp, AlertTriangle, Clock, IndianRupee, ArrowUpRight, Filter, ExternalLink, CheckCircle2 } from 'lucide-react'
 
 // Stat Card Component
 function StatCard({ title, value, subtitle, color, icon: Icon, trend }) {
@@ -231,7 +231,7 @@ export default function MerchantDashboard() {
           value={INR.format(data.totalRevenue ?? 0)}
           subtitle="Delivered & active orders"
           color="green"
-          icon={DollarSign}
+          icon={IndianRupee}
         />
         <StatCard
           title="Return Rate"

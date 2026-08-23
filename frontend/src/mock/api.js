@@ -1420,6 +1420,38 @@ export const api = {
     return { deleted: true, id }
   },
 
+  async uploadProductImages(files) {
+    // files: File[] — from an <input type="file" multiple> or drag-drop
+    if (hasLiveApi()) {
+      const tokens = readTokens()
+      const formData = new FormData()
+      for (const file of files) {
+        formData.append('images', file)
+      }
+      const resp = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/admin/products/upload-image/`,
+        {
+          method: 'POST',
+          headers: {
+            ...(tokens.merchant?.access ? { Authorization: `Bearer ${tokens.merchant.access}` } : {}),
+          },
+          body: formData,
+        }
+      )
+      if (!resp.ok) {
+        let msg = 'Image upload failed.'
+        try { const d = await resp.json(); msg = d?.error || d?.detail || msg } catch { /* */ }
+        throw new Error(msg)
+      }
+      const data = await resp.json()
+      return unwrap(data)
+    }
+    // Mock mode — create object URLs so previews work instantly without backend
+    await delay(400)
+    const urls = Array.from(files).map((f) => URL.createObjectURL(f))
+    return { urls, count: urls.length, errors: [] }
+  },
+
   async getMerchantCategories() {
     if (hasLiveApi()) return live('/admin/categories/', { role: 'merchant' })
     await delay(250)

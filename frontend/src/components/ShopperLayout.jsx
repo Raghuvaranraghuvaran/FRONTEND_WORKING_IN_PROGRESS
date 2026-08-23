@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, Link } from 'react-router-dom'
-import { useState } from 'react'
-import { Menu, X, ChevronDown, Bell, LogOut, ShoppingBag, Heart } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Menu, ChevronDown, LogOut, ShoppingBag, Heart } from 'lucide-react'
 import ShopperSidebar from './ShopperSidebar'
 import { useApp } from '../context/AppContext'
 import { api } from '../mock/api'
@@ -11,7 +11,22 @@ export default function ShopperLayout() {
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
-  const [showNotifications, setShowNotifications] = useState(false)
+
+  const profileRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setShowProfileMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const toggleProfileMenu = () => {
+    setShowProfileMenu(prev => !prev)
+  }
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
   const wishlistCount = wishlist?.length || 0
@@ -78,17 +93,17 @@ export default function ShopperLayout() {
 
             {/* User profile dropdown */}
             {shopper ? (
-              <div className="relative">
+              <div className="relative" ref={profileRef}>
                 <button
                   type="button"
-                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  onClick={toggleProfileMenu}
                   className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:from-indigo-500 hover:to-violet-500 transition cursor-pointer"
                 >
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-xs font-bold uppercase">
-                    {shopper.name?.charAt(0) || 'U'}
+                    {(shopper.email || shopper.name || 'U').charAt(0).toUpperCase()}
                   </div>
-                  <span className="hidden sm:inline-block max-w-[100px] truncate">
-                    {shopper.name?.split(' ')[0] || 'Account'}
+                  <span className="hidden sm:inline-block max-w-[130px] truncate">
+                    {shopper.email || shopper.name || 'Account'}
                   </span>
                   <ChevronDown className="h-3.5 w-3.5 opacity-80" />
                 </button>
@@ -97,8 +112,7 @@ export default function ShopperLayout() {
                 {showProfileMenu && (
                   <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
                     <div className="px-3 py-2 border-b border-slate-100">
-                      <p className="text-xs font-bold text-slate-900 truncate">{shopper.name}</p>
-                      <p className="text-[11px] text-slate-500 truncate">{shopper.email}</p>
+                      <p className="text-xs font-bold text-slate-900 truncate">{shopper.email}</p>
                     </div>
                     <div className="py-1">
                       <Link
@@ -127,7 +141,7 @@ export default function ShopperLayout() {
                       <button
                         type="button"
                         onClick={handleLogout}
-                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer"
                       >
                         <LogOut className="h-3.5 w-3.5" /> Sign Out
                       </button>
@@ -199,3 +213,6 @@ export default function ShopperLayout() {
     </div>
   )
 }
+
+
+

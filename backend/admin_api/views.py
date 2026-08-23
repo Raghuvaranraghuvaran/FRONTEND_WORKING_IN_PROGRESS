@@ -545,3 +545,66 @@ class MerchantCategoriesView(APIView):
         )
         return success(AdminCategorySerializer(category).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
+
+class ProductImageUploadView(APIView):
+    """
+    POST /admin/products/upload-image/
+    Accepts multipart/form-data with one or more image files under the key 'images'.
+    Saves each file to media/products/ and returns a list of accessible URLs.
+    """
+    permission_classes = [IsAuthenticated, IsMerchantAdmin]
+
+    ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    MAX_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB per file
+    MAX_FILES = 10
+
+    def post(self, request):
+        import uuid
+        import os
+        from django.conf import settings
+
+        files = request.FILES.getlist("images")
+        if not files:
+            single = request.FILES.get("image")
+            if single:
+                files = [single]
+
+        if not files:
+            raise AppError("No image files provided. Use key 'images' in multipart form.", code="NO_FILES")
+
+        if len(files) > self.MAX_FILES:
+            raise AppError(f"Maximum {self.MAX_FILES} images allowed per upload.", code="TOO_MANY_FILES")
+
+        upload_dir = os.path.join(settings.MEDIA_ROOT, "products")
+        os.makedirs(upload_dir, exist_ok=True)
+
+        urls = []
+        errors = []
+
+        for f in files:
+            if f.content_type not in self.ALLOWED_TYPES:
+                errors.append(f"{f.name}: unsupported type '{f.content_type}'.")
+                continue
+            if f.size > self.MAX_SIZE_BYTES:
+                errors.append(f"{f.name}: exceeds 5 MB limit.")
+                continue
+
+            ext = os.path.splitext(f.name)[1].lower() or ".jpg"
+            filename = f"prod_{uuid.uuid4().hex}{ext}"
+            filepath = os.path.join(upload_dir, filename)
+
+            with open(filepath, "wb+") as dest:
+                for chunk in f.chunks():
+                    dest.write(chunk)
+
+            base_url = request.build_absolute_uri("/").rstrip("/")
+            url = f"{base_url}{settings.MEDIA_URL}products/{filename}"
+            urls.append(url)
+
+        if not urls and errors:
+            raise AppError(f"All uploads failed: {'; '.join(errors)}", code="UPLOAD_FAILED")
+
+        return success(
+            {"urls": urls, "count": len(urls), "errors": errors},
+            status=status.HTTP_201_CREATED,
+        )

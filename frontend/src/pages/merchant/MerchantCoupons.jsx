@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Search, Edit2, Trash2, Check, X, Ticket, Percent, DollarSign, Tag, Calendar, Copy } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, Check, X, Ticket, Percent, IndianRupee, Tag, Calendar, Copy } from 'lucide-react'
 import { api } from '../../mock/api'
 import { INR } from '../../lib/format'
 import EmptyState from '../../components/EmptyState'

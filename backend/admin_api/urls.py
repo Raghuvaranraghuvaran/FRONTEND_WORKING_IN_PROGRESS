@@ -15,6 +15,7 @@ urlpatterns = [
     path("self-tuning/<str:pk>/apply/", views.ApplySelfTuningView.as_view(), name="admin-self-tuning-apply"),
     path("delivery-agents/", views.DeliveryAgentsView.as_view(), name="admin-delivery-agents"),
     path("products/bulk/", views.MerchantProductBulkUploadView.as_view(), name="admin-products-bulk"),
+    path("products/upload-image/", views.ProductImageUploadView.as_view(), name="admin-products-upload-image"),
     path("products/", views.MerchantProductsView.as_view(), name="admin-products"),
     path("products/<str:pk>/", views.MerchantProductDetailView.as_view(), name="admin-product-detail"),
     path("categories/", views.MerchantCategoriesView.as_view(), name="admin-categories"),

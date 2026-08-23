@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Search, Edit2, Trash2, Check, X, AlertTriangle, Package, DollarSign, Tag, UploadCloud, FileSpreadsheet, Download, RefreshCw } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Plus, Search, Edit2, Trash2, Check, X, AlertTriangle, Package, IndianRupee, Tag, UploadCloud, FileSpreadsheet, Download, RefreshCw, Image as ImageIcon, Link as LinkIcon, Star } from 'lucide-react'
 import { api } from '../../mock/api'
 import { INR } from '../../lib/format'
 import EmptyState from '../../components/EmptyState'
@@ -90,6 +90,14 @@ export default function MerchantProducts() {
   })
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // Image upload state
+  const [imageTab, setImageTab] = useState('url')      // 'url' | 'upload'
+  const [uploadedImages, setUploadedImages] = useState([]) // { url, name }[]
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef(null)
   
   // Bulk Upload Modal state
   const [bulkModalOpen, setBulkModalOpen] = useState(false)
@@ -153,11 +161,14 @@ export default function MerchantProducts() {
       category_id: categories[0]?.id || '',
       price: '',
       stock: '10',
-      image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
+      image: '',
       description: '',
       is_active: true,
     })
     setFormError('')
+    setImageTab('url')
+    setUploadedImages([])
+    setUploadError('')
     setModalOpen(true)
   }
 
@@ -173,6 +184,10 @@ export default function MerchantProducts() {
       is_active: product.is_active !== false,
     })
     setFormError('')
+    setImageTab('url')
+    // Pre-populate uploaded images strip if product already has an image URL
+    setUploadedImages(product.image ? [{ url: product.image, name: 'Current image' }] : [])
+    setUploadError('')
     setModalOpen(true)
   }
 
@@ -393,7 +408,7 @@ export default function MerchantProducts() {
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold uppercase tracking-wider">
-            <DollarSign className="h-4 w-4 text-blue-500" />
+            <IndianRupee className="h-4 w-4 text-blue-500" />
             Catalog Inventory
           </div>
           <p className="mt-2 text-2xl font-bold text-slate-900">{INR.format(inventoryValue)}</p>
@@ -697,26 +712,171 @@ export default function MerchantProducts() {
                 </div>
               </div>
 
+              {/* ── Image Section ── tabbed URL / Upload ─────────────────── */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                  Image URL
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                  Product Image
                 </label>
-                <input
-                  type="url"
-                  placeholder="https://images.unsplash.com/..."
-                  value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none"
-                />
-                {formData.image && (
-                  <div className="mt-2 flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-2">
-                    <img
-                      src={formData.image}
-                      alt="Preview"
-                      className="h-10 w-10 rounded-lg object-cover"
-                      onError={(e) => { e.target.style.display = 'none' }}
+
+                {/* Tab switcher */}
+                <div className="flex mb-3 rounded-xl border border-slate-200 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setImageTab('url')}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold transition-colors ${
+                      imageTab === 'url' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <LinkIcon className="h-3.5 w-3.5" /> Image URL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImageTab('upload')}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold transition-colors ${
+                      imageTab === 'upload' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <UploadCloud className="h-3.5 w-3.5" /> Upload Files
+                  </button>
+                </div>
+
+                {imageTab === 'url' ? (
+                  /* URL input */
+                  <div>
+                    <input
+                      type="url"
+                      placeholder="https://images.unsplash.com/..."
+                      value={formData.image}
+                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none"
                     />
-                    <span className="text-xs text-slate-500 truncate">{formData.image}</span>
+                    {formData.image && (
+                      <div className="mt-2 flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-2">
+                        <img
+                          src={formData.image}
+                          alt="Preview"
+                          className="h-12 w-12 rounded-lg object-cover flex-shrink-0"
+                          onError={(e) => { e.target.style.display = 'none' }}
+                        />
+                        <span className="text-xs text-slate-500 truncate flex-1">{formData.image}</span>
+                        <button type="button" onClick={() => setFormData({ ...formData, image: '' })}
+                          className="text-slate-400 hover:text-rose-500 transition-colors">
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* File upload */
+                  <div>
+                    {/* Drop zone */}
+                    <div
+                      onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={async (e) => {
+                        e.preventDefault()
+                        setDragOver(false)
+                        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
+                        if (!files.length) return
+                        setUploading(true); setUploadError('')
+                        try {
+                          const res = await api.uploadProductImages(files)
+                          const newImgs = res.urls.map((url, i) => ({ url, name: files[i]?.name || `image_${i+1}` }))
+                          setUploadedImages(prev => [...prev, ...newImgs])
+                          if (!formData.image && res.urls[0]) setFormData(f => ({ ...f, image: res.urls[0] }))
+                          if (res.errors?.length) setUploadError(res.errors.join(' | '))
+                        } catch(err) { setUploadError(err.message || 'Upload failed.') }
+                        finally { setUploading(false) }
+                      }}
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 cursor-pointer transition-all ${
+                        dragOver ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50/40'
+                      }`}
+                    >
+                      {uploading ? (
+                        <>
+                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+                          <p className="text-xs text-slate-500">Uploading…</p>
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud className="h-8 w-8 text-slate-400" />
+                          <p className="text-xs font-medium text-slate-600">Drop images here or <span className="text-indigo-600">browse</span></p>
+                          <p className="text-[11px] text-slate-400">JPG, PNG, WebP — up to 5 MB each · max 10 files</p>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      multiple
+                      className="hidden"
+                      onChange={async (e) => {
+                        const files = Array.from(e.target.files || [])
+                        if (!files.length) return
+                        setUploading(true); setUploadError('')
+                        try {
+                          const res = await api.uploadProductImages(files)
+                          const newImgs = res.urls.map((url, i) => ({ url, name: files[i]?.name || `image_${i+1}` }))
+                          setUploadedImages(prev => [...prev, ...newImgs])
+                          if (!formData.image && res.urls[0]) setFormData(f => ({ ...f, image: res.urls[0] }))
+                          if (res.errors?.length) setUploadError(res.errors.join(' | '))
+                        } catch(err) { setUploadError(err.message || 'Upload failed.') }
+                        finally { setUploading(false); e.target.value = '' }
+                      }}
+                    />
+
+                    {uploadError && (
+                      <p className="mt-1.5 text-xs text-amber-600">{uploadError}</p>
+                    )}
+
+                    {/* Thumbnail strip — click to select primary */}
+                    {uploadedImages.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-[11px] text-slate-500 mb-1.5">Click a thumbnail to set as the <strong>primary image</strong>:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {uploadedImages.map((img, idx) => {
+                            const isPrimary = formData.image === img.url
+                            return (
+                              <div key={idx} className="relative group">
+                                <button
+                                  type="button"
+                                  onClick={() => setFormData(f => ({ ...f, image: img.url }))}
+                                  className={`block w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${
+                                    isPrimary ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-200 hover:border-indigo-300'
+                                  }`}
+                                  title={isPrimary ? 'Primary image' : `Set as primary: ${img.name}`}
+                                >
+                                  <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
+                                </button>
+                                {isPrimary && (
+                                  <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-white shadow-sm">
+                                    <Star className="h-3 w-3" fill="currentColor" />
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setUploadedImages(prev => prev.filter((_, i) => i !== idx))
+                                    if (isPrimary) setFormData(f => ({ ...f, image: '' }))
+                                  }}
+                                  className="absolute -top-1.5 -left-1.5 hidden group-hover:flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-white shadow-sm"
+                                  title="Remove"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {formData.image && (
+                          <p className="mt-1.5 text-[11px] text-indigo-600 flex items-center gap-1">
+                            <Star className="h-3 w-3" fill="currentColor" /> Primary: <span className="truncate max-w-xs">{formData.image}</span>
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -987,6 +1147,8 @@ export default function MerchantProducts() {
                 )}
               </div>
             </div>
+
+
 
             {/* Modal Footer */}
             <div className="flex items-center justify-end gap-2.5 border-t border-slate-100 pt-4 mt-2">

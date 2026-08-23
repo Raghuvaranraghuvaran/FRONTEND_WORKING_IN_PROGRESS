@@ -1,8 +1,5 @@
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
-import { api } from '../mock/api'
-import React from 'react'
-import BrandLogo from './BrandLogo'
 import { 
   LayoutDashboard, 
   Package, 
@@ -15,7 +12,6 @@ import {
   FileText, 
   Wrench, 
   Settings,
-  LogOut,
   Ticket,
   X
 } from 'lucide-react'
@@ -23,74 +19,62 @@ import {
 // ── Sidebar nav item ──────────────────────────────────────────────────────────
 function SidebarItem({ to, icon: Icon, label, active, onClick }) {
   const El = to ? Link : 'button'
-  const [isHovering, setIsHovering] = React.useState(false)
 
   return (
     <El
       to={to}
       onClick={onClick}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-      className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all w-full text-left cursor-pointer no-underline ${
-        active 
-          ? 'bg-gradient-to-r from-teal-500/20 to-emerald-500/10 text-teal-400 border border-teal-500/30' 
-          : isHovering 
-          ? 'bg-slate-800/60 text-slate-100' 
-          : 'text-slate-400 hover:text-slate-200'
+      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all w-full text-left cursor-pointer no-underline ${
+        active
+          ? 'bg-teal-50 text-teal-700 border border-teal-200 shadow-sm'
+          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
       }`}
     >
-      {Icon && <Icon className={`h-4 w-4 shrink-0 ${active ? 'text-teal-400' : 'text-slate-400'}`} />}
+      {Icon && <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? 'text-teal-600' : 'text-slate-400'}`} />}
       <span className="truncate">{label}</span>
     </El>
   )
 }
 
 export default function MerchantSidebar({ onClose }) {
-  const { merchant, setMerchant } = useApp()
-  const navigate = useNavigate()
+  const { merchant } = useApp()
   const location = useLocation()
-
-  const handleLogout = async () => {
-    if (onClose) onClose()
-    await api.logout('merchant')
-    setMerchant(null)
-    navigate('/merchant/login')
-  }
 
   const handleNav = () => {
     if (onClose) onClose()
   }
 
   return (
-    <div className="flex h-full w-full flex-col justify-between p-4 bg-[#0d1424] text-slate-200 border-r border-slate-800/80">
+    <div className="flex h-full w-full flex-col justify-between p-4 bg-white text-slate-700">
       <div className="flex-1 overflow-y-auto">
-        {/* Brand logo at top + mobile close button */}
-        <div className="flex items-center justify-between mb-6 px-1">
-          <Link to="/merchant" onClick={handleNav} className="inline-flex items-center">
-            <BrandLogo className="h-8 sm:h-9 w-auto" />
-          </Link>
-          {onClose && (
+        {/* Mobile close button drawer header */}
+        {onClose && (
+          <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100">
+            <div>
+              <p className="text-base font-bold text-slate-900 leading-tight">Merchant Menu</p>
+              <p className="text-xs text-slate-400 mt-0.5">Dashboard navigation</p>
+            </div>
             <button
               type="button"
               onClick={onClose}
-              className="lg:hidden flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition"
               aria-label="Close menu"
             >
               <X className="h-5 w-5" />
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Store Identifier Pill */}
         {merchant?.business_name && (
-          <div className="mb-4 rounded-xl bg-slate-900/80 border border-slate-800 p-2.5 px-3">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Store Context</p>
-            <p className="text-xs font-bold text-teal-400 truncate">{merchant.business_name}</p>
+          <div className="mb-4 rounded-xl bg-teal-50 border border-teal-200/60 p-3">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-teal-400 mb-0.5">Store Context</p>
+            <p className="text-sm font-bold text-teal-700 truncate">{merchant.business_name}</p>
           </div>
         )}
 
         {/* Nav items */}
-        <nav className="space-y-1">
+        <nav className="space-y-0.5">
           <SidebarItem 
             to="/merchant" 
             icon={LayoutDashboard} 
@@ -176,18 +160,6 @@ export default function MerchantSidebar({ onClose }) {
             onClick={handleNav}
           />
         </nav>
-      </div>
-
-      {/* Logout Footer */}
-      <div className="pt-3 mt-3 border-t border-slate-800/80">
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-        >
-          <LogOut className="h-4 w-4" />
-          <span>Exit Portal</span>
-        </button>
       </div>
     </div>
   )

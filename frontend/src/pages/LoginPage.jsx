@@ -118,25 +118,24 @@ export default function LoginPage() {
         .rg-tab-btn:hover { background: rgba(111,92,240,0.12) !important; }
       `}</style>
 
-      {/* ── Full-screen background image ───────────────────────────────────── */}
+      {/* ── Full-screen background image ──────────────────────────────────── */}
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0,
         backgroundImage: `url('https://images.unsplash.com/photo-1445205170230-053b83016050?fm=jpg&q=80&w=1600&auto=format&fit=crop')`,
         backgroundSize: 'cover', backgroundPosition: 'center',
-        filter: 'brightness(1.05) saturate(1.08)',
       }} />
-      {/* light frosted overlay */}
+      {/* rich gradient overlay */}
       <div style={{
         position: 'fixed', inset: 0, zIndex: 1,
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.35) 0%, rgba(240,235,255,0.42) 100%)',
-        backdropFilter: 'blur(1.5px)',
+        background: 'linear-gradient(135deg, rgba(30,27,60,0.55) 0%, rgba(111,92,240,0.22) 60%, rgba(240,235,255,0.15) 100%)',
+        backdropFilter: 'blur(1px)',
       }} />
 
-      {/* ── Page scroll container ──────────────────────────────────────────── */}
+      {/* ── Page scroll container ────────────────────────────────────── */}
       <main style={{
         position: 'relative', zIndex: 2,
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '32px 16px',
+        padding: '24px 16px',
         fontFamily: "'Segoe UI', Roboto, Arial, sans-serif",
       }}>
         <div style={{ width: '100%', maxWidth: 460 }}>
@@ -148,12 +147,12 @@ export default function LoginPage() {
 
           {/* ── Glass card ───────────────────────────────────────────────── */}
           <div style={{
-            background: 'rgba(255,255,255,0.9)',
-            backdropFilter: 'blur(24px) saturate(1.5)',
-            WebkitBackdropFilter: 'blur(24px) saturate(1.5)',
+            background: 'rgba(255,255,255,0.95)',
+            backdropFilter: 'blur(28px) saturate(1.6)',
+            WebkitBackdropFilter: 'blur(28px) saturate(1.6)',
             borderRadius: 22,
-            border: '1px solid rgba(255,255,255,0.95)',
-            boxShadow: '0 8px 48px rgba(111,92,240,0.18), 0 2px 12px rgba(0,0,0,0.12)',
+            border: '1px solid rgba(255,255,255,0.98)',
+            boxShadow: '0 8px 48px rgba(30,27,60,0.28), 0 2px 12px rgba(0,0,0,0.15)',
             padding: '28px 28px 24px',
           }}>
 
