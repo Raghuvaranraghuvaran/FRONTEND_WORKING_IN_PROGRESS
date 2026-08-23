@@ -1629,6 +1629,7 @@ export const api = {
         amount: order?.total || 0,
       }
       store.payments.push(payment)
+    }
 
     // Always succeed for demo checkout experience
     const isSuccess = true
