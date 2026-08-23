@@ -123,28 +123,6 @@ class CheckoutService:
             payment_details=payment_details
         )
 
-        # Trigger order confirmation email
-        from common.mailer import send_async_email
-        def _dispatch_order_email():
-            item_list = "\n".join([f"• {it.name} (Qty: {it.quantity}) - ₹{it.price}" for it in order.items.all()])
-            send_async_email(
-                subject=f"Order Confirmed: {order.order_number}",
-                message=(
-                    f"Hi {user.name or 'Customer'},\n\n"
-                    f"Thank you for your order! Your order {order.order_number} has been placed successfully.\n\n"
-                    f"Order Summary:\n"
-                    f"{item_list}\n\n"
-                    f"Total Amount: ₹{order.total}\n"
-                    f"Payment Method: {order.payment_method}\n"
-                    f"Delivery Status: {order.delivery_status or 'Processing'}\n\n"
-                    f"Thank you for shopping with ReturnGuard!\n\n"
-                    "— ReturnGuard Team"
-                ),
-                recipient_list=[user.email],
-            )
-
-        transaction.on_commit(_dispatch_order_email)
-
         # For COD, trigger invoice generation immediately
         if payment_method == "COD":
             transaction.on_commit(lambda: generate_and_send_invoice.delay(order.id))
