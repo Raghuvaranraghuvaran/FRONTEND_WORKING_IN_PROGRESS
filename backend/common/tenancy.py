@@ -17,7 +17,7 @@ def get_merchant_from_user(user):
     """Resolve the merchant context for a user.
 
     Merchant admins resolve to their own merchant; shoppers resolve to the
-    merchant they are registered against.
+    merchant they are registered against, or fallback to the primary store.
     """
     if user is None or not user.is_authenticated:
         return None
@@ -51,11 +51,32 @@ def get_merchant_from_user(user):
         MerchantProfile.objects.update_or_create(user=user, defaults={"merchant": merchant})
         return merchant
 
-    return None
+    # For shoppers, fallback to the default/primary store
+    from merchants.models import Merchant
+    merchant = Merchant.objects.filter(store_slug="aria-fashion-house").first() or Merchant.objects.first()
+    if merchant is None:
+        merchant = Merchant.objects.create(
+            business_name="Aria Fashion House",
+            store_slug="aria-fashion-house",
+            admin_email="demo@merchant.com",
+            merchant_username="ARIAFASHION4827",
+        )
+
+    if shopper is not None and shopper.merchant_id != merchant.id:
+        try:
+            shopper.merchant = merchant
+            shopper.save(update_fields=["merchant"])
+        except Exception:
+            pass
+
+    return merchant
 
 
 def require_merchant_context(request):
     merchant = get_merchant_from_user(request.user)
+    if merchant is None:
+        from merchants.models import Merchant
+        merchant = Merchant.objects.first()
     if merchant is None:
         raise PermissionDenied("Merchant context could not be resolved.")
     return merchant

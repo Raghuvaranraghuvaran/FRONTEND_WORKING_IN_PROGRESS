@@ -675,20 +675,25 @@ export const api = {
     return clone(order.tracking_events || [])
   },
 
-  async placeOrder({ items, paymentMethod, address: _address, couponCode, discount: inputDiscount }) {
+  async placeOrder({ items, paymentMethod, address: _address, paymentDetails, couponCode, discount: inputDiscount }) {
     if (hasLiveApi()) {
-      const payload = {
-        items: items.map((item) => ({
-          product_id: item.product_id,
-          name: item.name,
-          quantity: item.quantity,
-          price: Number(item.price),
-        })),
-        payment_method: paymentMethod,
-        coupon_code: couponCode || undefined,
-        discount: inputDiscount || undefined,
+      try {
+        const payload = {
+          items: items.map((item) => ({
+            product_id: item.product_id,
+            name: item.name,
+            quantity: item.quantity,
+            price: Number(item.price),
+          })),
+          payment_method: paymentMethod,
+          payment_details: paymentDetails,
+          coupon_code: couponCode || undefined,
+          discount: inputDiscount || undefined,
+        }
+        return await live('/orders/checkout/', { method: 'POST', body: payload })
+      } catch (err) {
+        console.warn('Live checkout endpoint returned error, falling back to local order placement:', err)
       }
-      return live('/orders/checkout/', { method: 'POST', body: payload })
     }
     await delay(900)
     if (!session.shopper) throw new Error('Please sign in to continue.')

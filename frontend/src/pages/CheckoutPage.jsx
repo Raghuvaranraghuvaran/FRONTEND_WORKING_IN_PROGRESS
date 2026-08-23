@@ -87,6 +87,16 @@ export default function CheckoutPage() {
     e.preventDefault()
     setError('')
 
+    if ((selectedAddressId === 'custom' || addresses.length === 0) && !customAddress.trim()) {
+      setError('Please enter your delivery address.')
+      return
+    }
+
+    if (altPhone.trim() && altPhone.trim().length !== 10) {
+      setError('Please enter a valid 10-digit mobile number.')
+      return
+    }
+
     const effectiveAddress = deliveryAddressLine?.trim() || '14, Lake View Street, Adyar, Chennai 600020'
 
     try {
@@ -478,17 +488,31 @@ export default function CheckoutPage() {
                       <textarea
                         rows={2}
                         value={customAddress}
-                        onChange={(e) => setCustomAddress(e.target.value)}
+                        onChange={(e) => { setCustomAddress(e.target.value); setError('') }}
                         placeholder="Enter flat/house no, street, locality, city and pincode"
                         className="w-full rounded-lg border border-slate-300 p-2.5 text-sm focus:border-indigo-500 focus:outline-none"
                       />
-                      <input
-                        type="tel"
-                        value={altPhone}
-                        onChange={(e) => setAltPhone(e.target.value)}
-                        placeholder="Alternate phone number for delivery (Optional)"
-                        className="w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-indigo-500 focus:outline-none placeholder:text-slate-400"
-                      />
+                      <div className="relative">
+                        <input
+                          type="tel"
+                          inputMode="numeric"
+                          pattern="[0-9]{10}"
+                          maxLength={10}
+                          value={altPhone}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 10)
+                            setAltPhone(val)
+                            setError('')
+                          }}
+                          placeholder="10-digit mobile number (e.g. 9876543210)"
+                          className="w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-indigo-500 focus:outline-none placeholder:text-slate-400 font-mono"
+                        />
+                        {altPhone.length > 0 && (
+                          <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold ${altPhone.length === 10 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            {altPhone.length}/10 digits
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
