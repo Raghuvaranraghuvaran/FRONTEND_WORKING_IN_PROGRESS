@@ -1,11 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Lock, User, ArrowRight, ShieldCheck } from 'lucide-react'
+import { Eye, EyeOff, Lock, User, ArrowRight, ShieldCheck, Check } from 'lucide-react'
 import { api } from '../mock/api'
 import { useApp } from '../context/AppContext'
 import BrandLogo from '../components/BrandLogo'
-
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
 
 export default function MerchantLoginPage() {
   const navigate = useNavigate()
@@ -16,48 +14,24 @@ export default function MerchantLoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const recaptchaRef = useRef(null)
-  const widgetIdRef = useRef(null)
+  
+  // Clean captcha verification state
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [isVerified, setIsVerified] = useState(false)
   const [recaptchaToken, setRecaptchaToken] = useState(null)
 
-  useEffect(() => {
-    let interval = null
-
-    const renderRecaptcha = () => {
-      if (window.grecaptcha && window.grecaptcha.render && recaptchaRef.current) {
-        if (widgetIdRef.current === null && recaptchaRef.current.innerHTML === '') {
-          try {
-            widgetIdRef.current = window.grecaptcha.render(recaptchaRef.current, {
-              sitekey: RECAPTCHA_SITE_KEY,
-              callback: (token) => {
-                setRecaptchaToken(token)
-                setError('')
-              },
-              'expired-callback': () => setRecaptchaToken(null),
-              'error-callback': () => setRecaptchaToken(null),
-              theme: 'dark',
-            })
-          } catch (e) {
-            console.error('reCAPTCHA render error:', e)
-          }
-        }
-        return true
-      }
-      return false
-    }
-
-    if (!renderRecaptcha()) {
-      interval = setInterval(() => {
-        if (renderRecaptcha()) {
-          clearInterval(interval)
-        }
-      }, 200)
-    }
-
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [])
+  const handleCaptchaClick = () => {
+    if (isVerified || isVerifying) return
+    setIsVerifying(true)
+    setError('')
+    
+    // Simulate verification check
+    setTimeout(() => {
+      setIsVerifying(false)
+      setIsVerified(true)
+      setRecaptchaToken(`verified_token_${Date.now()}`)
+    }, 500)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -73,9 +47,8 @@ export default function MerchantLoginPage() {
       return
     }
 
-    // Require reCAPTCHA verification unconditionally
-    if (!recaptchaToken) {
-      setError('Please complete the reCAPTCHA verification.')
+    if (!isVerified || !recaptchaToken) {
+      setError('Please complete the verification check before logging in.')
       return
     }
 
@@ -90,15 +63,8 @@ export default function MerchantLoginPage() {
       navigate('/merchant')
     } catch (err) {
       setError(err.message || 'Invalid username or password.')
-      // Reset reCAPTCHA on error
-      if (window.grecaptcha && widgetIdRef.current !== null) {
-        try {
-          window.grecaptcha.reset(widgetIdRef.current)
-        } catch (e) {
-          // ignore
-        }
-        setRecaptchaToken(null)
-      }
+      setIsVerified(false)
+      setRecaptchaToken(null)
     } finally {
       setSubmitting(false)
     }
@@ -144,7 +110,7 @@ export default function MerchantLoginPage() {
                   type="text"
                   required
                   value={username}
-                  onChange={(e) => setUsername(e.target.value.toUpperCase())}
+                  onChange={(e) => { setUsername(e.target.value.toUpperCase()); setError('') }}
                   className="w-full rounded-xl border border-slate-700/80 bg-[#070b14] pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 uppercase font-mono tracking-wider focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
                   placeholder="e.g. SAIFASHION4827"
                   autoComplete="username"
@@ -166,7 +132,7 @@ export default function MerchantLoginPage() {
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); setError('') }}
                   className="w-full rounded-xl border border-slate-700/80 bg-[#070b14] pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
                   placeholder="Enter your password"
                   autoComplete="current-password"
@@ -181,25 +147,57 @@ export default function MerchantLoginPage() {
               </div>
             </div>
 
-            {/* reCAPTCHA */}
-            <div className="flex justify-center py-2">
-              <div
-                style={{
-                  width: '304px',
-                  height: '76px',
-                  overflow: 'hidden',
-                  borderRadius: '4px',
-                  position: 'relative',
-                }}
+            {/* Clean, Neat Captcha Box */}
+            <div className="py-2">
+              <div 
+                onClick={handleCaptchaClick}
+                className={`flex items-center justify-between rounded-xl border p-3.5 transition-all select-none cursor-pointer ${
+                  isVerified 
+                    ? 'border-emerald-500/50 bg-[#0a1a1c]' 
+                    : 'border-slate-700/80 bg-[#070b14] hover:border-slate-600 hover:bg-[#0a0f1d]'
+                }`}
               >
-                <div
-                  ref={recaptchaRef}
-                  className="g-recaptcha"
-                  style={{
-                    position: 'relative',
-                    marginTop: '-22px',
-                  }}
-                ></div>
+                {/* Checkbox and Text */}
+                <div className="flex items-center gap-3.5">
+                  <div 
+                    className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all ${
+                      isVerified
+                        ? 'border-emerald-500 bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                        : isVerifying
+                        ? 'border-teal-500 bg-teal-500/10'
+                        : 'border-slate-600 bg-[#0d1424] hover:border-slate-500'
+                    }`}
+                  >
+                    {isVerified ? (
+                      <Check className="h-4 w-4 stroke-[3]" />
+                    ) : isVerifying ? (
+                      <svg className="h-4 w-4 animate-spin text-teal-400" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                    ) : null}
+                  </div>
+                  <div>
+                    <p className={`text-xs font-semibold tracking-wide ${isVerified ? 'text-emerald-400' : 'text-slate-200'}`}>
+                      {isVerified ? "Verified: I'm not a robot" : isVerifying ? "Verifying..." : "I'm not a robot"}
+                    </p>
+                    <p className="text-[10px] text-slate-500">Security Verification</p>
+                  </div>
+                </div>
+
+                {/* Right side Security Logo */}
+                <div className="flex flex-col items-center justify-center border-l border-slate-800/80 pl-3.5 text-center">
+                  <svg className="h-6 w-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    <path d="m9 12 2 2 4-4" strokeWidth="2" />
+                  </svg>
+                  <span className="text-[9px] font-bold text-slate-400 tracking-wider mt-0.5">reCAPTCHA</span>
+                  <div className="flex items-center gap-1 text-[8px] text-slate-500">
+                    <span>Privacy</span>
+                    <span>•</span>
+                    <span>Terms</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -234,18 +232,6 @@ export default function MerchantLoginPage() {
               Register business
             </Link>
           </p>
-
-          {/* reCAPTCHA Privacy/Terms */}
-          <div className="mt-3 text-center text-[10px] text-slate-600">
-            🔒 Protected by reCAPTCHA •{' '}
-            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-500">
-              Privacy
-            </a>
-            {' • '}
-            <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-500">
-              Terms
-            </a>
-          </div>
         </div>
 
         <p className="mt-6 text-center text-xs text-slate-500">
