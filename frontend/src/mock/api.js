@@ -109,26 +109,25 @@ async function live(path, { method = 'GET', body, role = 'shopper' } = {}) {
           const retryResult = await request(path, { method, body, token: newAccess })
           return unwrap(retryResult)
         }
-      } catch {
-        // Refresh token expired / invalid: clean up to avoid stuck errors
+        // Refresh token expired / invalid: clear tokens
         if (role === 'merchant') {
           clearMerchantToken()
-          session.merchant = null
         } else {
           clearShopperToken()
-          session.shopper = null
         }
-        saveSession()
+      } catch {
+        if (role === 'merchant') {
+          clearMerchantToken()
+        } else {
+          clearShopperToken()
+        }
       }
     } else if (isAuthError && path !== '/auth/login/' && path !== '/merchants/login/') {
       if (role === 'merchant') {
         clearMerchantToken()
-        session.merchant = null
       } else {
         clearShopperToken()
-        session.shopper = null
       }
-      saveSession()
     }
 
     throw err
@@ -628,8 +627,19 @@ export const api = {
 
   // ---- Shopper ----
   async getCurrentShopper() {
-    if (hasLiveApi()) return live('/auth/me/')
-    await delay(200)
+    if (hasLiveApi() && tokens.shopper?.access) {
+      try {
+        const user = await live('/auth/me/')
+        if (user) {
+          session.shopper = clone(user)
+          saveSession()
+          return user
+        }
+      } catch (err) {
+        console.warn('Could not fetch live shopper profile, keeping active session:', err)
+      }
+    }
+    await delay(100)
     return clone(session.shopper)
   },
 

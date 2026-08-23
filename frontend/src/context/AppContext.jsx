@@ -5,8 +5,26 @@ import { getDeviceContext } from '../lib/device'
 const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
-  const [shopper, setShopper] = useState(null)
-  const [merchant, setMerchant] = useState(null)
+  const [shopper, setShopper] = useState(() => {
+    try {
+      const sess = api.getSession()
+      if (sess?.shopper) return sess.shopper
+      const stored = JSON.parse(localStorage.getItem('returnguard_session') || 'null')
+      return stored?.shopper || null
+    } catch {
+      return null
+    }
+  })
+  const [merchant, setMerchant] = useState(() => {
+    try {
+      const sess = api.getSession()
+      if (sess?.merchant) return sess.merchant
+      const stored = JSON.parse(localStorage.getItem('returnguard_session') || 'null')
+      return stored?.merchant || null
+    } catch {
+      return null
+    }
+  })
   const [cart, setCart] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('returnguard_cart') || '[]')
@@ -53,16 +71,12 @@ export function AppProvider({ children }) {
   }, [appliedCoupon])
 
   useEffect(() => {
-    const existing = api.getSession()
-    setShopper(existing.shopper)
-    setMerchant(existing.merchant)
-
     api.getCurrentShopper()
       .then((currentShopper) => {
         if (currentShopper) setShopper(currentShopper)
       })
       .catch(() => {
-        // Keep the locally restored session when the API is unavailable.
+        // Keep locally restored session
       })
   }, [])
 
