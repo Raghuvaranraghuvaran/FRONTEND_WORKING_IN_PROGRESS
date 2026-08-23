@@ -45,9 +45,10 @@ export default function CheckoutPage() {
   const remainingBeforePoints = Math.max(0, subtotal - couponDiscount)
 
   // 100 reward points = ₹10 (10 pts = ₹1 => discount = points / 10)
-  const maxRedeemablePoints = Math.min(availableRewardPoints, Math.ceil(remainingBeforePoints * 10))
+  const maxAllowedPoints = Math.min(availableRewardPoints, Math.ceil(remainingBeforePoints * 10))
+  const parsedPointsInput = rewardPointsInput !== '' ? Number(rewardPointsInput) : 0
   const pointsToRedeem = useRewardPoints
-    ? (rewardPointsInput !== '' ? Math.min(Math.max(0, Number(rewardPointsInput)), maxRedeemablePoints) : maxRedeemablePoints)
+    ? Math.min(Math.max(0, parsedPointsInput), maxAllowedPoints)
     : 0
   const rewardDiscount = Math.round(pointsToRedeem / 10)
   const finalTotal = Math.max(0, remainingBeforePoints - rewardDiscount)
@@ -578,9 +579,7 @@ export default function CheckoutPage() {
                     checked={useRewardPoints}
                     onChange={(e) => {
                       setUseRewardPoints(e.target.checked)
-                      if (e.target.checked) {
-                        setRewardPointsInput(String(maxRedeemablePoints))
-                      } else {
+                      if (!e.target.checked) {
                         setRewardPointsInput('')
                       }
                     }}
@@ -593,24 +592,27 @@ export default function CheckoutPage() {
               {useRewardPoints && (
                 <div className="mt-4 pt-4 border-t border-amber-200/60 space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-slate-700">Points to redeem:</span>
-                    <div className="flex items-center gap-2">
-                      {availableRewardPoints >= 500 && maxRedeemablePoints >= 500 && (
+                    <span className="text-xs font-semibold text-slate-700">Enter points to redeem:</span>
+                    <div className="flex items-center gap-1.5">
+                      {[100, 200, 500].filter((pts) => pts <= maxAllowedPoints).map((pts) => (
+                        <button
+                          key={pts}
+                          type="button"
+                          onClick={() => setRewardPointsInput(String(pts))}
+                          className="rounded-lg border border-amber-300 bg-amber-50/80 px-2.5 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100 transition"
+                        >
+                          {pts} pts (₹{pts / 10})
+                        </button>
+                      ))}
+                      {rewardPointsInput !== '' && (
                         <button
                           type="button"
-                          onClick={() => setRewardPointsInput('500')}
-                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                          onClick={() => setRewardPointsInput('')}
+                          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 transition"
                         >
-                          500 pts (₹50)
+                          Clear
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => setRewardPointsInput(String(maxRedeemablePoints))}
-                        className="rounded-lg border border-amber-400 bg-amber-100/80 px-2.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-200/80 transition"
-                      >
-                        Use Max ({maxRedeemablePoints} pts = {INR.format(Math.round(maxRedeemablePoints / 10))})
-                      </button>
                     </div>
                   </div>
 
@@ -618,7 +620,7 @@ export default function CheckoutPage() {
                     <input
                       type="number"
                       min={0}
-                      max={maxRedeemablePoints}
+                      max={maxAllowedPoints}
                       step={10}
                       value={rewardPointsInput}
                       onChange={(e) => {
@@ -626,15 +628,21 @@ export default function CheckoutPage() {
                         if (val === '') {
                           setRewardPointsInput('')
                         } else {
-                          const n = Math.min(Math.max(0, Number(val)), maxRedeemablePoints)
+                          const n = Math.min(Math.max(0, Number(val)), maxAllowedPoints)
                           setRewardPointsInput(String(n))
                         }
                       }}
                       className="w-36 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono shadow-xs"
-                      placeholder="Points"
+                      placeholder="e.g. 100"
                     />
                     <div className="text-xs text-slate-700">
-                      = <span className="font-bold text-emerald-700 text-sm">−{INR.format(rewardDiscount)} discount</span> ({Math.max(0, availableRewardPoints - pointsToRedeem)} points will remain)
+                      {pointsToRedeem > 0 ? (
+                        <>
+                          = <span className="font-bold text-emerald-700 text-sm">−{INR.format(rewardDiscount)} discount</span> ({availableRewardPoints - pointsToRedeem} pts will remain)
+                        </>
+                      ) : (
+                        <span className="text-slate-500 italic">Type points (e.g. 100 pts = ₹10)</span>
+                      )}
                     </div>
                   </div>
                 </div>
