@@ -15,7 +15,8 @@ import {
   FileText, 
   Wrench, 
   Settings,
-  LogOut
+  LogOut,
+  Ticket
 } from 'lucide-react'
 
 // ── Sidebar nav item ──────────────────────────────────────────────────────────
@@ -87,6 +88,12 @@ export default function MerchantSidebar() {
           icon={ShoppingCart} 
           label="Orders" 
           active={location.pathname.startsWith('/merchant/orders')} 
+        />
+        <SidebarItem 
+          to="/merchant/coupons" 
+          icon={Ticket} 
+          label="Coupons" 
+          active={location.pathname.startsWith('/merchant/coupons')} 
         />
         <SidebarItem 
           to="/merchant/customers" 

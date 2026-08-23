@@ -69,6 +69,7 @@ export default function ShopPage() {
   const [priceRange, setPriceRange] = useState('all')
   const [inStockOnly, setInStockOnly] = useState(false)
   const [selectedMerchant, setSelectedMerchant] = useState('all')
+  const [coupons, setCoupons] = useState([])
 
   const activeCategory = searchParams.get('category') || 'all'
   const query = searchParams.get('q') || ''
@@ -96,6 +97,23 @@ export default function ShopPage() {
       setLoading(false)
     })
   }, [activeCategory, query])
+
+  useEffect(() => {
+    api.getAvailableCoupons().then((data) => setCoupons(Array.isArray(data) ? data : []))
+  }, [])
+
+  const getBestCoupon = (product) => {
+    const applicable = coupons.filter((c) => {
+      const hasProductScope = c.applicable_product_ids && c.applicable_product_ids.length > 0
+      const hasCategoryScope = c.applicable_category_ids && c.applicable_category_ids.length > 0
+      if (!hasProductScope && !hasCategoryScope) return true
+      if (hasProductScope && c.applicable_product_ids.includes(product.id)) return true
+      if (hasCategoryScope && c.applicable_category_ids.includes(product.category_id)) return true
+      return false
+    })
+    if (applicable.length === 0) return null
+    return applicable.sort((a, b) => b.discount_value - a.discount_value)[0]
+  }
 
   const handleAddToCart = (product) => {
     const added = addToCart(product)
@@ -426,6 +444,20 @@ export default function ShopPage() {
                         <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>
                           {INR.format(product.price)}
                         </div>
+                        {(() => {
+                          const coupon = getBestCoupon(product)
+                          if (!coupon) return null
+                          return (
+                            <span style={{
+                              fontSize: 10, fontWeight: 700, color: '#7c3aed',
+                              background: '#ede9fe', padding: '3px 8px', borderRadius: 6,
+                              whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 3,
+                              border: '1px dashed #a78bfa',
+                            }}>
+                              🏷️ {coupon.code} — {coupon.discount_type === 'percentage' ? `${coupon.discount_value}% off` : `₹${coupon.discount_value} off`}
+                            </span>
+                          )
+                        })()}
                         <button 
                           onClick={() => handleAddToCart(product)}
                           style={{

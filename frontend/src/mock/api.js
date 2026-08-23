@@ -2,6 +2,7 @@ import {
   AUDIT_LOG,
   CATEGORIES,
   CATEGORY_RETURN_RATES,
+  COUPONS,
   DELIVERY_AGENTS,
   FRAUD_CONFIG,
   MERCHANT,
@@ -187,6 +188,7 @@ let store = {
   categoryReturnRates: clone(CATEGORY_RETURN_RATES),
   payments: [],
   invoices: [],
+  coupons: clone(COUPONS),
 }
 
 function persistMerchant(merchant) {
@@ -1445,5 +1447,98 @@ export const api = {
     const userId = session.shopper?.id || session.merchant?.id
     store.notifications = store.notifications.map((n) => (n.user_id === userId ? { ...n, read: true } : n))
     return clone(store.notifications.filter((n) => n.user_id === userId))
+  },
+
+  // ---- Coupons (Merchant CRUD) ----
+  async getMerchantCoupons() {
+    await delay(300)
+    return clone(store.coupons)
+  },
+
+  async createCoupon(data) {
+    await delay(400)
+    const coupon = {
+      id: nextId('coupon', store.coupons),
+      code: (data.code || '').trim().toUpperCase(),
+      merchant_id: store.merchant?.id || 'merchant_1',
+      discount_type: data.discount_type || 'percentage',
+      discount_value: Number(data.discount_value) || 0,
+      min_order_value: Number(data.min_order_value) || 0,
+      applicable_product_ids: data.applicable_product_ids || [],
+      applicable_category_ids: data.applicable_category_ids || [],
+      max_uses: Number(data.max_uses) || 100,
+      used_count: 0,
+      is_active: data.is_active !== false,
+      expires_at: data.expires_at || new Date(Date.now() + 90 * 86400000).toISOString(),
+      created_at: new Date().toISOString(),
+      description: data.description || '',
+    }
+    if (store.coupons.some((c) => c.code === coupon.code)) {
+      throw new Error('A coupon with this code already exists.')
+    }
+    store.coupons.push(coupon)
+    return clone(coupon)
+  },
+
+  async updateCoupon(id, data) {
+    await delay(350)
+    const idx = store.coupons.findIndex((c) => c.id === id)
+    if (idx === -1) throw new Error('Coupon not found.')
+    const existing = store.coupons[idx]
+    const newCode = (data.code || existing.code).trim().toUpperCase()
+    if (newCode !== existing.code && store.coupons.some((c) => c.code === newCode && c.id !== id)) {
+      throw new Error('A coupon with this code already exists.')
+    }
+    store.coupons[idx] = {
+      ...existing,
+      code: newCode,
+      discount_type: data.discount_type ?? existing.discount_type,
+      discount_value: data.discount_value !== undefined ? Number(data.discount_value) : existing.discount_value,
+      min_order_value: data.min_order_value !== undefined ? Number(data.min_order_value) : existing.min_order_value,
+      applicable_product_ids: data.applicable_product_ids ?? existing.applicable_product_ids,
+      applicable_category_ids: data.applicable_category_ids ?? existing.applicable_category_ids,
+      max_uses: data.max_uses !== undefined ? Number(data.max_uses) : existing.max_uses,
+      is_active: data.is_active !== undefined ? data.is_active : existing.is_active,
+      expires_at: data.expires_at || existing.expires_at,
+      description: data.description !== undefined ? data.description : existing.description,
+    }
+    return clone(store.coupons[idx])
+  },
+
+  async deleteCoupon(id) {
+    await delay(300)
+    const idx = store.coupons.findIndex((c) => c.id === id)
+    if (idx === -1) throw new Error('Coupon not found.')
+    store.coupons.splice(idx, 1)
+    return { success: true }
+  },
+
+  // ---- Coupons (Shopper-facing) ----
+  async getCouponsForProduct(productId) {
+    await delay(200)
+    const product = store.products.find((p) => p.id === productId)
+    if (!product) return []
+    const now = new Date()
+    return clone(
+      store.coupons.filter((c) => {
+        if (!c.is_active) return false
+        if (new Date(c.expires_at) < now) return false
+        if (c.used_count >= c.max_uses) return false
+        const hasProductScope = c.applicable_product_ids && c.applicable_product_ids.length > 0
+        const hasCategoryScope = c.applicable_category_ids && c.applicable_category_ids.length > 0
+        if (!hasProductScope && !hasCategoryScope) return true
+        if (hasProductScope && c.applicable_product_ids.includes(productId)) return true
+        if (hasCategoryScope && c.applicable_category_ids.includes(product.category_id)) return true
+        return false
+      })
+    )
+  },
+
+  async getAvailableCoupons() {
+    await delay(200)
+    const now = new Date()
+    return clone(
+      store.coupons.filter((c) => c.is_active && new Date(c.expires_at) >= now && c.used_count < c.max_uses)
+    )
   },
 }

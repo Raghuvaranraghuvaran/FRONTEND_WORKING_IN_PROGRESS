@@ -29,6 +29,7 @@ import MerchantSettings from './pages/merchant/MerchantSettings'
 import MerchantOnboarding from './pages/merchant/MerchantOnboarding'
 import MerchantFraudConfig from './pages/merchant/MerchantFraudConfig'
 import MerchantDeliveryAgents from './pages/merchant/MerchantDeliveryAgents'
+import MerchantCoupons from './pages/merchant/MerchantCoupons'
 
 function StorefrontLayout() {
   return (
@@ -90,6 +91,7 @@ function AppRoutes() {
         <Route path="onboarding" element={<MerchantOnboarding />} />
         <Route path="fraud-config" element={<MerchantFraudConfig />} />
         <Route path="delivery-agents" element={<MerchantDeliveryAgents />} />
+        <Route path="coupons" element={<MerchantCoupons />} />
         <Route path="settings" element={<MerchantSettings />} />
       </Route>
 

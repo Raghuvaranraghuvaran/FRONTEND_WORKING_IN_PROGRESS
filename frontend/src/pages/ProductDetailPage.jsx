@@ -11,17 +11,20 @@ export default function ProductDetailPage() {
   const [category, setCategory] = useState(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [coupons, setCoupons] = useState([])
+  const [copiedCode, setCopiedCode] = useState(null)
 
   const cartItem = cart.find((item) => item.product_id === productId)
   const isInCart = Boolean(cartItem)
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([api.getProduct(productId), api.getCategories()])
-      .then(([productData, categories]) => {
+    Promise.all([api.getProduct(productId), api.getCategories(), api.getCouponsForProduct(productId)])
+      .then(([productData, categories, couponData]) => {
         setProduct(productData || null)
         const cats = Array.isArray(categories) ? categories : []
         setCategory(cats.find((c) => c.id === productData?.category_id) || null)
+        setCoupons(Array.isArray(couponData) ? couponData : [])
         setLoading(false)
       })
       .catch(() => {
@@ -29,6 +32,12 @@ export default function ProductDetailPage() {
         setLoading(false)
       })
   }, [productId])
+
+  const copyCode = (code) => {
+    navigator.clipboard.writeText(code).catch(() => {})
+    setCopiedCode(code)
+    setTimeout(() => setCopiedCode(null), 1500)
+  }
 
   if (loading) {
     return (
@@ -100,6 +109,55 @@ export default function ProductDetailPage() {
               </p>
             </div>
           </div>
+
+          {/* Available Coupons */}
+          {coupons.length > 0 && (
+            <div className="mt-4 rounded-xl border border-purple-200 bg-purple-50/50 p-4">
+              <p className="text-xs font-bold text-purple-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                🏷️ Available Coupons
+              </p>
+              <div className="space-y-2">
+                {coupons.map((coupon) => (
+                  <div
+                    key={coupon.id}
+                    className="flex items-center justify-between rounded-lg border border-purple-200 bg-white px-3 py-2.5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="rounded-md px-2 py-1 text-xs font-bold tracking-wider"
+                        style={{
+                          fontFamily: 'monospace',
+                          background: coupon.discount_type === 'percentage' ? '#ede9fe' : '#dcfce7',
+                          color: coupon.discount_type === 'percentage' ? '#7c3aed' : '#16a34a',
+                          border: `1px dashed ${coupon.discount_type === 'percentage' ? '#a78bfa' : '#86efac'}`,
+                        }}
+                      >
+                        {coupon.code}
+                      </span>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-800">
+                          {coupon.discount_type === 'percentage'
+                            ? `${coupon.discount_value}% off`
+                            : `₹${coupon.discount_value} off`}
+                        </p>
+                        {coupon.min_order_value > 0 && (
+                          <p className="text-[10px] text-slate-500">
+                            Min order: {INR.format(coupon.min_order_value)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => copyCode(coupon.code)}
+                      className="rounded-lg border border-purple-300 bg-purple-50 px-3 py-1 text-[11px] font-bold text-purple-700 hover:bg-purple-100 transition-colors"
+                    >
+                      {copiedCode === coupon.code ? '✓ Copied!' : 'Copy Code'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <p className="mt-5 leading-7 text-slate-600">{product.description}</p>
           <p className="mt-2 text-sm text-slate-400">{product.stock} in stock</p>

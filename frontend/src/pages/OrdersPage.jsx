@@ -13,12 +13,15 @@ export default function OrdersPage() {
   const [tab, setTab] = useState('orders')
   const [trackingOrderMap, setTrackingOrderMap] = useState({})
   const [activeTrackingId, setActiveTrackingId] = useState(null)
+  const [coupons, setCoupons] = useState([])
+  const [copiedCode, setCopiedCode] = useState(null)
 
   useEffect(() => {
-    Promise.all([api.getShopperOrders(), api.getShopperReturns()])
-      .then(([orderData, returnData]) => {
+    Promise.all([api.getShopperOrders(), api.getShopperReturns(), api.getAvailableCoupons()])
+      .then(([orderData, returnData, couponData]) => {
         setOrders(Array.isArray(orderData) ? orderData : [])
         setReturns(Array.isArray(returnData) ? returnData : [])
+        setCoupons(Array.isArray(couponData) ? couponData : [])
         setLoading(false)
       })
       .catch(() => {
@@ -27,6 +30,12 @@ export default function OrdersPage() {
         setLoading(false)
       })
   }, [])
+
+  const copyCode = (code) => {
+    navigator.clipboard.writeText(code).catch(() => {})
+    setCopiedCode(code)
+    setTimeout(() => setCopiedCode(null), 1500)
+  }
 
   const toggleTrackOrder = async (orderId) => {
     if (activeTrackingId === orderId) {
@@ -62,6 +71,46 @@ export default function OrdersPage() {
         </button>
       </div>
 
+      {/* Available Coupons Banner */}
+      {coupons.length > 0 && (
+        <div className="mb-6 rounded-2xl border border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">🏷️</span>
+            <h3 className="text-sm font-bold text-purple-800">Available Coupons — Use on your next order!</h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {coupons.slice(0, 4).map((coupon) => (
+              <div
+                key={coupon.id}
+                className="flex items-center gap-2.5 rounded-xl border border-purple-200 bg-white px-3 py-2"
+              >
+                <span
+                  className="rounded-md px-2 py-0.5 text-xs font-bold tracking-wider"
+                  style={{
+                    fontFamily: 'monospace',
+                    background: coupon.discount_type === 'percentage' ? '#ede9fe' : '#dcfce7',
+                    color: coupon.discount_type === 'percentage' ? '#7c3aed' : '#16a34a',
+                    border: `1px dashed ${coupon.discount_type === 'percentage' ? '#a78bfa' : '#86efac'}`,
+                  }}
+                >
+                  {coupon.code}
+                </span>
+                <span className="text-xs font-semibold text-slate-700">
+                  {coupon.discount_type === 'percentage'
+                    ? `${coupon.discount_value}% off`
+                    : `₹${coupon.discount_value} off`}
+                </span>
+                <button
+                  onClick={() => copyCode(coupon.code)}
+                  className="rounded-md border border-purple-300 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700 hover:bg-purple-100 transition-colors"
+                >
+                  {copiedCode === coupon.code ? '✓' : 'Copy'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
