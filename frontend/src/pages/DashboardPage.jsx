@@ -31,26 +31,37 @@ function StatCard({ icon, label, value, subtext, color = 'purple' }) {
 }
 
 export default function DashboardPage() {
-  const { shopper } = useApp()
+  const { shopper, wishlist } = useApp()
   const [orders, setOrders] = useState([])
+  const [returns, setReturns] = useState([])
   const [loading, setLoading] = useState(true)
-  const rewardPoints = 350
+  const rewardPoints = shopper?.reward_points ?? 1000
 
   useEffect(() => {
     if (shopper) {
-      api.getShopperOrders().then((data) => {
-        setOrders(data.slice(0, 5)) // Show only recent 5 orders
-        setLoading(false)
-      })
+      Promise.all([api.getShopperOrders(), api.getShopperReturns()])
+        .then(([orderData, returnData]) => {
+          setOrders(Array.isArray(orderData) ? orderData.slice(0, 5) : [])
+          setReturns(Array.isArray(returnData) ? returnData : [])
+          setLoading(false)
+        })
+        .catch(() => {
+          setOrders([])
+          setReturns([])
+          setLoading(false)
+        })
     }
   }, [shopper])
+
+  const totalOrdersCount = shopper?.total_orders ?? orders.length ?? 0
+  const activeReturnsCount = returns.filter((r) => r.status !== 'Refunded' && r.status !== 'Rejected').length
 
   return (
     <div style={{ padding: '28px' }}>
       {/* Welcome section */}
       <div style={{ marginBottom: 32 }}>
         <h1 style={{ fontSize: 32, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>
-          Welcome back, {shopper?.name.split(' ')[0]}! 👋
+          Welcome back, {shopper?.name?.split(' ')[0] || 'Shopper'}! 👋
         </h1>
         <p style={{ fontSize: 15, color: '#64748b' }}>Here's what's happening with your account today.</p>
       </div>
@@ -58,10 +69,34 @@ export default function DashboardPage() {
       {/* Stats cards */}
       {shopper && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20, marginBottom: 32 }}>
-          <StatCard icon="📦" label="Total Orders" value={shopper.total_orders || 0} subtext="+3 this month" color="purple" />
-          <StatCard icon="🔄" label="Active Returns" value={2} subtext="In progress" color="green" />
-          <StatCard icon="❤️" label="Wishlist Items" value={8} subtext="Saved items" color="red" />
-          <StatCard icon="⭐" label="Reward Points" value={rewardPoints} subtext="Available to redeem" color="amber" />
+          <StatCard
+            icon="📦"
+            label="Total Orders"
+            value={totalOrdersCount}
+            subtext={totalOrdersCount > 0 ? `${totalOrdersCount} placed` : 'No orders yet'}
+            color="purple"
+          />
+          <StatCard
+            icon="🔄"
+            label="Active Returns"
+            value={activeReturnsCount}
+            subtext={activeReturnsCount > 0 ? `${activeReturnsCount} in progress` : '0 active returns'}
+            color="green"
+          />
+          <StatCard
+            icon="❤️"
+            label="Wishlist Items"
+            value={wishlist?.length || 0}
+            subtext="Saved items"
+            color="red"
+          />
+          <StatCard
+            icon="⭐"
+            label="Reward Points"
+            value={rewardPoints}
+            subtext="Available to redeem"
+            color="amber"
+          />
         </div>
       )}
 

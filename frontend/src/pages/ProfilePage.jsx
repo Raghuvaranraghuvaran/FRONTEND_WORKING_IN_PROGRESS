@@ -234,7 +234,7 @@ export default function ProfilePage() {
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
           <h2 className="text-base font-semibold text-slate-900">Account snapshot</h2>
-          <div className="mt-4 grid grid-cols-3 gap-3">
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-xl bg-slate-50 p-4 text-center">
               <p className="text-2xl font-bold text-slate-900">{shopper?.total_orders ?? 0}</p>
               <p className="text-xs font-medium text-slate-500">Orders</p>
@@ -246,6 +246,10 @@ export default function ProfilePage() {
             <div className="rounded-xl bg-slate-50 p-4 text-center">
               <p className="text-2xl font-bold text-slate-900">{shopper?.total_cod_refusals ?? 0}</p>
               <p className="text-xs font-medium text-slate-500">COD refusals</p>
+            </div>
+            <div className="rounded-xl bg-amber-50/80 border border-amber-200/60 p-4 text-center">
+              <p className="text-2xl font-bold text-amber-600">{shopper?.reward_points ?? 1000}</p>
+              <p className="text-xs font-semibold text-amber-700">Reward points</p>
             </div>
           </div>
           <div className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 p-4">

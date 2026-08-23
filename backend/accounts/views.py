@@ -98,7 +98,13 @@ class GoogleLoginView(APIView):
 
             ShopperProfile.objects.get_or_create(
                 user=user,
-                defaults={"customer_id": f"CUST-{user.id + 1000}"},
+                defaults={
+                    "customer_id": f"CUST-{user.id + 1000}",
+                    "total_orders": 0,
+                    "total_returns": 0,
+                    "total_cod_refusals": 0,
+                    "reward_points": 1000,
+                },
             )
 
             if created:

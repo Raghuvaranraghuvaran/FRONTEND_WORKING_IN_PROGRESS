@@ -24,6 +24,7 @@ class ShopperProfileSerializer(serializers.ModelSerializer):
             "total_orders",
             "total_returns",
             "total_cod_refusals",
+            "reward_points",
             "risk_tier",
             "device_reuse_flag",
             "joined_at",

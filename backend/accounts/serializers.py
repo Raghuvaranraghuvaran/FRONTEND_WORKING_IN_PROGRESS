@@ -19,6 +19,7 @@ class ShopperSerializer(serializers.ModelSerializer):
     total_orders = serializers.SerializerMethodField()
     total_returns = serializers.SerializerMethodField()
     total_cod_refusals = serializers.SerializerMethodField()
+    reward_points = serializers.SerializerMethodField()
     risk_tier = serializers.SerializerMethodField()
     device_reuse_flag = serializers.SerializerMethodField()
     joined_at = serializers.SerializerMethodField()
@@ -28,7 +29,7 @@ class ShopperSerializer(serializers.ModelSerializer):
         if profile is None and obj.is_shopper:
             profile, _ = ShopperProfile.objects.get_or_create(
                 user=obj,
-                defaults={"customer_id": f"CUST-{obj.id + 1000}"},
+                defaults={"customer_id": f"CUST-{obj.id + 1000}", "reward_points": 1000},
             )
         return profile
 
@@ -51,6 +52,10 @@ class ShopperSerializer(serializers.ModelSerializer):
     def get_total_cod_refusals(self, obj):
         p = self._get_profile(obj)
         return p.total_cod_refusals if p else 0
+
+    def get_reward_points(self, obj):
+        p = self._get_profile(obj)
+        return p.reward_points if p and hasattr(p, "reward_points") else 1000
 
     def get_risk_tier(self, obj):
         p = self._get_profile(obj)
@@ -78,6 +83,7 @@ class ShopperSerializer(serializers.ModelSerializer):
             "total_orders",
             "total_returns",
             "total_cod_refusals",
+            "reward_points",
             "risk_tier",
             "device_reuse_flag",
             "joined_at",
@@ -91,6 +97,7 @@ class ShopperSerializer(serializers.ModelSerializer):
             "total_orders",
             "total_returns",
             "total_cod_refusals",
+            "reward_points",
             "risk_tier",
             "device_reuse_flag",
             "joined_at",
@@ -122,6 +129,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         profile = ShopperProfile.objects.create(
             user=user,
             customer_id=f"CUST-{user.id + 1000}",
+            total_orders=0,
+            total_returns=0,
+            total_cod_refusals=0,
+            reward_points=1000,
         )
         if address_line:
             Address.objects.create(shopper=profile, label="Home", line=address_line, is_primary=True)

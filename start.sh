@@ -13,7 +13,7 @@ User = get_user_model()
 if not User.objects.filter(email='demo@shopper.com').exists():
     user = User.objects.create_user(email='demo@shopper.com', password='demo123', name='Demo Shopper', role='shopper')
     from accounts.models import ShopperProfile
-    ShopperProfile.objects.get_or_create(user=user, defaults={'customer_id': 'CUST-DEMO'})
+    ShopperProfile.objects.get_or_create(user=user, defaults={'customer_id': 'CUST-DEMO', 'reward_points': 1000, 'total_orders': 0, 'total_returns': 0})
 
 if not User.objects.filter(email='demo@merchant.com').exists():
     user = User.objects.create_user(email='demo@merchant.com', password='demo123', name='Demo Merchant', role='merchant_admin')

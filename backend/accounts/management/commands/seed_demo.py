@@ -106,6 +106,7 @@ class Command(BaseCommand):
                     "risk_tier": s["risk_tier"],
                     "total_orders": s["total_orders"],
                     "total_returns": s["total_returns"],
+                    "reward_points": 1000,
                 },
             )
             if s.get("address"):

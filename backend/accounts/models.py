@@ -50,6 +50,7 @@ class ShopperProfile(models.Model):
     total_orders = models.PositiveIntegerField(default=0)
     total_returns = models.PositiveIntegerField(default=0)
     total_cod_refusals = models.PositiveIntegerField(default=0)
+    reward_points = models.PositiveIntegerField(default=1000)
     risk_tier = models.CharField(max_length=16, default="Low")
     device_reuse_flag = models.BooleanField(default=False)
     joined_at = models.DateTimeField(auto_now_add=True)

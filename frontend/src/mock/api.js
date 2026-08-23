@@ -242,14 +242,18 @@ function findShopperByEmail(email) {
       phone: session.shopper.phone || '+91 98765 43210',
       role: 'shopper',
       addresses: Array.isArray(session.shopper.addresses) ? session.shopper.addresses : [],
-      total_orders: 1,
+      total_orders: 0,
       total_returns: 0,
       total_cod_refusals: 0,
+      reward_points: 1000,
       risk_tier: 'Low',
       device_reuse_flag: false,
       joined_at: new Date().toISOString(),
     }
     store.shoppers.push(found)
+  }
+  if (found && found.reward_points === undefined) {
+    found.reward_points = 1000
   }
   return found
 }
@@ -409,9 +413,10 @@ export const api = {
       if (address) payload.address = address
       const result = await live('/auth/register/', { method: 'POST', body: payload })
       writeShopperToken(result.tokens)
-      session.shopper = clone(result.user)
+      const user = { ...result.user, reward_points: result.user.reward_points ?? 1000 }
+      session.shopper = clone(user)
       saveSession()
-      return result.user
+      return user
     }
     await delay(600)
     if (findShopperByEmail(email)) {
@@ -429,6 +434,7 @@ export const api = {
       total_orders: 0,
       total_returns: 0,
       total_cod_refusals: 0,
+      reward_points: 1000,
       risk_tier: 'Low',
       device_reuse_flag: false,
       joined_at: new Date().toISOString(),
@@ -443,9 +449,10 @@ export const api = {
     if (hasLiveApi()) {
       const result = await live('/auth/login/', { method: 'POST', body: { email, password } })
       writeShopperToken(result.tokens)
-      session.shopper = clone(result.user)
+      const user = { ...result.user, reward_points: result.user.reward_points ?? 1000 }
+      session.shopper = clone(user)
       saveSession()
-      return result.user
+      return user
     }
     await delay(600)
     if (!password || password.length < 1) {
@@ -454,6 +461,9 @@ export const api = {
     const shopper = findShopperByEmail(email)
     if (!shopper) {
       throw new Error('No account found for this email.')
+    }
+    if (shopper.reward_points === undefined) {
+      shopper.reward_points = 1000
     }
     session.shopper = clone(shopper)
     saveSession()
@@ -465,9 +475,10 @@ export const api = {
       try {
         const result = await live('/auth/google/', { method: 'POST', body: { credential: credential || 'mock-credential' } })
         writeShopperToken(result.tokens)
-        session.shopper = clone(result.user)
+        const user = { ...result.user, reward_points: result.user.reward_points ?? 1000 }
+        session.shopper = clone(user)
         saveSession()
-        return result.user
+        return user
       } catch (err) {
         console.warn('Live Google auth failed, falling back to demo session:', err)
       }
@@ -476,6 +487,7 @@ export const api = {
     await delay(700)
     const demoShopper = store.shoppers.find((s) => s.email === 'demo@shopper.com')
     if (demoShopper) {
+      demoShopper.reward_points = demoShopper.reward_points ?? 1000
       session.shopper = clone(demoShopper)
       saveSession()
       return clone(demoShopper)
@@ -493,14 +505,16 @@ export const api = {
         phone: '+91 90123 45678',
         role: 'shopper',
         addresses: [{ id: 'addr_google', label: 'Home', line: '123 Google Street, Demo City 600020' }],
-        total_orders: 3,
+        total_orders: 0,
         total_returns: 0,
         total_cod_refusals: 0,
+        reward_points: 1000,
         risk_tier: 'Low',
         device_reuse_flag: false,
-        joined_at: '2025-01-15T10:00:00Z',
+        joined_at: new Date().toISOString(),
       }
     if (!existing) store.shoppers.push(shopper)
+    shopper.reward_points = shopper.reward_points ?? 1000
     session.shopper = clone(shopper)
     saveSession()
     return clone(shopper)
@@ -531,9 +545,10 @@ export const api = {
         return { admin: result.admin, merchant: result.merchant }
       }
       writeShopperToken(result.tokens)
-      session.shopper = clone(result.user)
+      const user = { ...result.user, reward_points: result.user.reward_points ?? 1000 }
+      session.shopper = clone(user)
       saveSession()
-      return result.user
+      return user
     }
     await delay(500)
     if (role === 'merchant') {
@@ -555,12 +570,14 @@ export const api = {
         total_orders: 0,
         total_returns: 0,
         total_cod_refusals: 0,
+        reward_points: 1000,
         risk_tier: 'Low',
         device_reuse_flag: false,
         joined_at: new Date().toISOString(),
       }
       store.shoppers.push(shopper)
     }
+    shopper.reward_points = shopper.reward_points ?? 1000
     session.shopper = clone(shopper)
     saveSession()
     return clone(shopper)
@@ -631,6 +648,7 @@ export const api = {
       try {
         const user = await live('/auth/me/')
         if (user) {
+          user.reward_points = user.reward_points ?? 1000
           session.shopper = clone(user)
           saveSession()
           return user
@@ -640,6 +658,9 @@ export const api = {
       }
     }
     await delay(100)
+    if (session.shopper && session.shopper.reward_points === undefined) {
+      session.shopper.reward_points = 1000
+    }
     return clone(session.shopper)
   },
 

@@ -70,9 +70,18 @@ export default function ShopPage() {
   const [inStockOnly, setInStockOnly] = useState(false)
   const [selectedMerchant, setSelectedMerchant] = useState('all')
   const [coupons, setCoupons] = useState([])
+  const [returns, setReturns] = useState([])
 
   const activeCategory = searchParams.get('category') || 'all'
   const query = searchParams.get('q') || ''
+
+  useEffect(() => {
+    if (shopper) {
+      api.getShopperReturns()
+        .then((returnData) => setReturns(Array.isArray(returnData) ? returnData : []))
+        .catch(() => setReturns([]))
+    }
+  }, [shopper])
 
   useEffect(() => {
     api.getCategories().then((data) => {
@@ -182,7 +191,9 @@ export default function ShopPage() {
   }, [products, priceRange, inStockOnly, selectedMerchant, sortBy])
 
   const hasActiveFilters = activeCategory !== 'all' || query !== '' || priceRange !== 'all' || inStockOnly || selectedMerchant !== 'all' || sortBy !== 'popular'
-  const rewardPoints = 350
+  const rewardPoints = shopper?.reward_points ?? 1000
+  const totalOrdersCount = shopper?.total_orders ?? 0
+  const activeReturnsCount = returns.filter((r) => r.status !== 'Refunded' && r.status !== 'Rejected').length
 
   return (
     <div>
@@ -190,8 +201,20 @@ export default function ShopPage() {
       {shopper && (
         <div style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: '20px 28px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            <StatCard icon="📦" label="My Orders" value={shopper.total_orders || 0} subtext="+3 this month" color="purple" />
-            <StatCard icon="🔄" label="Active Returns" value={2} subtext="In progress" color="green" />
+            <StatCard
+              icon="📦"
+              label="My Orders"
+              value={totalOrdersCount}
+              subtext={totalOrdersCount > 0 ? `${totalOrdersCount} placed` : '0 orders'}
+              color="purple"
+            />
+            <StatCard
+              icon="🔄"
+              label="Active Returns"
+              value={activeReturnsCount}
+              subtext={activeReturnsCount > 0 ? `${activeReturnsCount} in progress` : '0 returns'}
+              color="green"
+            />
             <StatCard icon="❤️" label="Wishlist" value={wishlist.length} subtext="Saved items" color="red" />
             <StatCard icon="⭐" label="Reward Points" value={rewardPoints} subtext="Available points" color="amber" />
           </div>
