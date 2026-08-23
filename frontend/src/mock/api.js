@@ -704,23 +704,19 @@ export const api = {
 
   async placeOrder({ items, paymentMethod, address: _address, paymentDetails, couponCode, discount: inputDiscount }) {
     if (hasLiveApi()) {
-      try {
-        const payload = {
-          items: items.map((item) => ({
-            product_id: item.product_id,
-            name: item.name,
-            quantity: item.quantity,
-            price: Number(item.price),
-          })),
-          payment_method: paymentMethod,
-          payment_details: paymentDetails,
-          coupon_code: couponCode || undefined,
-          discount: inputDiscount || undefined,
-        }
-        return await live('/orders/checkout/', { method: 'POST', body: payload })
-      } catch (err) {
-        console.warn('Live checkout endpoint returned error, falling back to local order placement:', err)
+      const payload = {
+        items: items.map((item) => ({
+          product_id: item.product_id,
+          name: item.name,
+          quantity: item.quantity,
+          price: Number(item.price),
+        })),
+        payment_method: paymentMethod,
+        payment_details: paymentDetails,
+        coupon_code: couponCode || undefined,
+        discount: inputDiscount || undefined,
       }
+      return live('/orders/checkout/', { method: 'POST', body: payload })
     }
     await delay(800)
     if (!session.shopper) throw new Error('Please sign in to continue.')
@@ -1614,16 +1610,12 @@ export const api = {
   },
 
   // ---- Payment Processing ----
-  async processPayment({ orderId, paymentMethod, paymentDetails }) {
+  async processPayment({ paymentId, orderId, paymentMethod, paymentDetails }) {
     if (hasLiveApi()) {
-      try {
-        return await live('/payments/process/', {
-          method: 'POST',
-          body: { order_id: orderId, payment_method: paymentMethod, payment_details: paymentDetails },
-        })
-      } catch (err) {
-        console.warn('Live payment processing failed, falling back to local simulation:', err)
-      }
+      return live('/payments/process/', {
+        method: 'POST',
+        body: { payment_id: paymentId, payment_data: { order_id: orderId, payment_method: paymentMethod, ...paymentDetails } },
+      })
     }
     await delay(1000)
     const order = store.orders.find((o) => o.id === orderId) || store.orders[0]
@@ -1637,7 +1629,6 @@ export const api = {
         amount: order?.total || 0,
       }
       store.payments.push(payment)
-    }
 
     // Always succeed for demo checkout experience
     const isSuccess = true

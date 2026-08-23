@@ -159,18 +159,18 @@ export default function CheckoutPage() {
 
     try {
       const result = await api.processPayment({
+        paymentId: payment.id,
         orderId: order.id,
         paymentMethod,
         paymentDetails,
       })
+      const paymentResult = result.result || result
+      const paymentRecord = result.payment || payment
 
-      const isSuccess = result?.success !== false
-      const payId = result?.payment?.id || payment?.id || 'pay_confirmed'
-      if (isSuccess) {
-        navigate(`/payment/success?order_id=${order.id}&payment_id=${payId}`)
+      if (paymentResult.success) {
+        navigate(`/payment/success?order_id=${order.id}&payment_id=${paymentRecord.id}`)
       } else {
-        const reason = result?.payment?.failure_reason || 'Payment failed'
-        navigate(`/payment/failure?order_id=${order.id}&payment_id=${payId}&reason=${encodeURIComponent(reason)}`)
+        navigate(`/payment/failure?order_id=${order.id}&payment_id=${paymentRecord.id}&reason=${encodeURIComponent(paymentRecord.failure_reason || 'Payment failed')}`)
       }
     } catch (err) {
       setError(err.message || 'Payment processing failed')
