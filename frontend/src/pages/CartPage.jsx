@@ -159,33 +159,12 @@ export default function CartPage() {
           {/* Coupon Section */}
           <div className="rounded-2xl border border-purple-200 bg-white p-5 shadow-sm">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-3">
-              🏷️ Apply Coupon Code
+              🏷️ {appliedCoupon ? 'Applied Coupon' : 'Apply Coupon Code'}
             </h3>
 
-            {/* Coupon Input */}
-            <div className="flex gap-2 mb-3">
-              <input
-                type="text"
-                value={couponInput}
-                onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError('') }}
-                placeholder="Enter coupon code (e.g. SAVE10)"
-                className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono tracking-wider uppercase focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
-              <button
-                onClick={handleApplyCoupon}
-                className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors shadow-sm"
-              >
-                Apply
-              </button>
-            </div>
-
-            {couponError && (
-              <p className="text-xs text-rose-600 font-medium mb-3">{couponError}</p>
-            )}
-
-            {/* Applied coupon banner */}
-            {appliedCoupon && (
-              <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 mb-3">
+            {/* If coupon is applied: Hide input box, show applied banner ONLY */}
+            {appliedCoupon ? (
+              <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3">
                 <div className="flex items-center gap-2.5">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">✓</span>
                   <div>
@@ -204,66 +183,88 @@ export default function CartPage() {
                 </div>
                 <button
                   onClick={handleRemoveCoupon}
-                  className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
+                  className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                 >
                   Remove
                 </button>
               </div>
-            )}
-
-            {/* Available coupons list */}
-            {applicableCoupons.length > 0 && !appliedCoupon && (
+            ) : (
+              /* If NO coupon applied: Show input box & available coupons */
               <div>
-                <p className="text-xs text-slate-500 font-semibold mb-2 uppercase tracking-wider">Available for your cart:</p>
-                <div className="space-y-2">
-                  {applicableCoupons.map((coupon) => (
-                    <div
-                      key={coupon.id}
-                      className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3 hover:border-purple-200 hover:bg-purple-50/30 transition-all"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="rounded-lg px-2.5 py-1 text-xs font-bold tracking-wider"
-                          style={{
-                            fontFamily: 'monospace',
-                            background: coupon.discount_type === 'percentage' ? '#ede9fe' : '#dcfce7',
-                            color: coupon.discount_type === 'percentage' ? '#7c3aed' : '#16a34a',
-                            border: `1px dashed ${coupon.discount_type === 'percentage' ? '#a78bfa' : '#86efac'}`,
-                          }}
-                        >
-                          {coupon.code}
-                        </span>
-                        <div>
-                          <p className="text-xs font-bold text-slate-900">
-                            {coupon.discount_type === 'percentage'
-                              ? `${coupon.discount_value}% off`
-                              : `₹${coupon.discount_value} off`}
-                            {coupon.min_order_value > 0 && (
-                              <span className="ml-1.5 text-[11px] font-normal text-slate-500">
-                                (on orders above {INR.format(coupon.min_order_value)})
-                              </span>
-                            )}
-                          </p>
-                          <p className="text-[11px] text-slate-500">{coupon.description || 'Applicable to your items'}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => copyCode(coupon.code)}
-                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-                        >
-                          {copiedCode === coupon.code ? '✓ Copied' : 'Copy'}
-                        </button>
-                        <button
-                          onClick={() => handleQuickApply(coupon)}
-                          className="rounded-lg bg-indigo-600 px-3.5 py-1 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors shadow-sm"
-                        >
-                          Apply
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    value={couponInput}
+                    onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError('') }}
+                    placeholder="Enter coupon code (e.g. SAVE10)"
+                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono tracking-wider uppercase focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                  <button
+                    onClick={handleApplyCoupon}
+                    className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors shadow-sm cursor-pointer"
+                  >
+                    Apply
+                  </button>
                 </div>
+
+                {couponError && (
+                  <p className="text-xs text-rose-600 font-medium mb-3">{couponError}</p>
+                )}
+
+                {applicableCoupons.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs text-slate-500 font-semibold mb-2 uppercase tracking-wider">Available for your cart:</p>
+                    <div className="space-y-2">
+                      {applicableCoupons.map((coupon) => (
+                        <div
+                          key={coupon.id}
+                          className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3 hover:border-purple-200 hover:bg-purple-50/30 transition-all"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span
+                              className="rounded-lg px-2.5 py-1 text-xs font-bold tracking-wider"
+                              style={{
+                                fontFamily: 'monospace',
+                                background: coupon.discount_type === 'percentage' ? '#ede9fe' : '#dcfce7',
+                                color: coupon.discount_type === 'percentage' ? '#7c3aed' : '#16a34a',
+                                border: `1px dashed ${coupon.discount_type === 'percentage' ? '#a78bfa' : '#86efac'}`,
+                              }}
+                            >
+                              {coupon.code}
+                            </span>
+                            <div>
+                              <p className="text-xs font-bold text-slate-900">
+                                {coupon.discount_type === 'percentage'
+                                  ? `${coupon.discount_value}% off`
+                                  : `₹${coupon.discount_value} off`}
+                                {coupon.min_order_value > 0 && (
+                                  <span className="ml-1.5 text-[11px] font-normal text-slate-500">
+                                    (on orders above {INR.format(coupon.min_order_value)})
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-[11px] text-slate-500">{coupon.description || 'Applicable to your items'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => copyCode(coupon.code)}
+                              className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                            >
+                              {copiedCode === coupon.code ? '✓ Copied' : 'Copy'}
+                            </button>
+                            <button
+                              onClick={() => handleQuickApply(coupon)}
+                              className="rounded-lg bg-indigo-600 px-3.5 py-1 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors shadow-sm"
+                            >
+                              Apply
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../mock/api'
 import { useApp } from '../context/AppContext'
 import { INR } from '../lib/format'
@@ -9,9 +9,8 @@ import PaymentGatewaySimulator from '../components/PaymentGatewaySimulator'
 import PaymentMethodSelector from '../components/PaymentMethodSelector'
 
 export default function CheckoutPage() {
-  const { shopper, cart, clearCart, appliedCoupon, setAppliedCoupon } = useApp()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
+  const { shopper, cart, clearCart, appliedCoupon } = useApp()
   const [paymentMethod, setPaymentMethod] = useState('COD')
   const [paymentDetails, setPaymentDetails] = useState({})
   const [selectedAddressId, setSelectedAddressId] = useState(shopper?.addresses?.[0]?.id || 'custom')
@@ -26,31 +25,7 @@ export default function CheckoutPage() {
   const [resolvingPayment, setResolvingPayment] = useState(false)
   const [processingPayment, setProcessingPayment] = useState(false)
 
-  // Coupon state
-  const [coupons, setCoupons] = useState([])
-  const [couponInput, setCouponInput] = useState('')
-  const [couponError, setCouponError] = useState('')
-  const [copiedCode, setCopiedCode] = useState(null)
-
-  useEffect(() => {
-    api.getAvailableCoupons().then((data) => setCoupons(Array.isArray(data) ? data : []))
-  }, [])
-
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-
-  // Check if coupon applies to items in cart
-  const isCouponApplicable = (coupon) => {
-    const hasProductScope = coupon.applicable_product_ids && coupon.applicable_product_ids.length > 0
-    const hasCategoryScope = coupon.applicable_category_ids && coupon.applicable_category_ids.length > 0
-    if (!hasProductScope && !hasCategoryScope) return true
-    return cart.some((item) => {
-      if (hasProductScope && coupon.applicable_product_ids.includes(item.product_id)) return true
-      if (hasCategoryScope && coupon.applicable_category_ids.includes(item.category_id)) return true
-      return false
-    })
-  }
-
-  const applicableCoupons = coupons.filter((c) => isCouponApplicable(c))
 
   const calculateDiscount = (coupon) => {
     if (!coupon) return 0
@@ -63,51 +38,6 @@ export default function CheckoutPage() {
 
   const couponDiscount = calculateDiscount(appliedCoupon)
   const finalTotal = Math.max(0, subtotal - couponDiscount)
-
-  const handleApplyCoupon = () => {
-    setCouponError('')
-    const code = couponInput.trim().toUpperCase()
-    if (!code) {
-      setCouponError('Please enter a coupon code.')
-      return
-    }
-    const found = coupons.find((c) => c.code === code)
-    if (!found) {
-      setCouponError('Invalid coupon code.')
-      return
-    }
-    if (!isCouponApplicable(found)) {
-      setCouponError('This coupon is not applicable to items in your cart.')
-      return
-    }
-    if (found.min_order_value > 0 && subtotal < found.min_order_value) {
-      setCouponError(`Minimum order value of ${INR.format(found.min_order_value)} required.`)
-      return
-    }
-    setAppliedCoupon(found)
-    setCouponInput('')
-  }
-
-  const handleRemoveCoupon = () => {
-    setAppliedCoupon(null)
-    setCouponError('')
-  }
-
-  const handleQuickApply = (coupon) => {
-    setCouponError('')
-    if (coupon.min_order_value > 0 && subtotal < coupon.min_order_value) {
-      setCouponError(`Min order ${INR.format(coupon.min_order_value)} required for ${coupon.code}.`)
-      return
-    }
-    setAppliedCoupon(coupon)
-    setCouponInput('')
-  }
-
-  const copyCode = (code) => {
-    navigator.clipboard.writeText(code).catch(() => {})
-    setCopiedCode(code)
-    setTimeout(() => setCopiedCode(null), 1500)
-  }
 
   const addresses = shopper?.addresses || []
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId)
@@ -127,11 +57,46 @@ export default function CheckoutPage() {
     )
   }
 
+  const validatePaymentDetails = () => {
+    if (paymentMethod === 'Card') {
+      if (!paymentDetails.card_number || paymentDetails.card_number.replace(/\s/g, '').length !== 16) {
+        throw new Error('Please enter a valid 16-digit card number')
+      }
+      if (!paymentDetails.card_expiry || !paymentDetails.card_expiry.match(/^\d{2}\/\d{2}$/)) {
+        throw new Error('Please enter a valid expiry date (MM/YY)')
+      }
+      if (!paymentDetails.card_cvv || paymentDetails.card_cvv.length !== 3) {
+        throw new Error('Please enter a valid 3-digit CVV')
+      }
+      if (!paymentDetails.card_holder_name) {
+        throw new Error('Please enter cardholder name')
+      }
+    } else if (paymentMethod === 'UPI') {
+      if (paymentDetails.upi_mode === 'id' && !paymentDetails.upi_id) {
+        throw new Error('Please enter a valid UPI ID (e.g. name@upi)')
+      }
+    } else if (paymentMethod === 'Netbanking') {
+      if (!paymentDetails.bank_code) {
+        throw new Error('Please select a bank')
+      }
+    }
+    return true
+  }
+
   const placeOrder = async (e) => {
     e.preventDefault()
     setError('')
 
     const effectiveAddress = deliveryAddressLine?.trim() || '14, Lake View Street, Adyar, Chennai 600020'
+
+    try {
+      if (paymentMethod !== 'COD') {
+        validatePaymentDetails()
+      }
+    } catch (validationErr) {
+      setError(validationErr.message)
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -147,6 +112,7 @@ export default function CheckoutPage() {
         items: cart,
         paymentMethod,
         address: effectiveAddress,
+        paymentDetails: paymentMethod !== 'COD' ? paymentDetails : undefined,
         couponCode: appliedCoupon?.code || null,
         discount: couponDiscount,
       })
@@ -189,10 +155,8 @@ export default function CheckoutPage() {
       })
 
       if (result.success) {
-        // Payment successful - redirect to success page
         navigate(`/payment/success?order_id=${order.id}&payment_id=${result.payment.id}`)
       } else {
-        // Payment failed - redirect to failure page
         navigate(`/payment/failure?order_id=${order.id}&payment_id=${result.payment.id}&reason=${encodeURIComponent(result.payment.failure_reason || 'Payment failed')}`)
       }
     } catch (err) {
@@ -254,35 +218,45 @@ export default function CheckoutPage() {
   if (step === 'payment_processing') {
     return (
       <main className="mx-auto max-w-md px-4 py-16 sm:px-6">
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold">
-            <svg className="animate-spin h-6 w-6" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-            </svg>
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 font-bold text-2xl animate-pulse">
+            💳
           </div>
           <h1 className="mt-4 text-xl font-bold text-slate-900">Processing Payment</h1>
           <p className="mt-2 text-sm text-slate-500">
-            {order?.order_number || `#${order?.id}`} · {INR.format(order?.total)}
+            Order {order?.order_number} · Total: {INR.format(order?.total)}
           </p>
-          <p className="mt-3 text-sm text-slate-600">
-            Please wait while we process your payment securely...
+          <p className="mt-1 text-xs text-slate-400">
+            Payment Method: {paymentMethod}
           </p>
-          {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
-          
-          {/* Auto-trigger payment processing */}
-          {!processingPayment && !error && (
+
+          <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200 text-left text-xs text-slate-600 space-y-1">
+            <p className="font-semibold text-slate-700">Payment Simulation:</p>
+            <p>• Ready to simulate gateway transaction</p>
+            <p>• PDF invoice will generate upon success</p>
+            <p>• Email confirmation will be triggered</p>
+          </div>
+
+          {error && (
+            <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>
+          )}
+
+          <div className="mt-6 flex flex-col gap-3">
             <button
               onClick={processPayment}
               disabled={processingPayment}
-              className="mt-6 w-full rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
+              className="w-full rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60 shadow-sm transition"
             >
-              {processingPayment ? 'Processing...' : 'Complete Payment'}
+              {processingPayment ? 'Connecting to Gateway…' : 'Complete Payment →'}
             </button>
-          )}
-
-          {/* Auto-process after mount */}
-          {typeof window !== 'undefined' && !error && setTimeout(() => !processingPayment && processPayment(), 1000)}
+            <button
+              onClick={() => resolvePayment('failed')}
+              disabled={processingPayment}
+              className="w-full rounded-xl border border-slate-200 px-5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+            >
+              Simulate Payment Failure
+            </button>
+          </div>
         </div>
       </main>
     )
@@ -530,133 +504,9 @@ export default function CheckoutPage() {
               paymentDetails={paymentDetails}
             />
           </div>
-
-          {/* Coupon Section */}
-          <div className="rounded-2xl border border-purple-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-              🏷️ Apply Coupon Code
-            </h2>
-            <div className="mt-3 flex gap-2">
-              <input
-                type="text"
-                value={couponInput}
-                onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError('') }}
-                placeholder="Enter coupon code (e.g. SAVE10)"
-                className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono tracking-wider uppercase focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
-              <button
-                type="button"
-                onClick={handleApplyCoupon}
-                className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors shadow-sm"
-              >
-                Apply
-              </button>
-            </div>
-            {couponError && <p className="mt-2 text-xs text-rose-600 font-medium">{couponError}</p>}
-
-            {/* Applied Coupon Banner */}
-            {appliedCoupon && (
-              <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">✓</span>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-bold text-emerald-900 tracking-wider">{appliedCoupon.code}</span>
-                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded">
-                        {appliedCoupon.discount_type === 'percentage'
-                          ? `${appliedCoupon.discount_value}% off`
-                          : `₹${appliedCoupon.discount_value} off`}
-                      </span>
-                    </div>
-                    <p className="text-xs text-emerald-700 mt-0.5">
-                      Coupon applied! Saving <strong className="font-bold">{INR.format(couponDiscount)}</strong>
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleRemoveCoupon}
-                  className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
-                >
-                  Remove
-                </button>
-              </div>
-            )}
-
-            {/* Available Coupons list */}
-            {!appliedCoupon && applicableCoupons.length > 0 && (
-              <div className="mt-4">
-                <p className="text-xs text-slate-500 font-semibold mb-2 uppercase tracking-wider">Available coupons:</p>
-                <div className="space-y-2">
-                  {applicableCoupons.map((coupon) => (
-                    <div
-                      key={coupon.id}
-                      className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3 hover:border-purple-200 hover:bg-purple-50/30 transition-all"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="rounded-lg px-2.5 py-1 text-xs font-bold tracking-wider"
-                          style={{
-                            fontFamily: 'monospace',
-                            background: coupon.discount_type === 'percentage' ? '#ede9fe' : '#dcfce7',
-                            color: coupon.discount_type === 'percentage' ? '#7c3aed' : '#16a34a',
-                            border: `1px dashed ${coupon.discount_type === 'percentage' ? '#a78bfa' : '#86efac'}`,
-                          }}
-                        >
-                          {coupon.code}
-                        </span>
-                        <div>
-                          <p className="text-xs font-bold text-slate-900">
-                            {coupon.discount_type === 'percentage'
-                              ? `${coupon.discount_value}% off`
-                              : `₹${coupon.discount_value} off`}
-                            {coupon.min_order_value > 0 && (
-                              <span className="ml-1.5 text-[11px] font-normal text-slate-500">
-                                (on orders above {INR.format(coupon.min_order_value)})
-                              </span>
-                            )}
-                          </p>
-                          <p className="text-[11px] text-slate-500">{coupon.description || 'Applicable to your items'}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => copyCode(coupon.code)}
-                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-                        >
-                          {copiedCode === coupon.code ? '✓ Copied' : 'Copy'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleQuickApply(coupon)}
-                          className="rounded-lg bg-indigo-600 px-3.5 py-1 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors shadow-sm"
-                        >
-                          Apply
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-slate-900">Order Items</h2>
-            <div className="mt-3 space-y-2">
-              {cart.map((item) => (
-                <div key={item.product_id} className="flex justify-between text-sm py-1 border-b border-slate-100 last:border-0">
-                  <span className="text-slate-700">
-                    {item.name} <span className="text-slate-400">× {item.quantity}</span>
-                  </span>
-                  <span className="font-semibold text-slate-900">{INR.format(item.price * item.quantity)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
+        {/* Order Summary */}
         <div className="h-fit rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-base font-semibold text-slate-900">Order Summary</h2>
           <div className="mt-4 flex justify-between text-sm text-slate-600">
@@ -688,7 +538,7 @@ export default function CheckoutPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="mt-6 w-full rounded-xl bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60 transition shadow-md flex items-center justify-center gap-2"
+            className="mt-6 w-full rounded-xl bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60 transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
           >
             {submitting ? (
               <>
