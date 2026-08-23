@@ -6,7 +6,7 @@ import { INR } from '../lib/format'
 import EmptyState from '../components/EmptyState'
 
 export default function CartPage() {
-  const { cart, updateCartItem, appliedCoupon, setAppliedCoupon } = useApp()
+  const { shopper, cart, updateCartItem, removeFromCart, appliedCoupon, setAppliedCoupon } = useApp()
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
   const [coupons, setCoupons] = useState([])
@@ -138,19 +138,28 @@ export default function CartPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => updateCartItem(item.product_id, item.quantity - 1)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer"
+                      title="Decrease quantity"
                     >
                       −
                     </button>
                     <span className="w-6 text-center text-sm font-semibold">{item.quantity}</span>
                     <button
                       onClick={() => updateCartItem(item.product_id, item.quantity + 1)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer"
+                      title="Increase quantity"
                     >
                       +
                     </button>
                   </div>
                   <p className="w-24 text-right font-semibold text-slate-900">{INR.format(item.price * item.quantity)}</p>
+                  <button
+                    onClick={() => removeFromCart(item.product_id)}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
+                    title="Remove item"
+                  >
+                    🗑️
+                  </button>
                 </div>
               </div>
             )
