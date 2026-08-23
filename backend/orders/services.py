@@ -7,6 +7,8 @@ from fraud.models import CustomerRiskProfile, RiskScoreEvent
 from fraud.services.decision_engine import DecisionEngine
 from fraud.services.risk_engine import RiskEngine
 from payments.models import Payment
+from payments.services import PaymentService
+from invoices.tasks import generate_and_send_invoice
 from .models import Order, OrderItem
 
 
@@ -16,9 +18,21 @@ class CheckoutService:
     def __init__(self):
         self.risk_engine = RiskEngine()
         self.decision_engine = DecisionEngine()
+        self.payment_service = PaymentService()
 
     @transaction.atomic
-    def create_order(self, *, user, merchant, items, payment_method, device_token=""):
+    def create_order(self, *, user, merchant, items, payment_method, payment_details=None, device_token=""):
+        """
+        Create order with enhanced payment method support
+        
+        Args:
+            user: User instance
+            merchant: Merchant instance
+            items: List of order items
+            payment_method: Payment method (COD, UPI, CREDIT_CARD, etc.)
+            payment_details: Dict with payment method specific data
+            device_token: Device fingerprint
+        """
         shopper = getattr(user, "shopper_profile", None)
 
         order = Order.objects.create(
@@ -66,12 +80,20 @@ class CheckoutService:
 
         order.risk_tier = risk.tier
         order.risk_context = "; ".join(risk.signals) if risk.signals else "No material risk signals."
-        if risk.tier == "High":
-            order.status = "Review"
-            order.delivery_status = "Pending Review"
+        
+        # Determine order status based on payment method and risk
+        if payment_method == "COD":
+            if risk.tier == "High":
+                order.status = "Review"
+                order.delivery_status = "Pending Review"
+            else:
+                order.status = "Confirmed"
+                order.delivery_status = "Processing"
         else:
-            order.status = "Active"
-            order.delivery_status = "Processing"
+            # Online payment - wait for payment confirmation
+            order.status = "Pending"
+            order.delivery_status = "Awaiting payment"
+        
         order.verification_status = "Pending" if risk.tier == "Medium" else "Verified"
         order.verification_method = "unverified" if risk.tier == "Medium" else "device_only"
         order.tracking_events = [
@@ -82,22 +104,16 @@ class CheckoutService:
         ]
         order.save()
 
-        if payment_method == "Prepaid":
-            Payment.objects.create(
-                order=order,
-                merchant=merchant,
-                gateway="mock",
-                amount=total,
-                status=Payment.STATUS_PROCESSING,
-            )
-        else:
-            Payment.objects.create(
-                order=order,
-                merchant=merchant,
-                gateway="cod",
-                amount=total,
-                status=Payment.STATUS_COD_PENDING,
-            )
+        # Create payment record
+        payment = self.payment_service.create_payment(
+            order=order,
+            payment_method=payment_method,
+            payment_details=payment_details
+        )
+
+        # For COD, trigger invoice generation immediately
+        if payment_method == "COD":
+            transaction.on_commit(lambda: generate_and_send_invoice.delay(order.id))
 
         if shopper is not None:
             shopper.total_orders += 1
@@ -116,7 +132,7 @@ class CheckoutService:
 
         self._sync_risk_profile(merchant, user, risk)
 
-        return order, decision
+        return order, payment, decision
 
     def _sync_risk_profile(self, merchant, user, risk):
         profile, _ = CustomerRiskProfile.objects.update_or_create(

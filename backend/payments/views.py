@@ -1,10 +1,10 @@
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
 from common.exceptions import AppError
 from common.response import success
-from .serializers import PaymentSerializer, WebhookSerializer
+from .serializers import PaymentSerializer
 from .services import PaymentService
 
 
@@ -37,3 +37,91 @@ class PaymentWebhookView(APIView):
                 "processed": changed,
             }
         )
+
+
+class ProcessPaymentView(APIView):
+    """Process a demo payment"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        from .serializers import ProcessPaymentSerializer
+        from django.db import transaction
+        from invoices.tasks import generate_and_send_invoice
+        
+        serializer = ProcessPaymentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        payment_id = serializer.validated_data['payment_id']
+        payment_data = serializer.validated_data.get('payment_data')
+        
+        try:
+            from .models import Payment
+            payment = Payment.objects.select_related('order').get(
+                id=payment_id,
+                order__user=request.user
+            )
+        except Payment.DoesNotExist:
+            raise AppError("Payment not found or unauthorized", code="PAYMENT_NOT_FOUND")
+        
+        # Process payment through service
+        payment_service = PaymentService()
+        result = payment_service.process_payment(payment, payment_data)
+        
+        # If successful, trigger invoice generation
+        if result['success']:
+            transaction.on_commit(lambda: generate_and_send_invoice.delay(payment.order.id))
+        
+        # Refresh payment from DB
+        payment.refresh_from_db()
+        
+        return success({
+            'payment': PaymentSerializer(payment).data,
+            'result': result
+        })
+
+
+class PaymentStatusView(APIView):
+    """Get payment status"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, payment_id):
+        from .models import Payment
+        try:
+            payment = Payment.objects.select_related('order').get(
+                id=payment_id,
+                order__user=request.user
+            )
+        except Payment.DoesNotExist:
+            raise AppError("Payment not found or unauthorized", code="PAYMENT_NOT_FOUND")
+        
+        return success(PaymentSerializer(payment).data)
+
+
+class RetryPaymentView(APIView):
+    """Retry a failed payment"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, payment_id):
+        from .models import Payment
+        try:
+            payment = Payment.objects.select_related('order').get(
+                id=payment_id,
+                order__user=request.user
+            )
+        except Payment.DoesNotExist:
+            raise AppError("Payment not found or unauthorized", code="PAYMENT_NOT_FOUND")
+        
+        if payment.status not in [Payment.STATUS_FAILED, Payment.STATUS_REJECTED]:
+            raise AppError("Payment cannot be retried", code="PAYMENT_NOT_RETRYABLE")
+        
+        # Reset payment status
+        payment.status = Payment.STATUS_PENDING
+        payment.failure_reason = ""
+        payment.transaction_id = ""
+        payment.gateway_payment_id = ""
+        payment.save(update_fields=['status', 'failure_reason', 'transaction_id', 'gateway_payment_id'])
+        
+        return success({
+            'payment': PaymentSerializer(payment).data,
+            'message': 'Payment reset for retry'
+        })

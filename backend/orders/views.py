@@ -25,17 +25,24 @@ class CheckoutView(APIView):
             raise AppError("Merchant context could not be resolved.", code="MERCHANT_NOT_FOUND")
 
         try:
-            order, decision = CheckoutService().create_order(
+            order, payment, decision = CheckoutService().create_order(
                 user=request.user,
                 merchant=merchant,
                 items=data["items"],
                 payment_method=data["payment_method"],
+                payment_details=data.get("payment_details"),
                 device_token=data.get("device_token", ""),
             )
         except ValueError as exc:
             raise AppError(str(exc), code="CHECKOUT_FAILED")
 
-        return success(OrderListSerializer(order).data, status=status.HTTP_201_CREATED)
+        from payments.serializers import PaymentSerializer
+        
+        return success({
+            "order": OrderListSerializer(order).data,
+            "payment": PaymentSerializer(payment).data,
+            "decision": decision
+        }, status=status.HTTP_201_CREATED)
 
 
 class ShopperOrderListView(ListAPIView):

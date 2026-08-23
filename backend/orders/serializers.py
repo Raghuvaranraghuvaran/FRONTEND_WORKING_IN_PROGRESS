@@ -44,6 +44,9 @@ class CheckoutItemSerializer(serializers.Serializer):
 
 class CheckoutSerializer(serializers.Serializer):
     items = CheckoutItemSerializer(many=True)
-    payment_method = serializers.ChoiceField(choices=("COD", "Prepaid"))
+    payment_method = serializers.ChoiceField(choices=(
+        "COD", "UPI", "CREDIT_CARD", "DEBIT_CARD", "NET_BANKING", "MOBILE_BANKING", "Prepaid"
+    ))
+    payment_details = serializers.JSONField(required=False, allow_null=True)
     address = serializers.CharField(required=False, allow_blank=True)
     device_token = serializers.CharField(required=False, allow_blank=True)
