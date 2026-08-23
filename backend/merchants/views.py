@@ -20,24 +20,101 @@ from .serializers import MerchantSerializer
 User = get_user_model()
 
 
-def _send_merchant_welcome_email(dest_email, merchant_username, business_name):
-    """Asynchronously dispatches credential email to registered merchant."""
+def _send_merchant_welcome_email(dest_email, merchant_username, business_name, store_slug="", name=""):
+    """Asynchronously dispatches rich HTML credential email to registered merchant."""
     from common.mailer import send_async_email
-    subject = "Your ReturnGuard Merchant Account"
+    subject = f"Your ReturnGuard Merchant Credentials - {business_name}"
+    
+    html_body = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Your ReturnGuard Merchant Account</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #e2e8f0;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0b0f19; padding: 40px 15px;">
+        <tr>
+            <td align="center">
+                <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 560px; background-color: #111827; border-radius: 16px; overflow: hidden; border: 1px solid #1f2937; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #4f46e5 0%, #312e81 100%); padding: 32px 28px; text-align: center;">
+                            <div style="display: inline-block; background: rgba(255, 255, 255, 0.15); width: 44px; height: 44px; line-height: 44px; border-radius: 50%; font-size: 22px; margin-bottom: 10px;">🏪</div>
+                            <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff;">Welcome to ReturnGuard</h1>
+                            <p style="margin: 6px 0 0; font-size: 13px; color: #c7d2fe;">Merchant Portal & Risk Management Platform</p>
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 30px 28px;">
+                            <p style="margin: 0 0 16px; font-size: 15px; color: #f3f4f6; line-height: 1.5;">
+                                Hi <strong>{name or business_name}</strong>,<br>
+                                Your merchant store account has been successfully created. Here are your official access credentials:
+                            </p>
+                            
+                            <!-- Credentials Card -->
+                            <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; margin: 20px 0;">
+                                <table width="100%" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="padding: 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Merchant Username:</td>
+                                        <td style="padding: 6px 0; font-size: 15px; color: #38bdf8; font-weight: 800; font-family: monospace; text-align: right;">{merchant_username}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Store Name:</td>
+                                        <td style="padding: 6px 0; font-size: 14px; color: #ffffff; font-weight: 700; text-align: right;">{business_name}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Registered Email:</td>
+                                        <td style="padding: 6px 0; font-size: 13px; color: #cbd5e1; text-align: right;">{dest_email}</td>
+                                    </tr>
+                                    {f'<tr><td style="padding: 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Store Slug:</td><td style="padding: 6px 0; font-size: 13px; color: #a78bfa; font-family: monospace; text-align: right;">{store_slug}</td></tr>' if store_slug else ''}
+                                </table>
+                            </div>
+
+                            <p style="margin: 0 0 24px; font-size: 13px; color: #94a3b8; line-height: 1.5;">
+                                🔐 <strong>Sign-in Instructions:</strong> Use your <strong>Merchant Username</strong> (<code>{merchant_username}</code>) along with the password you set during registration.
+                            </p>
+
+                            <!-- CTA Button -->
+                            <div style="text-align: center; margin: 28px 0 10px;">
+                                <a href="http://localhost:5174/merchant/login" style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 10px; font-size: 14px; font-weight: 700; display: inline-block; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);">
+                                    Log In to Merchant Portal →
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #0b0f19; padding: 20px 28px; border-top: 1px solid #1f2937; text-align: center;">
+                            <p style="margin: 0; font-size: 11px; color: #64748b;">
+                                © ReturnGuard · E-Commerce Fraud Prevention & Return Intelligence
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>"""
+
     message = (
         f"Welcome to ReturnGuard, {business_name}!\n\n"
         "Your merchant account has been successfully created.\n\n"
         f"Merchant Username: {merchant_username}\n"
-        f"Registered Email:  {dest_email}\n\n"
-        "You can use your Merchant Username and password to log in to your Merchant Portal:\n"
-        "https://return-guard.vercel.app/merchant/login\n\n"
-        "Please keep your credentials secure.\n\n"
+        f"Registered Email:  {dest_email}\n"
+        f"Store Name:        {business_name}\n\n"
+        "Sign In URL: http://localhost:5174/merchant/login\n\n"
+        "Use your Merchant Username and password to log in.\n\n"
         "— The ReturnGuard Team"
     )
+
     send_async_email(
         subject=subject,
         message=message,
+        html_message=html_body,
         recipient_list=[dest_email],
+        from_name="ReturnGuard Merchant Support",
     )
 
 
@@ -114,7 +191,7 @@ class MerchantRegisterView(APIView):
         _seed_default_categories(merchant)
 
         # Send welcome credentials email
-        _send_merchant_welcome_email(email, merchant_username, business_name)
+        _send_merchant_welcome_email(email, merchant_username, business_name, store_slug=store_slug, name=name)
 
         return success(
             {
