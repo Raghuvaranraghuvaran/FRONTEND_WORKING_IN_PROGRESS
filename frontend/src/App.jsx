@@ -68,6 +68,8 @@ function AppRoutes() {
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/orders" element={<OrdersPage />} />
+        <Route path="/returns" element={<OrdersPage />} />
+        <Route path="/track-return" element={<OrdersPage />} />
         <Route path="/orders/:orderId/return" element={<ReturnRequestPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/help" element={<HelpPage />} />
