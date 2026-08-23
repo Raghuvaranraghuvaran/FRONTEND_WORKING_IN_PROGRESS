@@ -17,34 +17,47 @@ export default function MerchantLoginPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const recaptchaRef = useRef(null)
+  const widgetIdRef = useRef(null)
   const [recaptchaToken, setRecaptchaToken] = useState(null)
 
   useEffect(() => {
-    // Initialize reCAPTCHA when component mounts
-    if (window.grecaptcha) {
-      loadRecaptcha()
-    } else {
-      // Wait for reCAPTCHA script to load
-      window.addEventListener('load', loadRecaptcha)
-      return () => window.removeEventListener('load', loadRecaptcha)
+    let interval = null
+
+    const renderRecaptcha = () => {
+      if (window.grecaptcha && window.grecaptcha.render && recaptchaRef.current) {
+        if (widgetIdRef.current === null && recaptchaRef.current.innerHTML === '') {
+          try {
+            widgetIdRef.current = window.grecaptcha.render(recaptchaRef.current, {
+              sitekey: RECAPTCHA_SITE_KEY,
+              callback: (token) => {
+                setRecaptchaToken(token)
+                setError('')
+              },
+              'expired-callback': () => setRecaptchaToken(null),
+              'error-callback': () => setRecaptchaToken(null),
+              theme: 'dark',
+            })
+          } catch (e) {
+            console.error('reCAPTCHA render error:', e)
+          }
+        }
+        return true
+      }
+      return false
+    }
+
+    if (!renderRecaptcha()) {
+      interval = setInterval(() => {
+        if (renderRecaptcha()) {
+          clearInterval(interval)
+        }
+      }, 200)
+    }
+
+    return () => {
+      if (interval) clearInterval(interval)
     }
   }, [])
-
-  const loadRecaptcha = () => {
-    if (window.grecaptcha && window.grecaptcha.render && recaptchaRef.current) {
-      try {
-        window.grecaptcha.render(recaptchaRef.current, {
-          sitekey: RECAPTCHA_SITE_KEY,
-          callback: (token) => setRecaptchaToken(token),
-          'expired-callback': () => setRecaptchaToken(null),
-          'error-callback': () => setRecaptchaToken(null),
-          theme: 'dark',
-        })
-      } catch (e) {
-        console.error('reCAPTCHA render error:', e)
-      }
-    }
-  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -60,9 +73,8 @@ export default function MerchantLoginPage() {
       return
     }
 
-    // Check reCAPTCHA in production mode
-    const isProduction = import.meta.env.PROD || window.location.hostname !== 'localhost'
-    if (isProduction && !recaptchaToken) {
+    // Require reCAPTCHA verification unconditionally
+    if (!recaptchaToken) {
       setError('Please complete the reCAPTCHA verification.')
       return
     }
@@ -72,15 +84,19 @@ export default function MerchantLoginPage() {
       const res = await api.merchantLogin({ 
         username: cleanUser, 
         password,
-        recaptchaToken: recaptchaToken || 'mock-token' // Use mock token in dev
+        recaptchaToken
       })
       setMerchant(res.admin)
       navigate('/merchant')
     } catch (err) {
       setError(err.message || 'Invalid username or password.')
       // Reset reCAPTCHA on error
-      if (window.grecaptcha) {
-        window.grecaptcha.reset()
+      if (window.grecaptcha && widgetIdRef.current !== null) {
+        try {
+          window.grecaptcha.reset(widgetIdRef.current)
+        } catch (e) {
+          // ignore
+        }
         setRecaptchaToken(null)
       }
     } finally {
