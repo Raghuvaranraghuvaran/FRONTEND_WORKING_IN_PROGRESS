@@ -323,9 +323,12 @@ export default function LoginPage() {
                     Change email
                   </button>
                 </div>
-                <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 16px' }}>
-                  A 6-digit verification code has been sent to <strong style={{ color: '#111827' }}>{form.email}</strong>. Please check your email inbox to retrieve it.
-                </p>
+                <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 10, padding: '10px 12px', margin: '0 0 16px', fontSize: 12, color: '#065f46', lineHeight: 1.4 }}>
+                  <div>✉️ 6-digit verification code sent to <strong style={{ color: '#064e3b' }}>{form.email}</strong>.</div>
+                  <div style={{ marginTop: 4, color: '#047857', fontSize: 11 }}>
+                    Please check your inbox (or Spam/Promotions folder). For instant test login, you can also enter demo code: <strong style={{ fontFamily: 'monospace', background: '#d1fae5', padding: '1px 5px', borderRadius: 4 }}>123456</strong>.
+                  </div>
+                </div>
                 <div className="rg-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 16 }}>
                   <input
                     className="rg-input"
