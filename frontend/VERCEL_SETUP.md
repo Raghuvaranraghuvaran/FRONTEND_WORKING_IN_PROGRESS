@@ -2,7 +2,7 @@
 
 ## Environment Variables
 
-To run the app on Vercel in **mock mode** (no backend required), configure these environment variables in your Vercel project settings:
+To run the app on Vercel with registered accounts, orders, and invoice emails, configure these environment variables in your Vercel project settings:
 
 1. Go to your Vercel project dashboard
 2. Navigate to **Settings → Environment Variables**
@@ -10,14 +10,15 @@ To run the app on Vercel in **mock mode** (no backend required), configure these
 
 | Variable Name | Value | Description |
 |--------------|-------|-------------|
-| `VITE_API_URL` | *(leave empty)* | Empty value enables mock data mode |
+| `VITE_API_URL` | `https://your-backend.example.com/api` | Deployed Django API URL |
 | `VITE_GOOGLE_CLIENT_ID` | `511413180726-tks4agohomumjqluivasu15doe31giim.apps.googleusercontent.com` | Google OAuth client ID (optional) |
 
 ## Important Notes
 
-- **Leave `VITE_API_URL` completely empty** (no value at all) to use mock data mode
-- If you enter a backend URL in `VITE_API_URL`, the app will try to connect to that backend
-- The Google Client ID is optional - leave empty to disable Google sign-in
+- A blank `VITE_API_URL` enables mock data mode. Mock mode cannot persist newly registered users or send real invoice emails.
+- Set `VITE_API_URL` to the deployed Django API URL for real registration, login, orders, and invoice delivery.
+- Configure the backend SMTP variables and run the Celery worker in production so invoice email tasks are delivered.
+- The Google Client ID is optional - leave empty to disable Google sign-in.
 
 ## After Setting Variables
 
