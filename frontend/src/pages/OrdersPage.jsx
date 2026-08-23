@@ -16,6 +16,17 @@ export default function OrdersPage() {
   const [coupons, setCoupons] = useState([])
   const [copiedCode, setCopiedCode] = useState(null)
 
+  const handleDownloadInvoice = async (invoiceId) => {
+    try {
+      const result = await api.downloadInvoice(invoiceId)
+      // In real implementation, this would trigger a file download
+      window.open(result.download_url, '_blank')
+    } catch (error) {
+      console.error('Error downloading invoice:', error)
+      alert('Failed to download invoice. Please try again.')
+    }
+  }
+
   useEffect(() => {
     Promise.all([api.getShopperOrders(), api.getShopperReturns(), api.getAvailableCoupons()])
       .then(([orderData, returnData, couponData]) => {
@@ -145,12 +156,12 @@ export default function OrdersPage() {
                         {formatDate(order.created_at)} · {order.payment_method}
                       </p>
                       {order.invoice && (
-                        <a
-                          href={order.invoice.invoice_url}
-                          className="mt-1 inline-block text-xs font-semibold text-indigo-600"
+                        <button
+                          onClick={() => handleDownloadInvoice(order.invoice.id)}
+                          className="mt-1 inline-block text-xs font-semibold text-indigo-600 hover:text-indigo-700 underline"
                         >
-                          Invoice {order.invoice.invoice_number}
-                        </a>
+                          📄 Invoice {order.invoice.invoice_number}
+                        </button>
                       )}
                     </div>
                     <div className="text-right">

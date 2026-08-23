@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../mock/api'
 import { useApp } from '../context/AppContext'
 import { INR } from '../lib/format'
 import RiskBadge from '../components/RiskBadge'
 import StatusBadge from '../components/StatusBadge'
 import PaymentGatewaySimulator from '../components/PaymentGatewaySimulator'
+import PaymentMethodSelector from '../components/PaymentMethodSelector'
 
 export default function CheckoutPage() {
   const { shopper, cart, clearCart, appliedCoupon, setAppliedCoupon } = useApp()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [paymentMethod, setPaymentMethod] = useState('COD')
+  const [paymentDetails, setPaymentDetails] = useState({})
   const [selectedAddressId, setSelectedAddressId] = useState(shopper?.addresses?.[0]?.id || 'custom')
   const [customAddress, setCustomAddress] = useState('')
   const [altPhone, setAltPhone] = useState('')
@@ -20,6 +24,7 @@ export default function CheckoutPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [resolvingPayment, setResolvingPayment] = useState(false)
+  const [processingPayment, setProcessingPayment] = useState(false)
 
   // Coupon state
   const [coupons, setCoupons] = useState([])
@@ -152,17 +157,47 @@ export default function CheckoutPage() {
       setPayment(placedPayment)
       clearCart()
 
-      if (paymentMethod === 'Prepaid' && placed.payment) {
-        setStep('payment_gateway')
-      } else if (placedOrder?.risk_tier === 'Medium' || placedOrder?.verification_status === 'Pending') {
-        setStep('otp')
+      // If COD, proceed to OTP or confirmation
+      if (paymentMethod === 'COD') {
+        if (placedOrder?.risk_tier === 'Medium' || placedOrder?.verification_status === 'Pending') {
+          setStep('otp')
+        } else {
+          setStep('confirmation')
+        }
       } else {
-        setStep('confirmation')
+        // For online payments, show payment processing screen
+        setStep('payment_processing')
       }
     } catch (err) {
       setError(err.message || 'Failed to place order. Please check your details and try again.')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const processPayment = async () => {
+    if (!order || !payment) return
+
+    setError('')
+    setProcessingPayment(true)
+
+    try {
+      const result = await api.processPayment({
+        orderId: order.id,
+        paymentMethod,
+        paymentDetails,
+      })
+
+      if (result.success) {
+        // Payment successful - redirect to success page
+        navigate(`/payment/success?order_id=${order.id}&payment_id=${result.payment.id}`)
+      } else {
+        // Payment failed - redirect to failure page
+        navigate(`/payment/failure?order_id=${order.id}&payment_id=${result.payment.id}&reason=${encodeURIComponent(result.payment.failure_reason || 'Payment failed')}`)
+      }
+    } catch (err) {
+      setError(err.message || 'Payment processing failed')
+      setProcessingPayment(false)
     }
   }
 
@@ -214,6 +249,43 @@ export default function CheckoutPage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (step === 'payment_processing') {
+    return (
+      <main className="mx-auto max-w-md px-4 py-16 sm:px-6">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold">
+            <svg className="animate-spin h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+          </div>
+          <h1 className="mt-4 text-xl font-bold text-slate-900">Processing Payment</h1>
+          <p className="mt-2 text-sm text-slate-500">
+            {order?.order_number || `#${order?.id}`} · {INR.format(order?.total)}
+          </p>
+          <p className="mt-3 text-sm text-slate-600">
+            Please wait while we process your payment securely...
+          </p>
+          {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+          
+          {/* Auto-trigger payment processing */}
+          {!processingPayment && !error && (
+            <button
+              onClick={processPayment}
+              disabled={processingPayment}
+              className="mt-6 w-full rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
+            >
+              {processingPayment ? 'Processing...' : 'Complete Payment'}
+            </button>
+          )}
+
+          {/* Auto-process after mount */}
+          {typeof window !== 'undefined' && !error && setTimeout(() => !processingPayment && processPayment(), 1000)}
+        </div>
+      </main>
+    )
   }
 
   if (step === 'payment_gateway') {
@@ -451,35 +523,12 @@ export default function CheckoutPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-slate-900">Payment Method</h2>
-            <div className="mt-3 space-y-3">
-              {[
-                { id: 'COD', label: 'Cash on Delivery (COD)', note: 'Risk-scored in real-time before acceptance.' },
-                { id: 'Prepaid', label: 'Prepaid (Card / UPI / Netbanking)', note: 'Payment gateway verification simulator.' },
-              ].map((method) => (
-                <label
-                  key={method.id}
-                  className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition ${
-                    paymentMethod === method.id
-                      ? 'border-indigo-600 bg-indigo-50/50'
-                      : 'border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="payment"
-                    value={method.id}
-                    checked={paymentMethod === method.id}
-                    onChange={() => setPaymentMethod(method.id)}
-                    className="text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">{method.label}</p>
-                    <p className="text-xs text-slate-500">{method.note}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
+            <PaymentMethodSelector
+              onSelect={setPaymentMethod}
+              selectedMethod={paymentMethod}
+              onDetailsChange={setPaymentDetails}
+              paymentDetails={paymentDetails}
+            />
           </div>
 
           {/* Coupon Section */}

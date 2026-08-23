@@ -15,6 +15,8 @@ import ReturnRequestPage from './pages/ReturnRequestPage'
 import ProfilePage from './pages/ProfilePage'
 import WishlistPage from './pages/WishlistPage'
 import HelpPage from './pages/HelpPage'
+import PaymentSuccessPage from './pages/PaymentSuccessPage'
+import PaymentFailurePage from './pages/PaymentFailurePage'
 import MerchantLoginPage from './pages/MerchantLoginPage'
 import MerchantRegisterPage from './pages/MerchantRegisterPage'
 import MerchantLayout from './pages/merchant/MerchantLayout'
@@ -71,6 +73,11 @@ function AppRoutes() {
 
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      
+      {/* Payment pages - no auth required to allow redirects from payment gateway */}
+      <Route path="/payment/success" element={<PaymentSuccessPage />} />
+      <Route path="/payment/failure" element={<PaymentFailurePage />} />
+      
       <Route path="/merchant/login" element={<MerchantLoginPage />} />
       <Route path="/merchant/register" element={<MerchantRegisterPage />} />
       <Route

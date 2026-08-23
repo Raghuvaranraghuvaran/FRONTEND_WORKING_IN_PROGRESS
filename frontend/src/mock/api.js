@@ -1555,4 +1555,103 @@ export const api = {
       store.coupons.filter((c) => c.is_active && new Date(c.expires_at) >= now && c.used_count < c.max_uses)
     )
   },
+
+  // ---- Payment Processing ----
+  async processPayment({ orderId, paymentMethod, paymentDetails }) {
+    if (hasLiveApi()) {
+      return live('/payments/process/', {
+        method: 'POST',
+        body: { order_id: orderId, payment_method: paymentMethod, payment_details: paymentDetails },
+      })
+    }
+    await delay(1200)
+    const order = store.orders.find((o) => o.id === orderId)
+    const payment = findOrderPayment(orderId)
+    if (!order || !payment) throw new Error('Order not found.')
+
+    // Simulate 90% success rate for demo
+    const isSuccess = Math.random() < 0.9
+
+    payment.payment_method = paymentMethod
+    payment.payment_details = paymentDetails
+    payment.is_demo_payment = true
+    payment.updated_at = new Date().toISOString()
+
+    if (isSuccess) {
+      payment.status = 'Paid'
+      payment.transaction_id = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`
+      payment.failure_reason = null
+      order.status = order.risk_tier === 'High' ? 'Review' : 'Confirmed'
+      order.delivery_status = order.risk_tier === 'High' ? 'Pending Review' : 'Processing'
+      order.payment_status = 'Paid'
+
+      // Generate invoice for successful payment
+      const invoice = {
+        id: nextId('inv', store.invoices),
+        order_id: order.id,
+        order_number: order.order_number,
+        invoice_number: makeInvoiceNumber(),
+        invoice_url: `/invoices/${order.order_number.replace('#', '')}.pdf`,
+        status: 'issued',
+        generated_at: new Date().toISOString(),
+      }
+      store.invoices.unshift(invoice)
+      order.invoice = invoice
+
+      pushNotification({
+        userId: order.user_id,
+        type: 'payment_success_invoice',
+        title: 'Payment successful',
+        body: `Payment for ${order.order_number} succeeded. Invoice ${invoice.invoice_number} is ready.`,
+      })
+
+      return {
+        success: true,
+        payment: clone(payment),
+        order: clone(order),
+        invoice: clone(invoice),
+      }
+    } else {
+      payment.status = 'Failed'
+      payment.failure_reason = GATEWAY_FAILURE_REASONS[Math.floor(Math.random() * GATEWAY_FAILURE_REASONS.length)]
+      order.status = 'Payment Failed'
+      order.delivery_status = 'Payment failed'
+      order.payment_status = 'Failed'
+
+      pushNotification({
+        userId: order.user_id,
+        type: 'payment_failure',
+        title: 'Payment failed',
+        body: `Payment for ${order.order_number} failed: ${payment.failure_reason}`,
+      })
+
+      return {
+        success: false,
+        payment: clone(payment),
+        order: clone(order),
+        invoice: null,
+      }
+    }
+  },
+
+  async getPaymentStatus(paymentId) {
+    if (hasLiveApi()) {
+      return live(`/payments/${paymentId}/status/`)
+    }
+    await delay(300)
+    const payment = store.payments.find((p) => p.id === paymentId)
+    if (!payment) throw new Error('Payment not found.')
+    return clone(payment)
+  },
+
+  async downloadInvoice(invoiceId) {
+    if (hasLiveApi()) {
+      // Return the download URL
+      return { download_url: `/api/invoices/${invoiceId}/download/` }
+    }
+    await delay(300)
+    const invoice = store.invoices.find((inv) => inv.id === invoiceId)
+    if (!invoice) throw new Error('Invoice not found.')
+    return { download_url: invoice.invoice_url }
+  },
 }
