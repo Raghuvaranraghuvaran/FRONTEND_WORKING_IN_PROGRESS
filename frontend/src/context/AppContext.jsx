@@ -56,6 +56,14 @@ export function AppProvider({ children }) {
     const existing = api.getSession()
     setShopper(existing.shopper)
     setMerchant(existing.merchant)
+
+    api.getCurrentShopper()
+      .then((currentShopper) => {
+        if (currentShopper) setShopper(currentShopper)
+      })
+      .catch(() => {
+        // Keep the locally restored session when the API is unavailable.
+      })
   }, [])
 
   const value = useMemo(
