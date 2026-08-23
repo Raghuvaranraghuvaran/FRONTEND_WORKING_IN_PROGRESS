@@ -74,10 +74,62 @@ class OTPVerificationService:
         print("==========================================\n")
 
         from common.mailer import send_async_email
+        html_body = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Your ReturnGuard Verification Code</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; padding: 30px 15px;">
+        <tr>
+            <td align="center">
+                <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 520px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;">
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); padding: 28px 24px; text-align: center;">
+                            <h1 style="margin: 0; font-size: 20px; font-weight: 800; color: #ffffff;">ReturnGuard Security</h1>
+                            <p style="margin: 4px 0 0; font-size: 13px; color: #e0e7ff;">Account Verification Code</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 28px 24px; text-align: center;">
+                            <p style="margin: 0 0 16px; font-size: 15px; color: #334155;">
+                                Hi <strong>{user.name or 'there'}</strong>,
+                            </p>
+                            <p style="margin: 0 0 24px; font-size: 14px; color: #64748b; line-height: 1.5;">
+                                Use the 6-digit verification code below to sign in to your ReturnGuard account:
+                            </p>
+                            <div style="background-color: #eef2ff; border: 2px dashed #6366f1; border-radius: 12px; padding: 18px 24px; display: inline-block; margin: 0 auto 20px;">
+                                <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #4f46e5; font-family: monospace;">{code}</span>
+                            </div>
+                            <p style="margin: 0; font-size: 12px; color: #94a3b8;">
+                                ⏱️ This code is valid for <strong>5 minutes</strong> and can only be used once.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background-color: #f8fafc; padding: 18px 24px; border-top: 1px solid #e2e8f0; text-align: center;">
+                            <p style="margin: 0; font-size: 11px; color: #94a3b8; line-height: 1.4;">
+                                If you did not request this verification code, you can safely ignore this email.<br>
+                                © ReturnGuard · E-Commerce Return & Fraud Protection
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>"""
+
+        text_body = f"Hi {user.name or 'there'},\n\nYour ReturnGuard sign-in verification code is: {code}\n\nThis code expires in 5 minutes.\n\nThank you,\nReturnGuard Team"
+
         send_async_email(
-            subject="Your ReturnGuard sign-in code",
-            message=f"Your ReturnGuard sign-in code is {code}. It expires in 5 minutes.\n\nThank you,\nReturnGuard Team",
+            subject=f"Your ReturnGuard verification code: {code}",
+            message=text_body,
+            html_message=html_body,
             recipient_list=[user.email],
+            from_name="ReturnGuard Security",
         )
 
         VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="sent")
