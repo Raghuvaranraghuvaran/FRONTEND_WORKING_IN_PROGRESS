@@ -20,8 +20,8 @@ from .serializers import MerchantSerializer
 User = get_user_model()
 
 
-def _send_merchant_welcome_email(dest_email, merchant_username, business_name, store_slug="", name=""):
-    """Asynchronously dispatches rich HTML credential email to registered merchant."""
+def _send_merchant_welcome_email(dest_email, merchant_username, password, business_name, store_slug="", name=""):
+    """Asynchronously dispatches rich HTML credential email with username and password to registered merchant."""
     from common.mailer import send_async_email
     subject = f"Your ReturnGuard Merchant Credentials - {business_name}"
     
@@ -49,7 +49,7 @@ def _send_merchant_welcome_email(dest_email, merchant_username, business_name, s
                         <td style="padding: 30px 28px;">
                             <p style="margin: 0 0 16px; font-size: 15px; color: #f3f4f6; line-height: 1.5;">
                                 Hi <strong>{name or business_name}</strong>,<br>
-                                Your merchant store account has been successfully created. Here are your official access credentials:
+                                Your merchant store account has been successfully created. Here are your official sign-in credentials:
                             </p>
                             
                             <!-- Credentials Card -->
@@ -58,6 +58,10 @@ def _send_merchant_welcome_email(dest_email, merchant_username, business_name, s
                                     <tr>
                                         <td style="padding: 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Merchant Username:</td>
                                         <td style="padding: 6px 0; font-size: 15px; color: #38bdf8; font-weight: 800; font-family: monospace; text-align: right;">{merchant_username}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Password:</td>
+                                        <td style="padding: 6px 0; font-size: 14px; color: #34d399; font-weight: 700; font-family: monospace; text-align: right;">{password}</td>
                                     </tr>
                                     <tr>
                                         <td style="padding: 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Store Name:</td>
@@ -72,7 +76,7 @@ def _send_merchant_welcome_email(dest_email, merchant_username, business_name, s
                             </div>
 
                             <p style="margin: 0 0 24px; font-size: 13px; color: #94a3b8; line-height: 1.5;">
-                                🔐 <strong>Sign-in Instructions:</strong> Use your <strong>Merchant Username</strong> (<code>{merchant_username}</code>) along with the password you set during registration.
+                                🔐 <strong>Sign-in Instructions:</strong> Use your <strong>Merchant Username</strong> (<code>{merchant_username}</code>) and your password to sign in to the Merchant Portal.
                             </p>
 
                             <!-- CTA Button -->
@@ -102,6 +106,7 @@ def _send_merchant_welcome_email(dest_email, merchant_username, business_name, s
         f"Welcome to ReturnGuard, {business_name}!\n\n"
         "Your merchant account has been successfully created.\n\n"
         f"Merchant Username: {merchant_username}\n"
+        f"Password:          {password}\n"
         f"Registered Email:  {dest_email}\n"
         f"Store Name:        {business_name}\n\n"
         "Sign In URL: http://localhost:5174/merchant/login\n\n"
@@ -159,39 +164,70 @@ class MerchantRegisterView(APIView):
         if not re.match(r"^[a-z0-9-]+$", store_slug):
             raise AppError("Store Slug can only contain lowercase letters, numbers, and hyphens.", code="INVALID_SLUG")
 
-        # Uniqueness checks
-        if User.objects.filter(email__iexact=email).exists() or Merchant.objects.filter(admin_email__iexact=email).exists():
-            raise AppError("Email is already registered.", code="EMAIL_EXISTS")
+        # Generate or reuse unique merchant username
+        existing_user = User.objects.filter(email__iexact=email).first()
+        existing_merchant = Merchant.objects.filter(admin_email__iexact=email).first()
 
-        if Merchant.objects.filter(store_slug=store_slug).exists():
-            raise AppError("Store slug is already in use.", code="STORE_SLUG_EXISTS")
+        # Handle store slug uniqueness
+        effective_slug = store_slug
+        slug_match = Merchant.objects.filter(store_slug=effective_slug).exclude(admin_email__iexact=email).exists()
+        if slug_match:
+            effective_slug = f"{store_slug}-{secrets.randbelow(900) + 100}"
 
-        # Generate unique merchant username
-        merchant_username = Merchant.generate_unique_merchant_username(business_name)
+        if existing_user:
+            user = existing_user
+            user.name = name or user.name
+            user.set_password(password)
+            user.role = User.ROLE_MERCHANT_ADMIN
+            
+            if existing_merchant:
+                merchant = existing_merchant
+                merchant.business_name = business_name
+                merchant.store_slug = effective_slug
+                if not merchant.merchant_username:
+                    merchant.merchant_username = Merchant.generate_unique_merchant_username(business_name)
+                merchant.save()
+                merchant_username = merchant.merchant_username
+            else:
+                merchant_username = getattr(user, 'merchant_username', '') or Merchant.generate_unique_merchant_username(business_name)
+                merchant = Merchant.objects.create(
+                    business_name=business_name,
+                    store_slug=effective_slug,
+                    admin_email=email,
+                    merchant_username=merchant_username,
+                )
 
-        # Create Merchant tenant
-        merchant = Merchant.objects.create(
-            business_name=business_name,
-            store_slug=store_slug,
-            admin_email=email,
-            merchant_username=merchant_username,
-        )
+            user.merchant_username = merchant_username
+            user.save()
+            MerchantProfile.objects.get_or_create(user=user, defaults={"merchant": merchant})
+            _seed_default_categories(merchant)
+        else:
+            merchant_username = Merchant.generate_unique_merchant_username(business_name)
+            merchant = Merchant.objects.create(
+                business_name=business_name,
+                store_slug=effective_slug,
+                admin_email=email,
+                merchant_username=merchant_username,
+            )
+            user = User.objects.create_user(
+                email=email,
+                name=name,
+                password=password,
+                role=User.ROLE_MERCHANT_ADMIN,
+                merchant_username=merchant_username,
+            )
+            MerchantProfile.objects.create(user=user, merchant=merchant)
+            _seed_default_categories(merchant)
 
-        # Create User with hashed password
-        user = User.objects.create_user(
-            email=email,
-            name=name,
-            password=password,
-            role=User.ROLE_MERCHANT_ADMIN,
-            merchant_username=merchant_username,
-        )
+        # Send welcome credentials email with username and password
+        _send_merchant_welcome_email(email, merchant_username, password, business_name, store_slug=effective_slug, name=name)
 
-        # Associate Profile
-        MerchantProfile.objects.create(user=user, merchant=merchant)
-        _seed_default_categories(merchant)
-
-        # Send welcome credentials email
-        _send_merchant_welcome_email(email, merchant_username, business_name, store_slug=store_slug, name=name)
+        print("\n==========================================")
+        print(f"[ReturnGuard Merchant Registered] Store: {business_name}")
+        print(f"[ReturnGuard Merchant Registered] Email: {email}")
+        print(f"[ReturnGuard Merchant Registered] Username: {merchant_username}")
+        print(f"[ReturnGuard Merchant Registered] Password: {password}")
+        print("==========================================\n")
 
         return success(
             {
@@ -199,7 +235,7 @@ class MerchantRegisterView(APIView):
                 "email": email,
                 "name": name,
                 "business_name": business_name,
-                "store_slug": store_slug,
+                "store_slug": effective_slug,
             },
             status=status.HTTP_201_CREATED,
         )
