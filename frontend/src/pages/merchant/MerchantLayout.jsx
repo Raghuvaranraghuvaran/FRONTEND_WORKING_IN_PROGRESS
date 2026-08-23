@@ -1,263 +1,188 @@
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useNavigate, Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Menu, X, ChevronDown, Bell, LogOut, Search } from 'lucide-react'
 import MerchantSidebar from '../../components/MerchantSidebar'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../mock/api'
-import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import BrandLogo from '../../components/BrandLogo'
 
 export default function MerchantLayout() {
   const { merchant, setMerchant } = useApp()
   const navigate = useNavigate()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
 
   const handleLogout = async () => {
     await api.logout('merchant')
     setMerchant(null)
-    navigate('/')
+    setShowProfileMenu(false)
+    setMobileMenuOpen(false)
+    navigate('/merchant/login')
   }
 
   const notifications = [
-    { id: 1, text: '🔺 New High Risk Case detected', time: '2 mins ago' },
-    { id: 2, text: '🔴 New High Case detected', time: '15 mins ago' },
-    { id: 3, text: '✅ 3 Returns approved', time: '1 hour ago' },
+    { id: 1, text: '🔺 High Risk COD order flagged for review', time: '5 mins ago' },
+    { id: 2, text: '📦 Return Request #RET-1049 approved', time: '30 mins ago' },
+    { id: 3, text: '📈 Risk model score calibrated successfully', time: '2 hours ago' },
   ]
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
-      {/* Left Sidebar */}
-      <MerchantSidebar />
+    <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col">
+      {/* ── Mobile & Desktop Header ────────────────────────────────────────── */}
+      <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-[#0d1424]/95 backdrop-blur-md">
+        <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+          
+          {/* Left: Mobile Hamburger button & Brand */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="lg:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-[#070b14] text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              aria-label="Open merchant navigation"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
 
-      {/* Main Content Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* Top Bar */}
-        <header style={{
-          background: '#fff',
-          borderBottom: '1px solid #e2e8f0',
-          padding: '16px 28px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <input
-              type="search"
-              placeholder="Search..."
-              style={{
-                width: 300,
-                padding: '8px 16px',
-                borderRadius: 8,
-                border: '1px solid #e2e8f0',
-                fontSize: 14,
-                outline: 'none',
-              }}
-            />
+            <Link to="/merchant" className="flex items-center gap-2">
+              <BrandLogo className="h-8 sm:h-9 w-auto" />
+            </Link>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, position: 'relative' }}>
+          {/* Center / Search bar (hidden on mobile, visible on tablet/desktop) */}
+          <div className="hidden sm:flex items-center flex-1 max-w-xs mx-6">
+            <div className="relative w-full">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+              <input
+                type="search"
+                placeholder="Search orders, customers, SKUs…"
+                className="w-full rounded-xl border border-slate-800 bg-[#070b14] pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-teal-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Right: Notification & Merchant Profile */}
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Notification Bell */}
-            <div style={{ position: 'relative' }}>
-              <button 
+            <div className="relative">
+              <button
+                type="button"
                 onClick={() => setShowNotifications(!showNotifications)}
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  border: '1px solid #e2e8f0',
-                  background: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  position: 'relative',
-                }}>
-                🔔
-                <span style={{
-                  position: 'absolute',
-                  top: 6,
-                  right: 6,
-                  width: 8,
-                  height: 8,
-                  background: '#ef4444',
-                  borderRadius: '50%',
-                }}></span>
+                className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-[#070b14] text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 transition cursor-pointer"
+                title="Notifications"
+              >
+                <Bell className="h-4 w-4" />
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white">
+                  3
+                </span>
               </button>
 
-              {/* Notifications Dropdown */}
+              {/* Notification Popover */}
               {showNotifications && (
-                <>
-                  <div 
-                    onClick={() => setShowNotifications(false)}
-                    style={{
-                      position: 'fixed',
-                      inset: 0,
-                      zIndex: 10,
-                    }}
-                  />
-                  <div style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 8px)',
-                    right: 0,
-                    width: 320,
-                    background: '#fff',
-                    borderRadius: 12,
-                    border: '1px solid #e2e8f0',
-                    boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
-                    zIndex: 20,
-                  }}>
-                    <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0' }}>
-                      <h3 style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', margin: 0 }}>Notifications</h3>
-                    </div>
-                    <div style={{ maxHeight: 300, overflowY: 'auto' }}>
-                      {notifications.map(notif => (
-                        <div 
-                          key={notif.id}
-                          style={{
-                            padding: '12px 16px',
-                            borderBottom: '1px solid #f1f5f9',
-                            cursor: 'pointer',
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <p style={{ fontSize: 13, color: '#0f172a', margin: 0, marginBottom: 4 }}>{notif.text}</p>
-                          <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>{notif.time}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ padding: '10px 16px', textAlign: 'center', borderTop: '1px solid #e2e8f0' }}>
-                      <button style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#6366f1',
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}>
-                        View all notifications
-                      </button>
-                    </div>
+                <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-800 bg-[#0d1424] p-3 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800 px-1">
+                    <span className="text-xs font-bold text-white">Risk Alerts</span>
+                    <span className="text-[10px] font-semibold text-teal-400">Live</span>
                   </div>
-                </>
+                  <div className="divide-y divide-slate-800/60 max-h-64 overflow-y-auto">
+                    {notifications.map((n) => (
+                      <div key={n.id} className="py-2.5 px-1 hover:bg-slate-800/40 rounded-lg transition cursor-pointer">
+                        <p className="text-xs text-slate-200">{n.text}</p>
+                        <span className="text-[10px] text-slate-500 mt-0.5 block">{n.time}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
 
-            {/* User Profile with Dropdown */}
-            <div style={{ position: 'relative' }}>
-              <div 
+            {/* Merchant User Badge */}
+            <div className="relative">
+              <button
+                type="button"
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '6px 12px',
-                  borderRadius: 10,
-                  border: '1px solid #e2e8f0',
-                  cursor: 'pointer',
-                  background: showProfileMenu ? '#f8fafc' : '#fff',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#f8fafc' }}
-                onMouseLeave={(e) => { if (!showProfileMenu) e.currentTarget.style.background = '#fff' }}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-500/20 to-emerald-500/10 border border-teal-500/30 px-3 py-1.5 text-xs font-semibold text-teal-300 hover:border-teal-500/50 transition cursor-pointer"
               >
-                <div style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}>
-                  {merchant?.name?.charAt(0).toUpperCase() || 'H'}
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500/20 text-xs font-bold text-teal-400">
+                  🏪
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
-                    Hi, {merchant?.name?.split(' ')[0] || 'Raghuvaran'}
-                  </span>
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>
-                    {merchant?.email || 'merchant@example.com'}
-                  </span>
-                </div>
-                <ChevronDown size={16} color="#94a3b8" />
-              </div>
+                <span className="hidden sm:inline-block max-w-[120px] truncate">
+                  {merchant?.business_name || 'Merchant Admin'}
+                </span>
+                <ChevronDown className="h-3.5 w-3.5 text-teal-400 opacity-80" />
+              </button>
 
               {/* Profile Dropdown */}
               {showProfileMenu && (
-                <>
-                  <div 
-                    onClick={() => setShowProfileMenu(false)}
-                    style={{
-                      position: 'fixed',
-                      inset: 0,
-                      zIndex: 10,
-                    }}
-                  />
-                  <div style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 8px)',
-                    right: 0,
-                    width: 200,
-                    background: '#fff',
-                    borderRadius: 12,
-                    border: '1px solid #e2e8f0',
-                    boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
-                    zIndex: 20,
-                    overflow: 'hidden',
-                  }}>
-                    <button
-                      onClick={() => {
-                        setShowProfileMenu(false)
-                        navigate('/merchant/settings')
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '12px 16px',
-                        background: 'none',
-                        border: 'none',
-                        textAlign: 'left',
-                        fontSize: 13,
-                        color: '#0f172a',
-                        cursor: 'pointer',
-                        borderBottom: '1px solid #f1f5f9',
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-800 bg-[#0d1424] p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-2 border-b border-slate-800">
+                    <p className="text-xs font-bold text-white truncate">{merchant?.business_name || 'Store'}</p>
+                    <p className="text-[10px] font-mono text-teal-400 truncate">{merchant?.merchant_username || 'ADMIN'}</p>
+                  </div>
+                  <div className="py-1">
+                    <Link
+                      to="/merchant"
+                      onClick={() => setShowProfileMenu(false)}
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800/80 hover:text-white"
                     >
-                      ⚙️ Settings
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowProfileMenu(false)
-                        handleLogout()
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '12px 16px',
-                        background: 'none',
-                        border: 'none',
-                        textAlign: 'left',
-                        fontSize: 13,
-                        color: '#dc2626',
-                        cursor: 'pointer',
-                        fontWeight: 600,
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      📊 Dashboard
+                    </Link>
+                    <Link
+                      to="/merchant/orders"
+                      onClick={() => setShowProfileMenu(false)}
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800/80 hover:text-white"
                     >
-                      🚪 Logout
+                      📦 Manage Orders
+                    </Link>
+                    <Link
+                      to="/merchant/settings"
+                      onClick={() => setShowProfileMenu(false)}
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800/80 hover:text-white"
+                    >
+                      ⚙️ Store Settings
+                    </Link>
+                  </div>
+                  <div className="pt-1 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10"
+                    >
+                      <LogOut className="h-3.5 w-3.5" /> Log Out
                     </button>
                   </div>
-                </>
+                </div>
               )}
             </div>
           </div>
-        </header>
+        </div>
+      </header>
 
-        {/* Page Content */}
-        <main style={{ flex: 1, padding: '28px', overflowY: 'auto' }}>
+      {/* ── Main Container: Sidebar + Content ───────────────────────────────── */}
+      <div className="flex flex-1 relative">
+        
+        {/* Desktop Fixed Left Sidebar */}
+        <aside className="hidden lg:block w-60 shrink-0 border-r border-slate-800/80 bg-[#0d1424] min-h-[calc(100vh-4rem)]">
+          <MerchantSidebar />
+        </aside>
+
+        {/* Mobile Slide-Out Drawer with Backdrop */}
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden flex">
+            {/* Dark Backdrop */}
+            <div
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 bg-black/75 backdrop-blur-xs transition-opacity duration-300"
+            />
+            {/* Drawer */}
+            <div className="relative w-4/5 max-w-xs bg-[#0d1424] h-full shadow-2xl z-10 flex flex-col border-r border-slate-800">
+              <MerchantSidebar onClose={() => setMobileMenuOpen(false)} />
+            </div>
+          </div>
+        )}
+
+        {/* Main Routed Page Content */}
+        <main className="flex-1 min-w-0 overflow-y-auto bg-[#070b14] p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

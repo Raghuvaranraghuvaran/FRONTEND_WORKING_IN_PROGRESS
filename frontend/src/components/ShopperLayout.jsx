@@ -1,243 +1,201 @@
-import { Outlet, useNavigate } from 'react-router-dom'
-import { Link } from 'react-router-dom'
+import { Outlet, useNavigate, Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Menu, X, ChevronDown, Bell, LogOut, ShoppingBag, Heart } from 'lucide-react'
 import ShopperSidebar from './ShopperSidebar'
 import { useApp } from '../context/AppContext'
 import { api } from '../mock/api'
-import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import BrandLogo from './BrandLogo'
 
-// Top bar for shopper pages
-function ShopperTopBar() {
-  const { shopper, setShopper } = useApp()
+export default function ShopperLayout() {
+  const { shopper, setShopper, cart, wishlist } = useApp()
   const navigate = useNavigate()
-  const [showNotifications, setShowNotifications] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
+
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
+  const wishlistCount = wishlist?.length || 0
 
   const handleLogout = async () => {
     await api.logout('shopper')
     setShopper(null)
+    setShowProfileMenu(false)
+    setMobileMenuOpen(false)
     navigate('/')
   }
 
   return (
-    <div style={{
-      background: '#fff', borderBottom: '1px solid #e2e8f0',
-      padding: '14px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    }}>
-      <div>
-        {/* Page title will be shown by each individual page */}
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        {/* User profile card with dropdown */}
-        {shopper && (
-          <div style={{ position: 'relative' }}>
-            <div 
-              onClick={() => setShowProfileMenu(!showProfileMenu)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                borderRadius: 12, padding: '10px 14px', color: '#fff',
-                cursor: 'pointer', transition: 'transform .15s',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      {/* ── Top Bar / Mobile Header ────────────────────────────────────────── */}
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur-md">
+        <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+          
+          {/* Left: Mobile Hamburger button & Brand Logo */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="md:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+              aria-label="Open mobile menu"
             >
-              <div style={{
-                width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.25)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 16, fontWeight: 700,
-              }}>
-                {shopper.name.charAt(0).toUpperCase()}
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  Hi, {shopper.name.split(' ')[0]}
-                </div>
-                <div style={{ fontSize: 10, opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
-                  {shopper.email}
-                </div>
-              </div>
-              <ChevronDown size={16} color="rgba(255,255,255,0.8)" />
-            </div>
+              <Menu className="h-5 w-5" />
+            </button>
 
-            {/* Profile Dropdown */}
-            {showProfileMenu && (
-              <>
-                <div 
-                  onClick={() => setShowProfileMenu(false)}
-                  style={{
-                    position: 'fixed',
-                    inset: 0,
-                    zIndex: 10,
-                  }}
-                />
-                <div style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 8px)',
-                  right: 0,
-                  width: 200,
-                  background: '#fff',
-                  borderRadius: 12,
-                  border: '1px solid #e2e8f0',
-                  boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
-                  zIndex: 20,
-                  overflow: 'hidden',
-                }}>
-                  <button
-                    onClick={() => {
-                      setShowProfileMenu(false)
-                      navigate('/profile')
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      background: 'none',
-                      border: 'none',
-                      textAlign: 'left',
-                      fontSize: 13,
-                      color: '#0f172a',
-                      cursor: 'pointer',
-                      borderBottom: '1px solid #f1f5f9',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    👤 Profile
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowProfileMenu(false)
-                      handleLogout()
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      background: 'none',
-                      border: 'none',
-                      textAlign: 'left',
-                      fontSize: 13,
-                      color: '#dc2626',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    🚪 Logout
-                  </button>
-                </div>
-              </>
+            <Link to="/shop" className="flex items-center gap-2">
+              <BrandLogo className="h-8 sm:h-9 w-auto" />
+            </Link>
+          </div>
+
+          {/* Right: Quick actions (Wishlist, Cart, Profile) */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Quick Wishlist */}
+            <Link
+              to="/wishlist"
+              className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition"
+              title="Wishlist"
+            >
+              <Heart className="h-4 w-4" />
+              {wishlistCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white">
+                  {wishlistCount}
+                </span>
+              )}
+            </Link>
+
+            {/* Quick Cart */}
+            <Link
+              to="/cart"
+              className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition"
+              title="Cart"
+            >
+              <ShoppingBag className="h-4 w-4" />
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
+
+            {/* User profile dropdown */}
+            {shopper ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:from-indigo-500 hover:to-violet-500 transition cursor-pointer"
+                >
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-xs font-bold uppercase">
+                    {shopper.name?.charAt(0) || 'U'}
+                  </div>
+                  <span className="hidden sm:inline-block max-w-[100px] truncate">
+                    {shopper.name?.split(' ')[0] || 'Account'}
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5 opacity-80" />
+                </button>
+
+                {/* Dropdown Menu */}
+                {showProfileMenu && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-3 py-2 border-b border-slate-100">
+                      <p className="text-xs font-bold text-slate-900 truncate">{shopper.name}</p>
+                      <p className="text-[11px] text-slate-500 truncate">{shopper.email}</p>
+                    </div>
+                    <div className="py-1">
+                      <Link
+                        to="/dashboard"
+                        onClick={() => setShowProfileMenu(false)}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      >
+                        🏠 Dashboard
+                      </Link>
+                      <Link
+                        to="/orders"
+                        onClick={() => setShowProfileMenu(false)}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      >
+                        📦 My Orders & Invoices
+                      </Link>
+                      <Link
+                        to="/profile"
+                        onClick={() => setShowProfileMenu(false)}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      >
+                        📍 Delivery Addresses
+                      </Link>
+                    </div>
+                    <div className="pt-1 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                      >
+                        <LogOut className="h-3.5 w-3.5" /> Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-500 shadow-sm transition"
+              >
+                Sign In
+              </Link>
             )}
+          </div>
+        </div>
+      </header>
+
+      {/* ── Main Container: Sidebar + Content ───────────────────────────────── */}
+      <div className="flex flex-1 relative">
+        
+        {/* Desktop Fixed Left Sidebar */}
+        <aside className="hidden md:block w-60 shrink-0 border-r border-slate-200 bg-white min-h-[calc(100vh-4rem)]">
+          <ShopperSidebar />
+        </aside>
+
+        {/* Mobile Slide-Out Drawer with Backdrop */}
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-50 md:hidden flex">
+            {/* Dark Backdrop */}
+            <div
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300"
+            />
+            {/* Drawer */}
+            <div className="relative w-4/5 max-w-xs bg-white h-full shadow-2xl z-10 flex flex-col">
+              <ShopperSidebar onClose={() => setMobileMenuOpen(false)} />
+            </div>
           </div>
         )}
 
-        {/* Bell - clickable */}
-        <div style={{ position: 'relative' }}>
-          <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            style={{
-              width: 40, height: 40, borderRadius: 10, border: '1px solid #e2e8f0',
-              background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', position: 'relative',
-            }}>
-            <span style={{ fontSize: 18 }}>🔔</span>
-            <span style={{
-              position: 'absolute', top: -2, right: -2, width: 18, height: 18,
-              background: '#ef4444', borderRadius: '50%', fontSize: 10, fontWeight: 700,
-              color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>3</span>
-          </button>
-
-          {/* Notifications dropdown */}
-          {showNotifications && (
-            <div style={{
-              position: 'absolute', top: 50, right: 0, width: 320,
-              background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12,
-              boxShadow: '0 10px 40px rgba(0,0,0,0.15)', zIndex: 50,
-            }}>
-              <div style={{ padding: '14px 16px', borderBottom: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>Notifications</div>
-              </div>
-              <div style={{ maxHeight: 300, overflowY: 'auto' }}>
-                {[
-                  { id: 1, text: 'Your order #1234 has been delivered', time: '2 hours ago' },
-                  { id: 2, text: 'Return request approved', time: '1 day ago' },
-                  { id: 3, text: 'New reward points added', time: '3 days ago' },
-                ].map((notif) => (
-                  <div key={notif.id} style={{
-                    padding: '12px 16px', borderBottom: '1px solid #f1f5f9',
-                    cursor: 'pointer', transition: 'background .15s',
-                  }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <div style={{ fontSize: 13, color: '#0f172a', marginBottom: 4 }}>{notif.text}</div>
-                    <div style={{ fontSize: 11, color: '#94a3b8' }}>{notif.time}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ padding: '10px 16px', textAlign: 'center', borderTop: '1px solid #e2e8f0' }}>
-                <button style={{
-                  fontSize: 12, fontWeight: 600, color: '#6366f1',
-                  background: 'none', border: 'none', cursor: 'pointer',
-                }}>
-                  View all notifications
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export default function ShopperLayout() {
-  return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', flex: 1 }}>
-        <ShopperSidebar />
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
-          <ShopperTopBar />
-          <div style={{ flex: 1 }}>
-            <Outlet />
-          </div>
+        {/* Main Routed Page Content */}
+        <main className="flex-1 min-w-0 overflow-y-auto">
+          <Outlet />
         </main>
       </div>
 
-      {/* Horizontal CTA banner at bottom - centered */}
-      <div style={{
-        background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
-        border: '1px solid #bae6fd', borderTop: '1px solid #bae6fd',
-        padding: '16px 28px',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        gap: 20,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <span style={{
-            width: 44, height: 44, borderRadius: 12, background: '#6366f1',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22,
-            flexShrink: 0,
-          }}>🛡️</span>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#0c4a6e', lineHeight: 1.3, marginBottom: 2 }}>
-              Shop with Confidence!
+      {/* ── Horizontal Bottom Confidence Banner ────────────────────────────── */}
+      <footer className="border-t border-sky-100 bg-gradient-to-r from-sky-50 to-indigo-50/50 py-3.5 px-4 sm:px-6">
+        <div className="mx-auto flex max-w-7xl flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-base shadow-sm">
+              🛡️
+            </span>
+            <div>
+              <p className="text-xs font-bold text-slate-900">ReturnGuard Verified Storefront</p>
+              <p className="text-[11px] text-slate-500">Official tax invoices, authentic products, and automated returns.</p>
             </div>
-            <p style={{ fontSize: 12, color: '#075985', margin: 0, lineHeight: 1.4 }}>
-              Easy returns on every order.
-            </p>
           </div>
+          <Link
+            to="/shop"
+            className="rounded-xl border border-slate-200 bg-white/80 px-4 py-1.5 text-xs font-bold text-indigo-600 hover:bg-white transition shadow-2xs"
+          >
+            Explore Catalog →
+          </Link>
         </div>
-        <Link to="/shop" style={{
-          display: 'inline-flex', alignItems: 'center', fontSize: 13, fontWeight: 600,
-          color: '#0369a1', textDecoration: 'none', whiteSpace: 'nowrap',
-          padding: '8px 16px', borderRadius: 8, background: 'rgba(255,255,255,0.7)',
-          border: '1px solid #7dd3fc',
-        }}>
-          Learn more →
-        </Link>
-      </div>
+      </footer>
     </div>
   )
 }
