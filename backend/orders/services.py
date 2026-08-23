@@ -21,9 +21,9 @@ class CheckoutService:
         self.payment_service = PaymentService()
 
     @transaction.atomic
-    def create_order(self, *, user, merchant, items, payment_method, payment_details=None, device_token=""):
+    def create_order(self, *, user, merchant, items, payment_method, payment_details=None, discount=0, reward_points_used=0, device_token=""):
         """
-        Create order with enhanced payment method support
+        Create order with enhanced payment method and reward points discount support
         
         Args:
             user: User instance
@@ -31,6 +31,8 @@ class CheckoutService:
             items: List of order items
             payment_method: Payment method (COD, UPI, CREDIT_CARD, etc.)
             payment_details: Dict with payment method specific data
+            discount: Coupon or other discounts
+            reward_points_used: Reward points redeemed (100 pts = ₹10)
             device_token: Device fingerprint
         """
         shopper = getattr(user, "shopper_profile", None)
@@ -45,7 +47,7 @@ class CheckoutService:
             device_token=device_token,
         )
 
-        total = Decimal("0")
+        subtotal = Decimal("0")
         category_slug = None
         for item in items:
             prod_id = str(item.get("product_id") or "")
@@ -67,7 +69,7 @@ class CheckoutService:
 
             price = item.get("price") if item.get("price") else product.price
             name = item.get("name") or product.name
-            total += Decimal(str(price)) * item["quantity"]
+            subtotal += Decimal(str(price)) * item["quantity"]
             OrderItem.objects.create(
                 order=order,
                 product=product,
@@ -80,7 +82,13 @@ class CheckoutService:
             product.stock = max(0, product.stock - item["quantity"])
             product.save(update_fields=["stock"])
 
-        order.total = total
+        # 100 reward points = ₹10 (i.e. points / 10 = ₹ discount)
+        pts = int(reward_points_used or 0)
+        reward_discount = Decimal(str(pts)) / Decimal("10")
+        coupon_discount = Decimal(str(discount or 0))
+        final_total = max(Decimal("0"), subtotal - coupon_discount - reward_discount)
+
+        order.total = final_total
         order.save(update_fields=["total"])
 
         risk = self.risk_engine.score(
@@ -151,9 +159,11 @@ class CheckoutService:
 
         if shopper is not None:
             shopper.total_orders += 1
+            if pts > 0:
+                shopper.reward_points = max(0, shopper.reward_points - pts)
             if shopper.risk_tier != "High" and risk.tier == "High":
                 shopper.risk_tier = "High"
-            shopper.save(update_fields=["total_orders", "risk_tier"])
+            shopper.save(update_fields=["total_orders", "risk_tier", "reward_points"])
 
         RiskScoreEvent.objects.create(
             merchant=merchant,

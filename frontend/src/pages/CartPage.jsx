@@ -294,6 +294,18 @@ export default function CartPage() {
             <span>Total</span>
             <span className="text-indigo-600">{INR.format(total)}</span>
           </div>
+
+          {shopper && (
+            <div className="mt-4 rounded-xl bg-amber-50/80 border border-amber-200/60 p-3 text-xs text-amber-800">
+              <div className="flex items-center gap-1.5 font-semibold text-amber-900 mb-1">
+                <span>⭐</span> Reward Points Available
+              </div>
+              <p className="text-[11.5px] text-amber-700">
+                You have <strong>{(shopper.reward_points ?? 1000).toLocaleString()} points</strong> (worth {INR.format((shopper.reward_points ?? 1000) / 10)}). You can redeem them on the checkout page (100 pts = ₹10).
+              </p>
+            </div>
+          )}
+
           <Link
             to="/checkout"
             className="mt-6 block rounded-xl bg-indigo-600 px-4 py-3.5 text-center text-sm font-semibold text-white hover:bg-indigo-500 transition shadow-sm"

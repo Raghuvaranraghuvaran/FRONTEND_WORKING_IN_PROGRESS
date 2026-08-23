@@ -25,6 +25,11 @@ export default function CheckoutPage() {
   const [resolvingPayment, setResolvingPayment] = useState(false)
   const [processingPayment, setProcessingPayment] = useState(false)
 
+  const [useRewardPoints, setUseRewardPoints] = useState(false)
+  const [rewardPointsInput, setRewardPointsInput] = useState('')
+
+  const availableRewardPoints = shopper?.reward_points ?? 1000
+
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
   const calculateDiscount = (coupon) => {
@@ -37,7 +42,15 @@ export default function CheckoutPage() {
   }
 
   const couponDiscount = calculateDiscount(appliedCoupon)
-  const finalTotal = Math.max(0, subtotal - couponDiscount)
+  const remainingBeforePoints = Math.max(0, subtotal - couponDiscount)
+
+  // 100 reward points = ₹10 (10 pts = ₹1 => discount = points / 10)
+  const maxRedeemablePoints = Math.min(availableRewardPoints, Math.ceil(remainingBeforePoints * 10))
+  const pointsToRedeem = useRewardPoints
+    ? (rewardPointsInput !== '' ? Math.min(Math.max(0, Number(rewardPointsInput)), maxRedeemablePoints) : maxRedeemablePoints)
+    : 0
+  const rewardDiscount = Math.round(pointsToRedeem / 10)
+  const finalTotal = Math.max(0, remainingBeforePoints - rewardDiscount)
 
   const addresses = shopper?.addresses || []
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId)
@@ -125,6 +138,8 @@ export default function CheckoutPage() {
         paymentDetails: paymentMethod !== 'COD' ? paymentDetails : undefined,
         couponCode: appliedCoupon?.code || null,
         discount: couponDiscount,
+        rewardPointsUsed: pointsToRedeem,
+        rewardDiscount: rewardDiscount,
       })
 
       const placedOrder = placed.order || placed
@@ -132,6 +147,16 @@ export default function CheckoutPage() {
       setOrder(placedOrder)
       setPayment(placedPayment)
       clearCart()
+
+      if (placed.user) {
+        setShopper(placed.user)
+      } else if (shopper && pointsToRedeem > 0) {
+        setShopper({
+          ...shopper,
+          reward_points: Math.max(0, (shopper.reward_points ?? 1000) - pointsToRedeem),
+          total_orders: (shopper.total_orders || 0) + 1,
+        })
+      }
 
       // If COD, proceed to OTP or confirmation
       if (paymentMethod === 'COD') {
@@ -385,6 +410,13 @@ export default function CheckoutPage() {
             </div>
           )}
 
+          {/* Applied reward points badge on confirmation */}
+          {order.reward_points_used > 0 && (
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200">
+              ⭐ <strong>{order.reward_points_used} reward points</strong> redeemed ({INR.format(order.reward_discount || Math.round(order.reward_points_used / 10))} saved)
+            </div>
+          )}
+
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             <RiskBadge tier={order.risk_tier || 'Low'} />
             {order.status && <StatusBadge status={order.status} />}
@@ -523,6 +555,93 @@ export default function CheckoutPage() {
             </div>
           </div>
 
+          {/* Reward Points Redemption Card */}
+          {availableRewardPoints > 0 && (
+            <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-r from-amber-50/70 to-orange-50/40 p-6 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 border border-amber-300 text-amber-700 text-xl shadow-xs">
+                    ⭐
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      Redeem Reward Points
+                    </h2>
+                    <p className="text-xs text-slate-600 mt-0.5">
+                      Balance: <strong className="text-amber-800 font-bold">{availableRewardPoints.toLocaleString()} pts</strong> (worth <strong className="text-emerald-700">{INR.format(availableRewardPoints / 10)}</strong>) · <span className="text-slate-500 font-medium">100 pts = ₹10</span>
+                    </p>
+                  </div>
+                </div>
+                <label className="relative inline-flex cursor-pointer items-center">
+                  <input
+                    type="checkbox"
+                    checked={useRewardPoints}
+                    onChange={(e) => {
+                      setUseRewardPoints(e.target.checked)
+                      if (e.target.checked) {
+                        setRewardPointsInput(String(maxRedeemablePoints))
+                      } else {
+                        setRewardPointsInput('')
+                      }
+                    }}
+                    className="peer sr-only"
+                  />
+                  <div className="peer h-6 w-11 rounded-full bg-slate-300 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-amber-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none"></div>
+                </label>
+              </div>
+
+              {useRewardPoints && (
+                <div className="mt-4 pt-4 border-t border-amber-200/60 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-slate-700">Points to redeem:</span>
+                    <div className="flex items-center gap-2">
+                      {availableRewardPoints >= 500 && maxRedeemablePoints >= 500 && (
+                        <button
+                          type="button"
+                          onClick={() => setRewardPointsInput('500')}
+                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                        >
+                          500 pts (₹50)
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setRewardPointsInput(String(maxRedeemablePoints))}
+                        className="rounded-lg border border-amber-400 bg-amber-100/80 px-2.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-200/80 transition"
+                      >
+                        Use Max ({maxRedeemablePoints} pts = {INR.format(Math.round(maxRedeemablePoints / 10))})
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min={0}
+                      max={maxRedeemablePoints}
+                      step={10}
+                      value={rewardPointsInput}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        if (val === '') {
+                          setRewardPointsInput('')
+                        } else {
+                          const n = Math.min(Math.max(0, Number(val)), maxRedeemablePoints)
+                          setRewardPointsInput(String(n))
+                        }
+                      }}
+                      className="w-36 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono shadow-xs"
+                      placeholder="Points"
+                    />
+                    <div className="text-xs text-slate-700">
+                      = <span className="font-bold text-emerald-700 text-sm">−{INR.format(rewardDiscount)} discount</span> ({Math.max(0, availableRewardPoints - pointsToRedeem)} points will remain)
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <PaymentMethodSelector
               onSelect={setPaymentMethod}
@@ -546,6 +665,12 @@ export default function CheckoutPage() {
               <span className="font-semibold text-emerald-700">−{INR.format(couponDiscount)}</span>
             </div>
           )}
+          {useRewardPoints && rewardDiscount > 0 && (
+            <div className="mt-2 flex justify-between text-sm">
+              <span className="text-amber-700 font-medium flex items-center gap-1">⭐ {pointsToRedeem} pts</span>
+              <span className="font-semibold text-amber-700">−{INR.format(rewardDiscount)}</span>
+            </div>
+          )}
           <div className="mt-2 flex justify-between text-sm text-slate-600">
             <span>Delivery</span>
             <span className="font-semibold text-emerald-600">Free</span>
@@ -555,6 +680,12 @@ export default function CheckoutPage() {
             <span>Total Amount</span>
             <span className="text-indigo-600">{INR.format(finalTotal)}</span>
           </div>
+
+          {useRewardPoints && rewardDiscount > 0 && (
+            <p className="mt-2 text-center text-xs font-semibold text-emerald-600">
+              🎉 You are saving {INR.format(rewardDiscount + (couponDiscount || 0))} on this order!
+            </p>
+          )}
 
           {error && (
             <div className="mt-4 rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-700">

@@ -733,7 +733,10 @@ export const api = {
     return clone(order.tracking_events || [])
   },
 
-  async placeOrder({ items, paymentMethod, address: _address, paymentDetails, couponCode, discount: inputDiscount }) {
+  async placeOrder({ items, paymentMethod, address: _address, paymentDetails, couponCode, discount: inputDiscount, rewardPointsUsed, rewardDiscount: inputRewardDiscount }) {
+    const ptsUsed = Number(rewardPointsUsed) || 0
+    const calculatedRewardDiscount = Number(inputRewardDiscount) || Math.round(ptsUsed / 10)
+
     if (hasLiveApi()) {
       const payload = {
         items: items.map((item) => ({
@@ -746,8 +749,17 @@ export const api = {
         payment_details: paymentDetails,
         coupon_code: couponCode || undefined,
         discount: inputDiscount || undefined,
+        reward_points_used: ptsUsed || undefined,
       }
-      return live('/orders/checkout/', { method: 'POST', body: payload })
+      const result = await live('/orders/checkout/', { method: 'POST', body: payload })
+      if (result?.user) {
+        session.shopper = clone(result.user)
+        saveSession()
+      } else if (session.shopper && ptsUsed > 0) {
+        session.shopper.reward_points = Math.max(0, (session.shopper.reward_points || 1000) - ptsUsed)
+        saveSession()
+      }
+      return result
     }
     await delay(800)
     if (!session.shopper) throw new Error('Please sign in to continue.')
@@ -759,6 +771,10 @@ export const api = {
         email: session.shopper.email || 'shopper@example.com',
         phone: session.shopper.phone || '+91 98765 43210',
         addresses: Array.isArray(session.shopper.addresses) ? session.shopper.addresses : [],
+        total_orders: 0,
+        total_returns: 0,
+        total_cod_refusals: 0,
+        reward_points: 1000,
         risk_tier: 'Low',
       }
       store.shoppers.push(shopper)
@@ -770,8 +786,9 @@ export const api = {
       price: item.price,
     }))
     const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
-    const discount = Math.max(0, Number(inputDiscount) || 0)
-    const total = Math.max(0, subtotal - discount)
+    const couponDiscount = Math.max(0, Number(inputDiscount) || 0)
+    const rewardDiscount = Math.max(0, calculatedRewardDiscount)
+    const total = Math.max(0, subtotal - couponDiscount - rewardDiscount)
     const risk = computeRisk({ paymentMethod })
     const isCod = paymentMethod === 'COD'
 
@@ -801,8 +818,10 @@ export const api = {
       customer_name: shopper.name,
       items: orderItems,
       subtotal,
-      discount,
+      discount: couponDiscount,
       coupon_code: couponCode || null,
+      reward_points_used: ptsUsed,
+      reward_discount: rewardDiscount,
       total,
       payment_method: paymentMethod,
       status: orderStatus,
@@ -841,6 +860,9 @@ export const api = {
     store.payments.unshift(payment)
 
     shopper.total_orders += 1
+    if (ptsUsed > 0) {
+      shopper.reward_points = Math.max(0, (shopper.reward_points ?? 1000) - ptsUsed)
+    }
     if (shopper.risk_tier !== 'High' && risk.tier === 'High') shopper.risk_tier = 'High'
     session.shopper = clone(shopper)
     saveSession()
@@ -858,7 +880,7 @@ export const api = {
     // matrix marks the customer email as optional, so no email fires until the gateway
     // (simulator) resolves the outcome.
 
-    return { order: clone(order), payment: clone(payment) }
+    return { order: clone(order), payment: clone(payment), user: clone(shopper) }
   },
 
   // ---- Payment gateway simulation ----

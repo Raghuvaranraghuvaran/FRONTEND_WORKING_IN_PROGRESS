@@ -48,5 +48,8 @@ class CheckoutSerializer(serializers.Serializer):
         "COD", "UPI", "CREDIT_CARD", "DEBIT_CARD", "NET_BANKING", "MOBILE_BANKING", "Prepaid"
     ))
     payment_details = serializers.JSONField(required=False, allow_null=True)
+    coupon_code = serializers.CharField(required=False, allow_blank=True)
+    discount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
+    reward_points_used = serializers.IntegerField(required=False, default=0, min_value=0)
     address = serializers.CharField(required=False, allow_blank=True)
     device_token = serializers.CharField(required=False, allow_blank=True)

@@ -31,17 +31,21 @@ class CheckoutView(APIView):
                 items=data["items"],
                 payment_method=data["payment_method"],
                 payment_details=data.get("payment_details"),
+                discount=data.get("discount", 0),
+                reward_points_used=data.get("reward_points_used", 0),
                 device_token=data.get("device_token", ""),
             )
         except ValueError as exc:
             raise AppError(str(exc), code="CHECKOUT_FAILED")
 
         from payments.serializers import PaymentSerializer
+        from accounts.serializers import ShopperSerializer
         
         return success({
             "order": OrderListSerializer(order).data,
             "payment": PaymentSerializer(payment).data,
-            "decision": decision
+            "decision": decision,
+            "user": ShopperSerializer(request.user).data,
         }, status=status.HTTP_201_CREATED)
 
 
