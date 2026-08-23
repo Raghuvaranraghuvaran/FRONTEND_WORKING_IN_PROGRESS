@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Lock, User, ArrowRight, ShieldCheck } from 'lucide-react'
 import { api } from '../mock/api'
 import { useApp } from '../context/AppContext'
 import BrandLogo from '../components/BrandLogo'
+
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
 
 export default function MerchantLoginPage() {
   const navigate = useNavigate()
@@ -14,6 +16,35 @@ export default function MerchantLoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const recaptchaRef = useRef(null)
+  const [recaptchaToken, setRecaptchaToken] = useState(null)
+
+  useEffect(() => {
+    // Initialize reCAPTCHA when component mounts
+    if (window.grecaptcha) {
+      loadRecaptcha()
+    } else {
+      // Wait for reCAPTCHA script to load
+      window.addEventListener('load', loadRecaptcha)
+      return () => window.removeEventListener('load', loadRecaptcha)
+    }
+  }, [])
+
+  const loadRecaptcha = () => {
+    if (window.grecaptcha && window.grecaptcha.render && recaptchaRef.current) {
+      try {
+        window.grecaptcha.render(recaptchaRef.current, {
+          sitekey: RECAPTCHA_SITE_KEY,
+          callback: (token) => setRecaptchaToken(token),
+          'expired-callback': () => setRecaptchaToken(null),
+          'error-callback': () => setRecaptchaToken(null),
+          theme: 'dark',
+        })
+      } catch (e) {
+        console.error('reCAPTCHA render error:', e)
+      }
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -29,13 +60,29 @@ export default function MerchantLoginPage() {
       return
     }
 
+    // Check reCAPTCHA in production mode
+    const isProduction = import.meta.env.PROD || window.location.hostname !== 'localhost'
+    if (isProduction && !recaptchaToken) {
+      setError('Please complete the reCAPTCHA verification.')
+      return
+    }
+
     try {
       setSubmitting(true)
-      const res = await api.merchantLogin({ username: cleanUser, password })
+      const res = await api.merchantLogin({ 
+        username: cleanUser, 
+        password,
+        recaptchaToken: recaptchaToken || 'mock-token' // Use mock token in dev
+      })
       setMerchant(res.admin)
       navigate('/merchant')
     } catch (err) {
       setError(err.message || 'Invalid username or password.')
+      // Reset reCAPTCHA on error
+      if (window.grecaptcha) {
+        window.grecaptcha.reset()
+        setRecaptchaToken(null)
+      }
     } finally {
       setSubmitting(false)
     }
@@ -124,6 +171,11 @@ export default function MerchantLoginPage() {
               </div>
             </div>
 
+            {/* reCAPTCHA */}
+            <div className="flex justify-center py-2">
+              <div ref={recaptchaRef} className="g-recaptcha"></div>
+            </div>
+
             {/* Submit Button */}
             <button
               type="submit"
@@ -155,6 +207,18 @@ export default function MerchantLoginPage() {
               Register business
             </Link>
           </p>
+
+          {/* reCAPTCHA Privacy/Terms */}
+          <div className="mt-3 text-center text-[10px] text-slate-600">
+            🔒 Protected by reCAPTCHA •{' '}
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-500">
+              Privacy
+            </a>
+            {' • '}
+            <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-500">
+              Terms
+            </a>
+          </div>
         </div>
 
         <p className="mt-6 text-center text-xs text-slate-500">
