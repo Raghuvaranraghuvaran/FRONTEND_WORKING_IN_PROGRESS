@@ -21,7 +21,7 @@ class CheckoutService:
         self.payment_service = PaymentService()
 
     @transaction.atomic
-    def create_order(self, *, user, merchant, items, payment_method, payment_details=None, discount=0, reward_points_used=0, device_token=""):
+    def create_order(self, *, user, merchant, items, payment_method, payment_details=None, coupon_code="", discount=0, reward_points_used=0, address="", device_token=""):
         """
         Create order with enhanced payment method and reward points discount support
         
@@ -31,8 +31,10 @@ class CheckoutService:
             items: List of order items
             payment_method: Payment method (COD, UPI, CREDIT_CARD, etc.)
             payment_details: Dict with payment method specific data
+            coupon_code: Applied coupon code
             discount: Coupon or other discounts
             reward_points_used: Reward points redeemed (100 pts = ₹10)
+            address: Delivery address
             device_token: Device fingerprint
         """
         shopper = getattr(user, "shopper_profile", None)
@@ -44,6 +46,7 @@ class CheckoutService:
             customer_name=user.name,
             total=Decimal("0"),
             payment_method=payment_method,
+            delivery_address=address or "",
             device_token=device_token,
         )
 
@@ -88,8 +91,13 @@ class CheckoutService:
         coupon_discount = Decimal(str(discount or 0))
         final_total = max(Decimal("0"), subtotal - coupon_discount - reward_discount)
 
+        order.subtotal = subtotal
+        order.discount = coupon_discount
+        order.coupon_code = coupon_code or ""
+        order.reward_points_used = pts
+        order.reward_discount = reward_discount
         order.total = final_total
-        order.save(update_fields=["total"])
+        order.save(update_fields=["subtotal", "discount", "coupon_code", "reward_points_used", "reward_discount", "total"])
 
         risk = self.risk_engine.score(
             shopper_profile=shopper,

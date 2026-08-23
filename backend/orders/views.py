@@ -31,8 +31,10 @@ class CheckoutView(APIView):
                 items=data["items"],
                 payment_method=data["payment_method"],
                 payment_details=data.get("payment_details"),
+                coupon_code=data.get("coupon_code", ""),
                 discount=data.get("discount", 0),
                 reward_points_used=data.get("reward_points_used", 0),
+                address=data.get("address", ""),
                 device_token=data.get("device_token", ""),
             )
         except ValueError as exc:
