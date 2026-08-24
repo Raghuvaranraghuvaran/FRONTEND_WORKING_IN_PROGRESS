@@ -37,21 +37,22 @@ export default function CheckoutPage() {
   const [downloadingInvoice, setDownloadingInvoice] = useState(false)
   const [useRewardPoints, setUseRewardPoints] = useState(false)
   const [rewardPointsInput, setRewardPointsInput] = useState('')
+  const [prepaidBonusApplied, setPrepaidBonusApplied] = useState(false)
 
   const addresses = (shopper?.addresses && shopper.addresses.length > 0)
     ? shopper.addresses
     : [DEFAULT_PRIMARY_ADDRESS]
 
   const availableRewardPoints = shopper?.reward_points ?? 1000
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const subtotal = (cart || []).reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0)
 
   const calculateDiscount = (coupon) => {
     if (!coupon) return 0
     if (coupon.min_order_value > 0 && subtotal < coupon.min_order_value) return 0
     if (coupon.discount_type === 'percentage') {
-      return Math.round((subtotal * coupon.discount_value) / 100)
+      return Math.round((subtotal * (Number(coupon.discount_value) || 0)) / 100)
     }
-    return Math.min(coupon.discount_value, subtotal)
+    return Math.min(Number(coupon.discount_value) || 0, subtotal)
   }
 
   const couponDiscount = calculateDiscount(appliedCoupon)
@@ -63,7 +64,7 @@ export default function CheckoutPage() {
   const pointsToRedeem = useRewardPoints
     ? Math.min(Math.max(0, parsedPointsInput), maxAllowedPoints)
     : 0
-  const [prepaidBonusApplied, setPrepaidBonusApplied] = useState(false)
+  const rewardDiscount = Math.round(pointsToRedeem / 10)
   const prepaidDiscount = prepaidBonusApplied && paymentMethod !== 'COD' ? 50 : 0
   const finalTotal = Math.max(0, remainingBeforePoints - rewardDiscount - prepaidDiscount)
 
