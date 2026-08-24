@@ -35,6 +35,9 @@ def _send_direct_smtp(subject, message, recipient, from_name=DEFAULT_FROM_NAME, 
         msg["Subject"] = subject
         msg["From"] = formataddr((from_name, effective_from))
         msg["To"] = recipient
+        msg["Reply-To"] = effective_from
+        msg["Auto-Submitted"] = "auto-generated"
+        msg["X-Auto-Response-Suppress"] = "All"
         msg.attach(MIMEText(message, "plain", "utf-8"))
         msg.attach(MIMEText(html_message, "html", "utf-8"))
     else:
@@ -42,6 +45,9 @@ def _send_direct_smtp(subject, message, recipient, from_name=DEFAULT_FROM_NAME, 
         msg["Subject"] = subject
         msg["From"] = formataddr((from_name, effective_from))
         msg["To"] = recipient
+        msg["Reply-To"] = effective_from
+        msg["Auto-Submitted"] = "auto-generated"
+        msg["X-Auto-Response-Suppress"] = "All"
 
     # Strategy 1: SMTPS / SSL over Port 465 (most reliable)
     try:

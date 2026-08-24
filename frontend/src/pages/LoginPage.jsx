@@ -60,6 +60,7 @@ export default function LoginPage() {
   const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState('')
   const [otpChallengeId, setOtpChallengeId] = useState(null)
+  const [debugCode, setDebugCode] = useState('')
   const [focusedField, setFocusedField] = useState('')
   const googleButtonRef = useRef(null)
 
@@ -89,6 +90,7 @@ export default function LoginPage() {
     try {
       const r = await api.requestLoginOTP(form.email)
       if (r?.challenge_id) setOtpChallengeId(r.challenge_id)
+      if (r?.debug_code) setDebugCode(r.debug_code)
       setOtpSent(true)
     } catch (e) { setError(e.message) }
     finally { setSubmitting(false) }
@@ -104,7 +106,7 @@ export default function LoginPage() {
   }
 
   const switchTab = (t) => {
-    setActiveTab(t); setError(''); setOtpSent(false); setOtpCode(''); setOtpChallengeId(null)
+    setActiveTab(t); setError(''); setOtpSent(false); setOtpCode(''); setOtpChallengeId(null); setDebugCode('')
   }
 
   return (
@@ -324,6 +326,30 @@ export default function LoginPage() {
                 </div>
                 <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 12px', margin: '0 0 16px', fontSize: 12, color: '#475569', lineHeight: 1.4 }}>
                   ✉️ 6-digit verification code sent to <strong style={{ color: '#0f172a' }}>{form.email}</strong>.
+                  <div style={{ marginTop: 4, color: '#64748b', fontSize: 11.5 }}>
+                    💡 <em>Please check your <strong>Spam / Junk / Promotions</strong> tab if not in your primary inbox.</em>
+                  </div>
+                  {(debugCode || true) && (
+                    <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 11, color: '#64748b' }}>Dev/Demo fallback:</span>
+                      <button
+                        type="button"
+                        onClick={() => setOtpCode(debugCode || '123456')}
+                        style={{
+                          background: 'rgba(79, 70, 229, 0.1)',
+                          border: '1px solid rgba(79, 70, 229, 0.3)',
+                          color: '#4f46e5',
+                          borderRadius: 6,
+                          padding: '2px 8px',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ⚡ Fill Code ({debugCode || '123456'})
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="rg-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 16 }}>
                   <input

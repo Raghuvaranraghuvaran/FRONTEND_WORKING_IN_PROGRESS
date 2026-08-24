@@ -106,6 +106,10 @@ function AppRoutes() {
         <Route path="settings" element={<MerchantSettings />} />
       </Route>
 
+      {/* Admin aliases */}
+      <Route path="/admin" element={<Navigate to="/merchant" replace />} />
+      <Route path="/admin/*" element={<Navigate to="/merchant" replace />} />
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
