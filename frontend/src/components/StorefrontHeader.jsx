@@ -142,7 +142,7 @@ export default function StorefrontHeader() {
                 fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
               }}
             >
-              <div className="relative w-full">
+              <div className="relative w-full" style={{ paddingTop: '56px' }}>
                 {/* Mobile Drag Indicator */}
                 <div className="sm:hidden w-10 h-1 bg-slate-500/40 rounded-full mx-auto mb-2" />
 
@@ -151,7 +151,7 @@ export default function StorefrontHeader() {
                   whileHover={{ scale: 1.1, rotate: 90 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setMenuOpen(false)}
-                  className="absolute top-0 right-0 w-7 h-7 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-colors z-10"
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-colors z-10"
                   aria-label="Close menu"
                 >
                   <X size={14} />
@@ -224,10 +224,10 @@ export default function StorefrontHeader() {
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '24px',
+                      gap: '21px',
                       width: '100%',
-                      marginTop: '8px',
-                      marginBottom: '8px',
+                      marginTop: '10px',
+                      marginBottom: '10px',
                     }}
                   >
                     {/* Shopper Portal Card with spring hover */}
@@ -278,7 +278,7 @@ export default function StorefrontHeader() {
                       transition={{ delay: 0.18, duration: 0.35, ease: 'easeOut' }}
                       whileHover={{ scale: 1.015, y: -1.5 }}
                       whileTap={{ scale: 0.98 }}
-                      style={{ marginTop: '24px' }}
+                      style={{ marginTop: '21px' }}
                     >
                       <Link
                         to="/merchant/login"

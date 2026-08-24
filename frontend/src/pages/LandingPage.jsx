@@ -449,13 +449,13 @@ export default function LandingPage() {
         .vlc-portal-cards-wrap {
           display: flex !important;
           flex-direction: column !important;
-          gap: 24px !important;
+          gap: 21px !important;
           width: 100% !important;
-          margin-top: 12px !important;
-          margin-bottom: 12px !important;
+          margin-top: 10px !important;
+          margin-bottom: 10px !important;
         }
         .vlc-portal-cards-wrap > * + * {
-          margin-top: 24px !important;
+          margin-top: 21px !important;
         }
         @media (max-width: 860px) {
           .vlc-nav-links { display: none; }
@@ -714,7 +714,7 @@ export default function LandingPage() {
                 fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif",
               }}
             >
-              <div className="relative w-full">
+              <div className="relative w-full" style={{ paddingTop: '56px' }}>
                 {/* Mobile Drag Indicator */}
                 <div className="sm:hidden w-10 h-1 bg-slate-500/40 rounded-full mx-auto mb-2" />
 
@@ -723,7 +723,7 @@ export default function LandingPage() {
                   whileHover={{ scale: 1.1, rotate: 90 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setNavOpen(false)}
-                  className="absolute top-0 right-0 w-7 h-7 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-colors z-10"
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-colors z-10"
                   aria-label="Close menu"
                 >
                   <X size={14} />
@@ -769,10 +769,10 @@ export default function LandingPage() {
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '24px',
+                    gap: '21px',
                     width: '100%',
-                    marginTop: '12px',
-                    marginBottom: '12px',
+                    marginTop: '10px',
+                    marginBottom: '10px',
                   }}
                 >
                   {/* Shopper Portal Card with spring hover */}
@@ -834,7 +834,7 @@ export default function LandingPage() {
                     transition={{ delay: 0.18, duration: 0.35, ease: 'easeOut' }}
                     whileHover={{ scale: 1.015, y: -1.5 }}
                     whileTap={{ scale: 0.98 }}
-                    style={{ marginTop: '24px' }}
+                    style={{ marginTop: '21px' }}
                   >
                     <Link
                       to="/merchant/login"
