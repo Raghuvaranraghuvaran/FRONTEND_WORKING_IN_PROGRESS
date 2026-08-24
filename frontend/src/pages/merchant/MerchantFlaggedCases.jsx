@@ -950,40 +950,49 @@ export default function MerchantFlaggedCases() {
                   </div>
 
                   {/* Secondary Account Authority Actions */}
-                  <div className="border-t border-slate-100 pt-3">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase">Customer Policy & Restriction Overrides:</span>
-                    <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="border-t border-slate-100 pt-4">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <span>⚡</span> Customer Policy & Restriction Overrides:
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium">Instant enforcement</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
                       <button
                         type="button"
                         onClick={() => handleAction('restrict_cod')}
                         disabled={actionLoading}
-                        className="rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-800 text-slate-700 px-2.5 py-2 text-[11px] font-bold cursor-pointer"
+                        className="group flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100/80 text-rose-700 font-bold px-3 py-2.5 text-xs shadow-2xs hover:shadow-sm hover:scale-[1.02] active:scale-95 disabled:opacity-50 transition-all cursor-pointer"
                       >
-                        🚫 Restrict COD
+                        <span className="text-sm group-hover:scale-110 transition-transform">🚫</span>
+                        <span>Restrict COD</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => handleAction('require_prepaid')}
                         disabled={actionLoading}
-                        className="rounded-xl bg-slate-100 hover:bg-purple-50 hover:text-purple-800 text-slate-700 px-2.5 py-2 text-[11px] font-bold cursor-pointer"
+                        className="group flex items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100/80 text-indigo-700 font-bold px-3 py-2.5 text-xs shadow-2xs hover:shadow-sm hover:scale-[1.02] active:scale-95 disabled:opacity-50 transition-all cursor-pointer"
                       >
-                        💳 Require Prepaid
+                        <span className="text-sm group-hover:scale-110 transition-transform">💳</span>
+                        <span>Require Prepaid</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => handleAction('increase_restriction')}
                         disabled={actionLoading}
-                        className="rounded-xl bg-slate-100 hover:bg-amber-50 hover:text-amber-800 text-slate-700 px-2.5 py-2 text-[11px] font-bold cursor-pointer"
+                        className="group flex items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50/60 hover:bg-amber-100/80 text-amber-800 font-bold px-3 py-2.5 text-xs shadow-2xs hover:shadow-sm hover:scale-[1.02] active:scale-95 disabled:opacity-50 transition-all cursor-pointer"
                       >
-                        ▲ Escalate Level
+                        <span className="text-sm text-amber-600 group-hover:scale-110 transition-transform">▲</span>
+                        <span>Escalate Level</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => handleAction('suspend_account')}
                         disabled={actionLoading}
-                        className="rounded-xl bg-slate-900 text-rose-400 hover:bg-black px-2.5 py-2 text-[11px] font-bold cursor-pointer"
+                        className="group flex items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-gradient-to-r from-slate-950 to-slate-900 hover:from-black hover:to-rose-950 text-rose-300 hover:text-rose-100 font-bold px-3 py-2.5 text-xs shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-95 disabled:opacity-50 transition-all cursor-pointer"
                       >
-                        ⛔ Suspend Account
+                        <span className="text-sm group-hover:scale-110 transition-transform">⛔</span>
+                        <span>Suspend Account</span>
                       </button>
                     </div>
                   </div>

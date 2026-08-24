@@ -1265,6 +1265,158 @@ export const api = {
     return clone(store.returns)
   },
 
+  async reviewReturn({ returnId, action, notes }) {
+    if (hasLiveApi()) {
+      try {
+        return await live(`/admin/flagged-cases/${returnId}/`, {
+          method: 'PATCH',
+          body: {
+            status: action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : action,
+            outcome: action === 'approve' ? 'manual_approved' : action === 'reject' ? 'rejected' : action,
+            notes,
+          },
+          role: 'merchant',
+        })
+      } catch (e) {
+        console.warn('Live reviewReturn fallback:', e)
+      }
+    }
+    await delay(300)
+    const ret = store.returns.find((r) => r.id === returnId || String(r.id) === String(returnId))
+    if (ret) {
+      ret.status = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : action
+      ret.outcome = action === 'approve' ? 'manual_approved' : action === 'reject' ? 'rejected' : action
+      ret.timeline = ret.timeline || []
+      ret.timeline.push({ label: `Merchant ${action.toUpperCase()}: ${notes || 'Reviewed'}`, at: new Date().toISOString() })
+      return clone(ret)
+    }
+    return { id: returnId, status: action, outcome: action }
+  },
+
+  async getCustomerReview(customerId) {
+    if (hasLiveApi()) {
+      try {
+        return await live(`/fraud/customers/${customerId}/review/`, { role: 'merchant' })
+      } catch (e) {
+        console.warn('Live getCustomerReview fallback:', e)
+      }
+    }
+    await delay(250)
+    return {
+      profile: {
+        id: customerId,
+        customer_id: customerId,
+        risk_tier: 'High',
+        latest_score: 82,
+        escalation_level: 3,
+        confirmed_violations: 2,
+        restriction_count: 1,
+      },
+      behavior: {
+        total_orders: 10,
+        total_returns: 6,
+        total_cod_refusals: 2,
+        successful_deliveries: 4,
+        multiple_variant_orders: 6,
+        high_value_cod_count: 4,
+        address_mismatch_count: 2,
+        return_rate: 0.6,
+      },
+      restrictions: store.restrictions || [],
+      escalation_history: store.escalationHistory || [],
+      decision: {
+        recommended_action: 'require_prepaid',
+      },
+    }
+  },
+
+  async performMerchantAction({ customerId, action, notes, threshold_value, escalation_level }) {
+    if (hasLiveApi()) {
+      try {
+        return await live(`/fraud/customers/${customerId}/action/`, {
+          method: 'POST',
+          body: { action, notes, threshold_value, escalation_level },
+          role: 'merchant',
+        })
+      } catch (e) {
+        console.warn('Live performMerchantAction fallback:', e)
+      }
+    }
+    await delay(300)
+    if (action === 'restrict_cod') {
+      store.restrictions = store.restrictions || []
+      store.restrictions.unshift({
+        id: nextId('r', store.restrictions),
+        customer_id: customerId,
+        restriction_type: 'cod_suspended',
+        reason: notes || 'COD restricted by merchant',
+        status: 'active',
+        start_date: new Date().toISOString(),
+      })
+    } else if (action === 'require_prepaid') {
+      store.restrictions = store.restrictions || []
+      store.restrictions.unshift({
+        id: nextId('r', store.restrictions),
+        customer_id: customerId,
+        restriction_type: 'prepaid_only',
+        reason: notes || 'Prepaid required by merchant',
+        status: 'active',
+        start_date: new Date().toISOString(),
+      })
+    } else if (action === 'increase_restriction') {
+      store.escalationHistory = store.escalationHistory || []
+      store.escalationHistory.unshift({
+        id: nextId('esc', store.escalationHistory),
+        customer_id: customerId,
+        previous_level: 2,
+        new_level: 3,
+        trigger_event: notes || 'Manual merchant escalation',
+        created_at: new Date().toISOString(),
+      })
+    } else if (action === 'suspend_account') {
+      store.restrictions = store.restrictions || []
+      store.restrictions.unshift({
+        id: nextId('r', store.restrictions),
+        customer_id: customerId,
+        restriction_type: 'account_restricted',
+        reason: notes || 'Account suspended by merchant',
+        status: 'active',
+        start_date: new Date().toISOString(),
+      })
+    } else if (action === 'set_escalation_level') {
+      const lvl = escalation_level ?? threshold_value ?? 1
+      store.escalationHistory = store.escalationHistory || []
+      store.escalationHistory.unshift({
+        id: nextId('esc', store.escalationHistory),
+        customer_id: customerId,
+        previous_level: 1,
+        new_level: lvl,
+        trigger_event: notes || `Direct manual switch to Step ${lvl}`,
+        created_at: new Date().toISOString(),
+      })
+    }
+    return { action, status: 'completed' }
+  },
+
+  async removeCustomerRestriction({ customerId, restrictionId }) {
+    if (hasLiveApi()) {
+      try {
+        return await live(`/fraud/customers/${customerId}/action/`, {
+          method: 'POST',
+          body: { action: 'remove_restriction', restriction_id: restrictionId },
+          role: 'merchant',
+        })
+      } catch (e) {
+        console.warn('Live removeCustomerRestriction fallback:', e)
+      }
+    }
+    await delay(300)
+    if (store.restrictions) {
+      store.restrictions = store.restrictions.filter((r) => r.id !== restrictionId)
+    }
+    return { restrictionId, status: 'removed' }
+  },
+
   async getMerchantAuditLog() {
     if (hasLiveApi()) {
       try {
