@@ -464,6 +464,9 @@ class InvoicePDFGenerator:
             if self.payment.gateway_payment_id:
                 lines.append(f"<b>Gateway Reference ID:</b> {self.payment.gateway_payment_id}")
 
+        if getattr(self.order, 'reward_points_earned', 0):
+            lines.append(f"<b>Reward Points Earned:</b> +{self.order.reward_points_earned} pts credited (10 pts per Rs. 100 spent)")
+
         lines.append("")
         lines.append(
             '<font size=7 color="#94a3b8"><i>Security Guarantee: Sensitive payment credentials '

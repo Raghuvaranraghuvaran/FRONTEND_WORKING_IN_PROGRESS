@@ -137,6 +137,18 @@ export default function PaymentSuccessPage() {
               </div>
             </div>
 
+            {/* Earned Reward Points Row */}
+            {(Number(order?.reward_points_earned) > 0 || Math.floor(orderTotal / 100) * 10 > 0) && (
+              <div className="py-3 px-3.5 my-3 bg-amber-50/90 border border-amber-200/80 rounded-xl flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1.5 font-semibold text-amber-900">
+                  <span>⭐</span> Reward Points Earned:
+                </span>
+                <span className="font-bold text-amber-800">
+                  +{order?.reward_points_earned || Math.floor(orderTotal / 100) * 10} pts <span className="text-[11px] font-medium text-amber-600">(10 pts / ₹100 credited)</span>
+                </span>
+              </div>
+            )}
+
             {/* Instant Invoice Download Row */}
             <div className="pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>

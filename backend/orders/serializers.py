@@ -27,6 +27,7 @@ class OrderListSerializer(serializers.ModelSerializer):
             "coupon_code",
             "reward_points_used",
             "reward_discount",
+            "reward_points_earned",
             "total",
             "payment_method",
             "status",

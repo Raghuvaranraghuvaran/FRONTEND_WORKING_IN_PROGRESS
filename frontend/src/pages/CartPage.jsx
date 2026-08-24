@@ -310,7 +310,7 @@ export default function CartPage() {
                 <span>⭐</span> Reward Points Available
               </div>
               <p className="text-[11.5px] text-amber-700">
-                You have <strong>{(shopper.reward_points ?? 1000).toLocaleString()} points</strong> (worth {INR.format((shopper.reward_points ?? 1000) / 10)}). You can redeem them on the checkout page (100 pts = ₹10).
+                You have <strong>{(shopper.reward_points ?? 1000).toLocaleString()} points</strong> (worth {INR.format((shopper.reward_points ?? 1000) / 10)}). Redeem them at checkout (100 pts = ₹10) & earn <strong>10 pts per ₹100</strong> on this order!
               </p>
             </div>
           )}

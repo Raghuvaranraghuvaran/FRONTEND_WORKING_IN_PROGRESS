@@ -247,8 +247,9 @@ export default function ProfilePage() {
               <p className="text-xs font-medium text-slate-500">COD refusals</p>
             </div>
             <div className="rounded-xl bg-amber-50/80 border border-amber-200/60 p-4 text-center">
-              <p className="text-2xl font-bold text-amber-600">{shopper?.reward_points ?? 1000}</p>
+              <p className="text-2xl font-bold text-amber-600">{(shopper?.reward_points ?? 1000).toLocaleString()}</p>
               <p className="text-xs font-semibold text-amber-700">Reward points</p>
+              <p className="text-[10px] text-amber-600 mt-0.5">+10 pts per ₹100 spent</p>
             </div>
           </div>
           <div className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 p-4">

@@ -108,13 +108,17 @@ class CheckoutService:
         coupon_discount = Decimal(str(discount or 0))
         final_total = max(Decimal("0"), subtotal - coupon_discount - reward_discount)
 
+        # For every 100 rupees of order total, shopper earns 10 reward points
+        points_earned = int((final_total // Decimal("100")) * Decimal("10"))
+
         order.subtotal = subtotal
         order.discount = coupon_discount
         order.coupon_code = coupon_code or ""
         order.reward_points_used = pts
         order.reward_discount = reward_discount
+        order.reward_points_earned = points_earned
         order.total = final_total
-        order.save(update_fields=["subtotal", "discount", "coupon_code", "reward_points_used", "reward_discount", "total"])
+        order.save(update_fields=["subtotal", "discount", "coupon_code", "reward_points_used", "reward_discount", "reward_points_earned", "total"])
 
         risk = self.risk_engine.score(
             shopper_profile=shopper,
@@ -162,8 +166,12 @@ class CheckoutService:
 
         if shopper is not None:
             shopper.total_orders += 1
+            current_points = getattr(shopper, "reward_points", 1000) or 1000
             if pts > 0:
-                shopper.reward_points = max(0, shopper.reward_points - pts)
+                current_points = max(0, current_points - pts)
+            if points_earned > 0:
+                current_points += points_earned
+            shopper.reward_points = current_points
             if shopper.risk_tier != "High" and risk.tier == "High":
                 shopper.risk_tier = "High"
             shopper.save(update_fields=["total_orders", "risk_tier", "reward_points"])

@@ -194,9 +194,18 @@ export default function OrdersPage() {
                     <div className="text-right">
                       <p className="text-base font-bold text-slate-900">{INR.format(order.total)}</p>
                       {order.coupon_code && (
-                        <span className="inline-flex items-center gap-1 rounded bg-purple-50 px-1.5 py-0.5 text-[11px] font-semibold text-purple-700 border border-purple-200 mt-0.5">
-                          🏷️ {order.coupon_code} (−{INR.format(order.discount || 0)})
-                        </span>
+                        <div>
+                          <span className="inline-flex items-center gap-1 rounded bg-purple-50 px-1.5 py-0.5 text-[11px] font-semibold text-purple-700 border border-purple-200 mt-0.5">
+                            🏷️ {order.coupon_code} (−{INR.format(order.discount || 0)})
+                          </span>
+                        </div>
+                      )}
+                      {(Number(order.reward_points_earned) > 0 || Math.floor(Number(order.total) / 100) * 10 > 0) && (
+                        <div className="mt-1">
+                          <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800 border border-amber-200">
+                            ⭐ +{order.reward_points_earned || Math.floor(Number(order.total) / 100) * 10} pts earned
+                          </span>
+                        </div>
                       )}
                       <p className="text-xs text-slate-500 mt-0.5">
                         {order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 1} item(s)

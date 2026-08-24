@@ -829,6 +829,8 @@ export const api = {
         : 'Processing'
       : 'Awaiting payment'
 
+    const pointsEarned = Math.floor(total / 100) * 10
+
     const order = {
       id: nextId('ord', store.orders),
       order_number: makeOrderNumber(),
@@ -841,6 +843,7 @@ export const api = {
       coupon_code: couponCode || null,
       reward_points_used: ptsUsed,
       reward_discount: rewardDiscount,
+      reward_points_earned: pointsEarned,
       total,
       payment_method: paymentMethod,
       status: orderStatus,
@@ -879,9 +882,9 @@ export const api = {
     store.payments.unshift(payment)
 
     shopper.total_orders += 1
-    if (ptsUsed > 0) {
-      shopper.reward_points = Math.max(0, (shopper.reward_points ?? 1000) - ptsUsed)
-    }
+    const currentPoints = shopper.reward_points ?? 1000
+    const remPoints = ptsUsed > 0 ? Math.max(0, currentPoints - ptsUsed) : currentPoints
+    shopper.reward_points = remPoints + pointsEarned
     if (shopper.risk_tier !== 'High' && risk.tier === 'High') shopper.risk_tier = 'High'
     session.shopper = clone(shopper)
     saveSession()
