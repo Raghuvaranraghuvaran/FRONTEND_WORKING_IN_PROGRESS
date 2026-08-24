@@ -246,6 +246,7 @@ def _build_html_email(order, invoice, customer, merchant, payment_method, paymen
                 <td style="font-size: 13px; color: #64748b; padding-top: 4px;">Payment Status:</td>
                 <td style="font-size: 13px; color: #16a34a; font-weight: 700; text-align: right; padding-top: 4px;">{payment_status}</td>
             </tr>
+            {f'<tr><td style="font-size: 12px; color: #b45309; padding-top: 4px; font-weight: 600;">Reward Points Earned:</td><td style="font-size: 12px; color: #b45309; font-weight: 700; text-align: right; padding-top: 4px;">+{order.reward_points_earned} pts</td></tr>' if getattr(order, 'reward_points_earned', 0) else ''}
             {f'<tr><td style="font-size: 12px; color: #64748b; padding-top: 4px;">Transaction ID:</td><td style="font-size: 12px; color: #1e293b; font-family: monospace; text-align: right; padding-top: 4px;">{transaction_id}</td></tr>' if transaction_id else ''}
         </table>
     </div>
