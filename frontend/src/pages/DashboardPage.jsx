@@ -209,7 +209,7 @@ export default function DashboardPage() {
           >
             <span style={{ fontSize: 32 }}>👤</span>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 4 }}>Profile</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 4 }}>Account</div>
               <div style={{ fontSize: 12, color: '#64748b' }}>Manage your account</div>
             </div>
           </Link>

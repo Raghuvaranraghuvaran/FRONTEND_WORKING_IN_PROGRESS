@@ -349,8 +349,8 @@ export default function LandingPage() {
         .vlc-nav-pill-group {
           display: flex;
           align-items: center;
-          gap: 6px;
-          padding: 4px 5px;
+          gap: 12px;
+          padding: 5px 7px;
           background: rgba(22, 26, 35, 0.72);
           border: 1px solid rgba(255, 255, 255, 0.09);
           border-radius: 9999px;
@@ -445,6 +445,17 @@ export default function LandingPage() {
           border-color: rgba(99, 102, 241, 0.4);
           box-shadow: 0 0 16px rgba(99, 102, 241, 0.25);
           transform: scale(1.05);
+        }
+        .vlc-portal-cards-wrap {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 15px !important;
+          width: 100% !important;
+          margin-top: 28px !important;
+          margin-bottom: 12px !important;
+        }
+        .vlc-portal-cards-wrap > * + * {
+          margin-top: 15px !important;
         }
         @media (max-width: 860px) {
           .vlc-nav-links { display: none; }
@@ -689,21 +700,21 @@ export default function LandingPage() {
               onClick={() => setNavOpen(false)}
             />
 
-            {/* Drawer styled with modern compact glassmorphism & dynamic motion */}
+            {/* Slide-out Drawer on Right with compact horizontal width and generous vertical card gap */}
             <motion.aside
               key="drawer"
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[320px] sm:max-w-[345px] flex-col justify-between overflow-y-auto rounded-t-[20px] sm:rounded-t-none sm:rounded-l-[26px] shadow-2xl p-4 sm:p-5 border-t sm:border-t-0 sm:border-l border-indigo-500/20"
+              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[295px] sm:max-w-[310px] flex-col justify-between overflow-y-auto rounded-t-[20px] sm:rounded-t-none sm:rounded-l-[24px] shadow-2xl p-4 sm:p-4.5 border-t sm:border-t-0 sm:border-l border-indigo-500/20"
               style={{
                 background: 'radial-gradient(circle at top right, #1a2238 0%, #0d121f 45%, #080b14 100%)',
                 color: '#fff',
                 fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif",
               }}
             >
-              <div className="relative w-full">
+              <div className="relative w-full" style={{ paddingTop: '56px' }}>
                 {/* Mobile Drag Indicator */}
                 <div className="sm:hidden w-10 h-1 bg-slate-500/40 rounded-full mx-auto mb-2" />
 
@@ -712,14 +723,14 @@ export default function LandingPage() {
                   whileHover={{ scale: 1.1, rotate: 90 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setNavOpen(false)}
-                  className="absolute top-0 right-0 w-7 h-7 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-colors"
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-colors z-10"
                   aria-label="Close menu"
                 >
                   <X size={14} />
                 </motion.button>
 
                 {/* Center Brand Badge & Floating Icon */}
-                <div className="text-center pt-1 mb-3.5">
+                <div className="text-center pt-1 mb-4">
                   <motion.div
                     initial={{ scale: 0.85, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1, y: [0, -3, 0] }}
@@ -728,10 +739,10 @@ export default function LandingPage() {
                       opacity: { duration: 0.3 },
                       y: { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }
                     }}
-                    className="mx-auto mb-2.5 relative grid place-items-center rounded-xl shadow-[0_0_24px_rgba(99,102,241,0.22)]"
+                    className="mx-auto mb-2.5 relative grid place-items-center rounded-xl shadow-[0_0_22px_rgba(99,102,241,0.22)]"
                     style={{
-                      width: 50,
-                      height: 50,
+                      width: 46,
+                      height: 46,
                       background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.98) 100%)',
                       border: '1px solid rgba(99, 102, 241, 0.35)',
                     }}
@@ -744,32 +755,42 @@ export default function LandingPage() {
                     ReturnGuard Portals
                   </div>
 
-                  <h1 className="text-[19px] sm:text-[21px] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-indigo-200 m-0 leading-tight tracking-tight">
+                  <h1 className="text-[18px] sm:text-[19.5px] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-indigo-200 m-0 leading-tight tracking-tight">
                     Welcome Back
                   </h1>
-                  <p className="text-[11.5px] text-[#94A3B8] mt-1 mb-0 font-normal">
+                  <p className="text-[11px] text-[#94A3B8] mt-1 mb-0 font-normal">
                     Choose your dedicated portal to continue
                   </p>
                 </div>
 
-                {/* Portal Cards with compact dynamic button flow */}
-                <div className="grid gap-2.5 sm:gap-3 w-full">
+                {/* Portal Cards with distinct vertical gap */}
+                <div
+                  className="vlc-portal-cards-wrap"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '15px',
+                    width: '100%',
+                    marginTop: '28px',
+                    marginBottom: '12px',
+                  }}
+                >
                   {/* Shopper Portal Card with spring hover */}
                   <motion.div
-                    initial={{ opacity: 0, x: 15 }}
+                    initial={{ opacity: 0, x: 12 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.15, duration: 0.35, ease: 'easeOut' }}
+                    transition={{ delay: 0.12, duration: 0.35, ease: 'easeOut' }}
                     whileHover={{ scale: 1.015, y: -1.5 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     <Link
                       to="/login"
                       onClick={() => setNavOpen(false)}
-                      className="group relative flex items-center gap-2.5 sm:gap-3 p-3 sm:p-3.5 text-left rounded-xl text-white transition-all duration-300 border border-blue-500/20 hover:border-blue-400/70 bg-gradient-to-br from-slate-900/90 via-slate-900/75 to-blue-950/40 hover:from-blue-950/70 hover:to-slate-900/95 hover:shadow-[0_8px_24px_rgba(37,99,235,0.22)] overflow-hidden"
+                      className="group relative flex items-center gap-2.5 p-3 sm:p-3.5 text-left rounded-xl text-white transition-all duration-300 border border-blue-500/20 hover:border-blue-400/70 bg-gradient-to-br from-slate-900/90 via-slate-900/75 to-blue-950/40 hover:from-blue-950/70 hover:to-slate-900/95 hover:shadow-[0_8px_24px_rgba(37,99,235,0.22)] overflow-hidden"
                       style={{ textDecoration: 'none' }}
                     >
                       {/* Ambient glow accent */}
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl pointer-events-none group-hover:bg-blue-500/20 transition-all" />
+                      <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/10 rounded-full blur-xl pointer-events-none group-hover:bg-blue-500/20 transition-all" />
 
                       {/* Icon Box */}
                       <div
@@ -787,14 +808,14 @@ export default function LandingPage() {
                       {/* Text Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
-                          <h2 className="text-[13.5px] sm:text-[14px] font-bold text-white m-0 leading-tight group-hover:text-blue-200 transition-colors">
+                          <h2 className="text-[13.5px] font-bold text-white m-0 leading-tight group-hover:text-blue-200 transition-colors">
                             Shopper Portal
                           </h2>
                           <span className="px-1.5 py-0.2 text-[8px] font-bold uppercase tracking-wider bg-blue-500/15 text-blue-300 rounded-full border border-blue-500/30">
                             Customer
                           </span>
                         </div>
-                        <p className="text-[10.5px] text-[#94A3B8] m-0 leading-snug font-normal line-clamp-2">
+                        <p className="text-[10.5px] text-[#94A3B8] m-0 leading-snug font-normal">
                           Shop verified items, track orders & request returns.
                         </p>
                       </div>
@@ -808,20 +829,21 @@ export default function LandingPage() {
 
                   {/* Merchant Portal Card with spring hover */}
                   <motion.div
-                    initial={{ opacity: 0, x: 15 }}
+                    initial={{ opacity: 0, x: 12 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.22, duration: 0.35, ease: 'easeOut' }}
+                    transition={{ delay: 0.18, duration: 0.35, ease: 'easeOut' }}
                     whileHover={{ scale: 1.015, y: -1.5 }}
                     whileTap={{ scale: 0.98 }}
+                    style={{ marginTop: '15px' }}
                   >
                     <Link
                       to="/merchant/login"
                       onClick={() => setNavOpen(false)}
-                      className="group relative flex items-center gap-2.5 sm:gap-3 p-3 sm:p-3.5 text-left rounded-xl text-white transition-all duration-300 border border-purple-500/25 hover:border-purple-400/80 bg-gradient-to-br from-slate-900/90 via-slate-900/75 to-purple-950/40 hover:from-purple-950/70 hover:to-slate-900/95 hover:shadow-[0_8px_24px_rgba(147,51,234,0.22)] overflow-hidden"
+                      className="group relative flex items-center gap-2.5 p-3 sm:p-3.5 text-left rounded-xl text-white transition-all duration-300 border border-purple-500/25 hover:border-purple-400/80 bg-gradient-to-br from-slate-900/90 via-slate-900/75 to-purple-950/40 hover:from-purple-950/70 hover:to-slate-900/95 hover:shadow-[0_8px_24px_rgba(147,51,234,0.22)] overflow-hidden"
                       style={{ textDecoration: 'none' }}
                     >
                       {/* Ambient glow accent */}
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-xl pointer-events-none group-hover:bg-purple-500/20 transition-all" />
+                      <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/10 rounded-full blur-xl pointer-events-none group-hover:bg-purple-500/20 transition-all" />
 
                       {/* Icon Box */}
                       <div
@@ -839,14 +861,14 @@ export default function LandingPage() {
                       {/* Text Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
-                          <h2 className="text-[13.5px] sm:text-[14px] font-bold text-white m-0 leading-tight group-hover:text-purple-200 transition-colors">
+                          <h2 className="text-[13.5px] font-bold text-white m-0 leading-tight group-hover:text-purple-200 transition-colors">
                             Merchant Portal
                           </h2>
                           <span className="px-1.5 py-0.2 text-[8px] font-bold uppercase tracking-wider bg-purple-500/15 text-purple-300 rounded-full border border-purple-500/30">
                             Store Admin
                           </span>
                         </div>
-                        <p className="text-[10.5px] text-[#94A3B8] m-0 leading-snug font-normal line-clamp-2">
+                        <p className="text-[10.5px] text-[#94A3B8] m-0 leading-snug font-normal">
                           Manage store catalog, fraud rules & flagged returns.
                         </p>
                       </div>
@@ -863,8 +885,8 @@ export default function LandingPage() {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ delay: 0.32, duration: 0.4 }}
-                  className="mt-5 pt-3.5 border-t border-white/10 flex flex-wrap justify-center items-center gap-2 sm:gap-3 text-[#8B98AB] text-[10px] sm:text-[10.5px] font-medium"
+                  transition={{ delay: 0.26, duration: 0.4 }}
+                  className="mt-6 pt-3.5 border-t border-white/10 flex flex-wrap justify-center items-center gap-2 sm:gap-3 text-[#8B98AB] text-[10px] font-medium"
                 >
                   <span className="flex items-center gap-1">
                     <ShieldCheck size={11} className="text-emerald-400" />

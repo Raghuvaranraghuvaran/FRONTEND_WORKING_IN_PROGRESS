@@ -134,7 +134,7 @@ export default function ShopperLayout() {
                         onClick={() => setShowProfileMenu(false)}
                         className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
                       >
-                        👤 Profile
+                        👤 Account
                       </Link>
                     </div>
                     <div className="pt-1 border-t border-slate-100">

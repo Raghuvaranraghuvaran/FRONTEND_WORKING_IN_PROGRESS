@@ -135,26 +135,26 @@ export default function StorefrontHeader() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[320px] sm:max-w-[345px] flex-col justify-between overflow-y-auto rounded-t-[20px] sm:rounded-t-none sm:rounded-l-[26px] shadow-2xl p-4 sm:p-5 border-t sm:border-t-0 sm:border-l border-blue-500/20"
+              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[295px] sm:max-w-[310px] flex-col justify-between overflow-y-auto rounded-t-[20px] sm:rounded-t-none sm:rounded-l-[24px] shadow-2xl p-4 sm:p-4.5 border-t sm:border-t-0 sm:border-l border-blue-500/20"
               style={{
                 background: 'radial-gradient(circle at top, #17233a 0%, #0a0f1a 42%, #070a12 100%)',
                 color: '#fff',
                 fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
               }}
             >
-              <div className="relative w-full">
+              <div className="relative w-full" style={{ paddingTop: '56px' }}>
                 {/* Mobile Drag Indicator */}
                 <div className="sm:hidden w-10 h-1 bg-slate-500/40 rounded-full mx-auto mb-2" />
 
                 {/* Close Button with micro-interaction */}
                 <motion.button
-                  whileHover={{ scale: 1.15, rotate: 90 }}
+                  whileHover={{ scale: 1.1, rotate: 90 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setMenuOpen(false)}
-                  className="absolute top-0 right-0 border-0 bg-transparent text-[#9fb0c9] hover:text-white text-[24px] leading-none cursor-pointer transition-colors p-1"
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-colors z-10"
                   aria-label="Close menu"
                 >
-                  ×
+                  <X size={14} />
                 </motion.button>
 
                 {/* Brand Icon with smooth float animation */}
@@ -166,10 +166,10 @@ export default function StorefrontHeader() {
                     opacity: { duration: 0.3 },
                     y: { duration: 3.5, repeat: Infinity, ease: 'easeInOut' }
                   }}
-                  className="mx-auto mb-3 grid place-items-center rounded-2xl text-[24px] shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
+                  className="mx-auto mb-2.5 grid place-items-center rounded-xl text-[20px] shadow-[0_0_22px_rgba(59,130,246,0.22)]"
                   style={{
-                    width: 52,
-                    height: 52,
+                    width: 46,
+                    height: 46,
                     background: 'linear-gradient(145deg, #17253d, #0d1422)',
                     border: '1px solid rgba(74, 144, 255, 0.35)',
                   }}
@@ -183,10 +183,10 @@ export default function StorefrontHeader() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1, duration: 0.35 }}
                 >
-                  <h1 className="text-[19px] sm:text-[21px] font-bold text-white text-center m-0 leading-tight">
+                  <h1 className="text-[18px] sm:text-[19.5px] font-bold text-white text-center m-0 leading-tight">
                     {shopper ? `Hello, ${shopper.email || shopper.name}` : 'Welcome Back'}
                   </h1>
-                  <p className="text-[11.5px] text-[#9aa9bf] text-center mt-1 mb-4 font-normal">
+                  <p className="text-[11px] text-[#9aa9bf] text-center mt-1 mb-4 font-normal">
                     {shopper ? 'Navigate your account & portal' : 'Choose your portal to continue'}
                   </p>
                 </motion.div>
@@ -194,15 +194,15 @@ export default function StorefrontHeader() {
                 {shopper ? (
                   /* Logged-in Shopper Navigation Links */
                   <nav className="space-y-2">
-                    <NavLink to="/shop" className="flex items-center justify-between px-4 py-2.5 rounded-xl text-slate-200 bg-[rgba(19,28,45,0.82)] border border-white/10 hover:border-blue-500 hover:text-white transition-all text-[13px]" onClick={() => setMenuOpen(false)}>
+                    <NavLink to="/shop" className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-200 bg-[rgba(19,28,45,0.82)] border border-white/10 hover:border-blue-500 hover:text-white transition-all text-[13px]" onClick={() => setMenuOpen(false)}>
                       <span>Shop Products</span>
                       <span className="text-[#60a5fa]">→</span>
                     </NavLink>
-                    <NavLink to="/orders" className="flex items-center justify-between px-4 py-2.5 rounded-xl text-slate-200 bg-[rgba(19,28,45,0.82)] border border-white/10 hover:border-blue-500 hover:text-white transition-all text-[13px]" onClick={() => setMenuOpen(false)}>
+                    <NavLink to="/orders" className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-200 bg-[rgba(19,28,45,0.82)] border border-white/10 hover:border-blue-500 hover:text-white transition-all text-[13px]" onClick={() => setMenuOpen(false)}>
                       <span>My Orders</span>
                       <span className="text-[#60a5fa]">→</span>
                     </NavLink>
-                    <NavLink to="/cart" className="flex items-center justify-between px-4 py-2.5 rounded-xl text-slate-200 bg-[rgba(19,28,45,0.82)] border border-white/10 hover:border-blue-500 hover:text-white transition-all text-[13px]" onClick={() => setMenuOpen(false)}>
+                    <NavLink to="/cart" className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-200 bg-[rgba(19,28,45,0.82)] border border-white/10 hover:border-blue-500 hover:text-white transition-all text-[13px]" onClick={() => setMenuOpen(false)}>
                       <span>Shopping Cart</span>
                       {cartCount > 0 ? (
                         <span className="rounded-full bg-blue-600 px-2 py-0.2 text-[10px] font-bold text-white">
@@ -212,26 +212,36 @@ export default function StorefrontHeader() {
                         <span className="text-[#60a5fa]">→</span>
                       )}
                     </NavLink>
-                    <NavLink to="/profile" className="flex items-center justify-between px-4 py-2.5 rounded-xl text-slate-200 bg-[rgba(19,28,45,0.82)] border border-white/10 hover:border-blue-500 hover:text-white transition-all text-[13px]" onClick={() => setMenuOpen(false)}>
-                      <span>Account Profile</span>
+                    <NavLink to="/profile" className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-200 bg-[rgba(19,28,45,0.82)] border border-white/10 hover:border-blue-500 hover:text-white transition-all text-[13px]" onClick={() => setMenuOpen(false)}>
+                      <span>Account</span>
                       <span className="text-[#60a5fa]">→</span>
                     </NavLink>
                   </nav>
                 ) : (
-                  /* Portal Cards with compact dynamic button flow */
-                  <div className="grid gap-2.5 sm:gap-3 w-full">
+                  /* Portal Cards with distinct vertical gap */
+                  <div
+                    className="flex flex-col w-full"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '15px',
+                      width: '100%',
+                      marginTop: '28px',
+                      marginBottom: '12px',
+                    }}
+                  >
                     {/* Shopper Portal Card with spring hover */}
                     <motion.div
-                      initial={{ opacity: 0, x: 15 }}
+                      initial={{ opacity: 0, x: 12 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.16, duration: 0.35, ease: 'easeOut' }}
+                      transition={{ delay: 0.12, duration: 0.35, ease: 'easeOut' }}
                       whileHover={{ scale: 1.015, y: -1.5 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       <Link
                         to="/login"
                         onClick={() => setMenuOpen(false)}
-                        className="group flex items-center gap-2.5 sm:gap-3 p-3 sm:p-3.5 text-left rounded-xl text-white transition-all duration-300 border border-white/10 hover:border-[#3b82f6] bg-[rgba(19,28,45,0.85)] hover:bg-[rgba(27,42,68,0.95)] hover:shadow-[0_8px_24px_rgba(37,99,235,0.22)]"
+                        className="group flex items-center gap-2.5 p-3 sm:p-3.5 text-left rounded-xl text-white transition-all duration-300 border border-white/10 hover:border-[#3b82f6] bg-[rgba(19,28,45,0.85)] hover:bg-[rgba(27,42,68,0.95)] hover:shadow-[0_8px_24px_rgba(37,99,235,0.22)]"
                         style={{ textDecoration: 'none' }}
                       >
                         <div
@@ -247,10 +257,10 @@ export default function StorefrontHeader() {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <h2 className="text-[13.5px] sm:text-[14px] font-semibold text-white m-0 mb-0.5 leading-snug group-hover:text-blue-200 transition-colors">
+                          <h2 className="text-[13.5px] font-semibold text-white m-0 mb-0.5 leading-snug group-hover:text-blue-200 transition-colors">
                             Shopper Portal
                           </h2>
-                          <p className="text-[10.5px] text-[#9aa9bf] m-0 leading-tight font-normal line-clamp-2">
+                          <p className="text-[10.5px] text-[#9aa9bf] m-0 leading-tight font-normal">
                             Shop, track orders, manage returns and rewards.
                           </p>
                         </div>
@@ -263,16 +273,17 @@ export default function StorefrontHeader() {
 
                     {/* Merchant Portal Card with spring hover */}
                     <motion.div
-                      initial={{ opacity: 0, x: 15 }}
+                      initial={{ opacity: 0, x: 12 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.24, duration: 0.35, ease: 'easeOut' }}
+                      transition={{ delay: 0.18, duration: 0.35, ease: 'easeOut' }}
                       whileHover={{ scale: 1.015, y: -1.5 }}
                       whileTap={{ scale: 0.98 }}
+                      style={{ marginTop: '15px' }}
                     >
                       <Link
                         to="/merchant/login"
                         onClick={() => setMenuOpen(false)}
-                        className="group flex items-center gap-2.5 sm:gap-3 p-3 sm:p-3.5 text-left rounded-xl text-white transition-all duration-300 border border-white/10 hover:border-[#8b5cf6] bg-[rgba(19,28,45,0.85)] hover:bg-[rgba(27,42,68,0.95)] hover:shadow-[0_8px_24px_rgba(139,92,246,0.22)]"
+                        className="group flex items-center gap-2.5 p-3 sm:p-3.5 text-left rounded-xl text-white transition-all duration-300 border border-white/10 hover:border-[#8b5cf6] bg-[rgba(19,28,45,0.85)] hover:bg-[rgba(27,42,68,0.95)] hover:shadow-[0_8px_24px_rgba(139,92,246,0.22)]"
                         style={{ textDecoration: 'none' }}
                       >
                         <div
@@ -288,10 +299,10 @@ export default function StorefrontHeader() {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <h2 className="text-[13.5px] sm:text-[14px] font-semibold text-white m-0 mb-0.5 leading-snug group-hover:text-purple-200 transition-colors">
+                          <h2 className="text-[13.5px] font-semibold text-white m-0 mb-0.5 leading-snug group-hover:text-purple-200 transition-colors">
                             Merchant Portal
                           </h2>
-                          <p className="text-[10.5px] text-[#9aa9bf] m-0 leading-tight font-normal line-clamp-2">
+                          <p className="text-[10.5px] text-[#9aa9bf] m-0 leading-tight font-normal">
                             Manage your store, products, orders and customers.
                           </p>
                         </div>
@@ -308,18 +319,18 @@ export default function StorefrontHeader() {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ delay: 0.32, duration: 0.4 }}
-                  className="mt-8 sm:mt-11"
+                  transition={{ delay: 0.26, duration: 0.4 }}
+                  className="mt-6 pt-3.5 border-t border-white/10"
                 >
                   {shopper ? (
                     <button
                       onClick={handleLogout}
-                      className="flex w-full items-center justify-center rounded-2xl bg-[rgba(19,28,45,0.82)] border border-white/10 py-3.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 hover:text-white transition-colors"
+                      className="flex w-full items-center justify-center rounded-xl bg-[rgba(19,28,45,0.82)] border border-white/10 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer"
                     >
                       Sign out
                     </button>
                   ) : (
-                    <div className="flex justify-center items-center gap-2 sm:gap-2.5 text-[#93a4bb] text-[12.5px] sm:text-[14px] font-medium">
+                    <div className="flex justify-center items-center gap-2 text-[#93a4bb] text-[11px] font-medium">
                       <span>🔒 Secure</span>
                       <span className="text-slate-600">•</span>
                       <span>Reliable</span>

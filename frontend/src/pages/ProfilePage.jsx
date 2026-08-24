@@ -68,7 +68,7 @@ export default function ProfilePage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="text-2xl font-bold text-slate-900">Your profile</h1>
+      <h1 className="text-2xl font-bold text-slate-900">Your Account</h1>
       <p className="text-sm text-slate-500">Update personal details and manage saved addresses.</p>
 
       <form onSubmit={submit} className="mt-6 space-y-5">
