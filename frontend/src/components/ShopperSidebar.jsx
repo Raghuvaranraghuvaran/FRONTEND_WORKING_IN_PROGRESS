@@ -126,7 +126,7 @@ export default function ShopperSidebar({ onClose }) {
           onClick={handleNav}
         />
         <SidebarItem
-          to="/profile" icon="👤" label="Profile"
+          to="/profile" icon="👤" label="Account"
           active={location.pathname === '/profile'} onClick={handleNav}
         />
       </nav>
