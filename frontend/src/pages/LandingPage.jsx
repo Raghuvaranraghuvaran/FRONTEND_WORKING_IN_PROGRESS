@@ -20,6 +20,9 @@ import {
   ShoppingBag,
   Store,
   ChevronRight,
+  ArrowRight,
+  Sparkles,
+  Lock,
 } from 'lucide-react'
 
 /* ------------------------------------------------------------------ */
@@ -682,18 +685,18 @@ export default function LandingPage() {
               onClick={() => setNavOpen(false)}
             />
 
-            {/* Drawer styled with user's exact radial gradient & dynamic motion */}
+            {/* Drawer styled with modern glassmorphism & dynamic motion */}
             <motion.aside
               key="drawer"
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[520px] flex-col justify-between overflow-y-auto rounded-t-[28px] sm:rounded-t-none sm:rounded-l-[36px] shadow-2xl p-5 sm:p-8 md:p-10 border-t sm:border-t-0 sm:border-l border-blue-500/20"
+              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[480px] flex-col justify-between overflow-y-auto rounded-t-[28px] sm:rounded-t-none sm:rounded-l-[32px] shadow-2xl p-6 sm:p-8 border-t sm:border-t-0 sm:border-l border-indigo-500/20"
               style={{
-                background: 'radial-gradient(circle at top, #17233a 0%, #0a0f1a 42%, #070a12 100%)',
+                background: 'radial-gradient(circle at top right, #1a2238 0%, #0d121f 45%, #080b14 100%)',
                 color: '#fff',
-                fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+                fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif",
               }}
             >
               <div className="relative w-full">
@@ -702,146 +705,177 @@ export default function LandingPage() {
 
                 {/* Close Button with micro-interaction */}
                 <motion.button
-                  whileHover={{ scale: 1.15, rotate: 90 }}
+                  whileHover={{ scale: 1.1, rotate: 90 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setNavOpen(false)}
-                  className="absolute top-0 right-0 border-0 bg-transparent text-[#9fb0c9] hover:text-white text-[32px] sm:text-[38px] leading-none cursor-pointer transition-colors p-1"
+                  className="absolute top-0 right-0 w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-colors"
                   aria-label="Close menu"
                 >
-                  ×
+                  <X size={17} />
                 </motion.button>
 
-                {/* Brand Icon with smooth float animation */}
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1, y: [0, -5, 0] }}
-                  transition={{
-                    scale: { duration: 0.4, ease: 'easeOut' },
-                    opacity: { duration: 0.3 },
-                    y: { duration: 3.5, repeat: Infinity, ease: 'easeInOut' }
-                  }}
-                  className="mx-auto mb-4 sm:mb-5 grid place-items-center rounded-[26px] sm:rounded-[30px] text-[36px] sm:text-[42px] shadow-[0_20px_60px_rgba(0,0,0,0.35)]"
-                  style={{
-                    width: 86,
-                    height: 86,
-                    background: 'linear-gradient(145deg, #17253d, #0d1422)',
-                    border: '1px solid rgba(74, 144, 255, 0.35)',
-                  }}
-                >
-                  🛍️
-                </motion.div>
+                {/* Center Brand Badge & Floating Icon */}
+                <div className="text-center pt-2 mb-6">
+                  <motion.div
+                    initial={{ scale: 0.85, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1, y: [0, -4, 0] }}
+                    transition={{
+                      scale: { duration: 0.4, ease: 'easeOut' },
+                      opacity: { duration: 0.3 },
+                      y: { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }
+                    }}
+                    className="mx-auto mb-4 relative grid place-items-center rounded-2xl text-[28px] shadow-[0_0_35px_rgba(99,102,241,0.25)]"
+                    style={{
+                      width: 68,
+                      height: 68,
+                      background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.98) 100%)',
+                      border: '1px solid rgba(99, 102, 241, 0.35)',
+                    }}
+                  >
+                    <img src="/returnguard-icon.svg" alt="ReturnGuard" className="w-10 h-10 object-contain drop-shadow-md" />
+                  </motion.div>
 
-                {/* Title & Subtitle with staggered entry */}
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1, duration: 0.35 }}
-                >
-                  <h1 className="text-[26px] sm:text-[34px] font-bold text-white text-center m-0 leading-tight">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/25 text-indigo-300 text-[11px] font-bold tracking-wider uppercase mb-2 shadow-sm">
+                    <Sparkles size={12} className="text-indigo-400" />
+                    ReturnGuard Portals
+                  </div>
+
+                  <h1 className="text-[24px] sm:text-[28px] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-indigo-200 m-0 leading-tight tracking-tight">
                     Welcome Back
                   </h1>
-                  <p className="text-[14px] sm:text-[16px] text-[#9aa9bf] text-center mt-2 mb-6 sm:mb-8 font-normal">
-                    Choose your portal to continue
+                  <p className="text-[13px] sm:text-[14px] text-[#94A3B8] mt-1.5 mb-0 font-normal">
+                    Choose your dedicated portal to sign in or get started
                   </p>
-                </motion.div>
+                </div>
 
                 {/* Portal Cards with dynamic button flow */}
-                <div className="grid gap-5 sm:gap-6 w-full">
+                <div className="grid gap-4 sm:gap-4.5 w-full">
                   {/* Shopper Portal Card with spring hover */}
                   <motion.div
-                    initial={{ opacity: 0, x: 25 }}
+                    initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.16, duration: 0.35, ease: 'easeOut' }}
-                    whileHover={{ scale: 1.02, y: -3 }}
+                    transition={{ delay: 0.15, duration: 0.35, ease: 'easeOut' }}
+                    whileHover={{ scale: 1.02, y: -2 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     <Link
                       to="/login"
                       onClick={() => setNavOpen(false)}
-                      className="group flex items-center gap-4 sm:gap-5 p-4 sm:p-5 text-left rounded-[20px] sm:rounded-[22px] text-white transition-all duration-300 border border-white/10 hover:border-[#3b82f6] bg-[rgba(19,28,45,0.85)] hover:bg-[rgba(27,42,68,0.95)] hover:shadow-[0_16px_45px_rgba(37,99,235,0.22)]"
+                      className="group relative flex items-center gap-3.5 sm:gap-4 p-4 sm:p-4.5 text-left rounded-2xl text-white transition-all duration-300 border border-blue-500/20 hover:border-blue-400/70 bg-gradient-to-br from-slate-900/90 via-slate-900/75 to-blue-950/40 hover:from-blue-950/70 hover:to-slate-900/95 hover:shadow-[0_12px_32px_rgba(37,99,235,0.25)] overflow-hidden"
                       style={{ textDecoration: 'none' }}
                     >
+                      {/* Ambient glow accent */}
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-blue-500/20 transition-all" />
+
+                      {/* Icon Box */}
                       <div
-                        className="grid place-items-center shrink-0 rounded-[15px] sm:rounded-[17px] text-[24px] sm:text-[27px] group-hover:scale-110 transition-transform duration-300"
+                        className="grid place-items-center shrink-0 rounded-xl shadow-lg transition-transform duration-300 group-hover:scale-105 group-hover:rotate-[-2deg]"
                         style={{
-                          width: 54,
-                          height: 54,
-                          background: 'rgba(59, 130, 246, 0.14)',
-                          border: '1px solid rgba(59, 130, 246, 0.25)',
+                          width: 50,
+                          height: 50,
+                          background: 'linear-gradient(135deg, #2563EB 0%, #06B6D4 100%)',
+                          boxShadow: '0 4px 16px rgba(37, 99, 235, 0.35)',
                         }}
                       >
-                        🛍
+                        <ShoppingBag className="w-5 h-5 text-white" />
                       </div>
 
+                      {/* Text Content */}
                       <div className="flex-1 min-w-0">
-                        <h2 className="text-[17px] sm:text-[19px] font-semibold text-white m-0 mb-1 leading-snug group-hover:text-blue-200 transition-colors">
-                          Shopper Portal
-                        </h2>
-                        <p className="text-[12.5px] sm:text-[13.5px] text-[#9aa9bf] m-0 leading-relaxed font-normal">
-                          Shop, track orders, manage returns and rewards.
+                        <div className="flex items-center gap-2 mb-1">
+                          <h2 className="text-[16px] sm:text-[17px] font-bold text-white m-0 leading-tight group-hover:text-blue-200 transition-colors">
+                            Shopper Portal
+                          </h2>
+                          <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-blue-500/15 text-blue-300 rounded-full border border-blue-500/30">
+                            Customer
+                          </span>
+                        </div>
+                        <p className="text-[12px] sm:text-[12.5px] text-[#94A3B8] m-0 leading-relaxed font-normal">
+                          Shop verified items, track orders & request instant returns.
                         </p>
                       </div>
 
-                      <span className="text-[24px] sm:text-[28px] text-[#60a5fa] font-light shrink-0 group-hover:translate-x-1.5 transition-transform duration-300">
-                        →
-                      </span>
+                      {/* Action Arrow */}
+                      <div className="shrink-0 w-8 h-8 rounded-full bg-blue-500/10 border border-blue-400/20 flex items-center justify-center text-blue-400 group-hover:bg-blue-600 group-hover:text-white group-hover:translate-x-1 group-hover:shadow-[0_0_14px_rgba(59,130,246,0.6)] transition-all duration-300">
+                        <ChevronRight size={16} />
+                      </div>
                     </Link>
                   </motion.div>
 
                   {/* Merchant Portal Card with spring hover */}
                   <motion.div
-                    initial={{ opacity: 0, x: 25 }}
+                    initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.24, duration: 0.35, ease: 'easeOut' }}
-                    whileHover={{ scale: 1.02, y: -3 }}
+                    transition={{ delay: 0.22, duration: 0.35, ease: 'easeOut' }}
+                    whileHover={{ scale: 1.02, y: -2 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     <Link
                       to="/merchant/login"
                       onClick={() => setNavOpen(false)}
-                      className="group flex items-center gap-4 sm:gap-5 p-4 sm:p-5 text-left rounded-[20px] sm:rounded-[22px] text-white transition-all duration-300 border border-white/10 hover:border-[#8b5cf6] bg-[rgba(19,28,45,0.85)] hover:bg-[rgba(27,42,68,0.95)] hover:shadow-[0_16px_45px_rgba(139,92,246,0.22)]"
+                      className="group relative flex items-center gap-3.5 sm:gap-4 p-4 sm:p-4.5 text-left rounded-2xl text-white transition-all duration-300 border border-purple-500/25 hover:border-purple-400/80 bg-gradient-to-br from-slate-900/90 via-slate-900/75 to-purple-950/40 hover:from-purple-950/70 hover:to-slate-900/95 hover:shadow-[0_12px_32px_rgba(147,51,234,0.25)] overflow-hidden"
                       style={{ textDecoration: 'none' }}
                     >
+                      {/* Ambient glow accent */}
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-purple-500/20 transition-all" />
+
+                      {/* Icon Box */}
                       <div
-                        className="grid place-items-center shrink-0 rounded-[15px] sm:rounded-[17px] text-[24px] sm:text-[27px] group-hover:scale-110 transition-transform duration-300"
+                        className="grid place-items-center shrink-0 rounded-xl shadow-lg transition-transform duration-300 group-hover:scale-105 group-hover:rotate-[2deg]"
                         style={{
-                          width: 54,
-                          height: 54,
-                          background: 'rgba(139, 92, 246, 0.14)',
-                          border: '1px solid rgba(139, 92, 246, 0.28)',
+                          width: 50,
+                          height: 50,
+                          background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #EC4899 100%)',
+                          boxShadow: '0 4px 16px rgba(139, 92, 246, 0.35)',
                         }}
                       >
-                        🏪
+                        <Store className="w-5 h-5 text-white" />
                       </div>
 
+                      {/* Text Content */}
                       <div className="flex-1 min-w-0">
-                        <h2 className="text-[17px] sm:text-[19px] font-semibold text-white m-0 mb-1 leading-snug group-hover:text-purple-200 transition-colors">
-                          Merchant Portal
-                        </h2>
-                        <p className="text-[12.5px] sm:text-[13.5px] text-[#9aa9bf] m-0 leading-relaxed font-normal">
-                          Manage your store, products, orders and customers.
+                        <div className="flex items-center gap-2 mb-1">
+                          <h2 className="text-[16px] sm:text-[17px] font-bold text-white m-0 leading-tight group-hover:text-purple-200 transition-colors">
+                            Merchant Portal
+                          </h2>
+                          <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-purple-500/15 text-purple-300 rounded-full border border-purple-500/30">
+                            Store Admin
+                          </span>
+                        </div>
+                        <p className="text-[12px] sm:text-[12.5px] text-[#94A3B8] m-0 leading-relaxed font-normal">
+                          Manage store catalog, fraud protection & flagged return cases.
                         </p>
                       </div>
 
-                      <span className="text-[24px] sm:text-[28px] text-[#60a5fa] font-light shrink-0 group-hover:translate-x-1.5 transition-transform duration-300">
-                        →
-                      </span>
+                      {/* Action Arrow */}
+                      <div className="shrink-0 w-8 h-8 rounded-full bg-purple-500/10 border border-purple-400/20 flex items-center justify-center text-purple-400 group-hover:bg-purple-600 group-hover:text-white group-hover:translate-x-1 group-hover:shadow-[0_0_14px_rgba(168,85,247,0.6)] transition-all duration-300">
+                        <ChevronRight size={16} />
+                      </div>
                     </Link>
                   </motion.div>
                 </div>
 
-                {/* Trust Footer with smooth fade */}
+                {/* Trust & Security Footer */}
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.32, duration: 0.4 }}
-                  className="mt-8 sm:mt-11 flex justify-center items-center gap-2 sm:gap-2.5 text-[#93a4bb] text-[12.5px] sm:text-[14px] font-medium"
+                  className="mt-8 pt-5 border-t border-white/10 flex flex-wrap justify-center items-center gap-3 sm:gap-4 text-[#8B98AB] text-[11.5px] sm:text-[12.5px] font-medium"
                 >
-                  <span>🔒 Secure</span>
+                  <span className="flex items-center gap-1.5">
+                    <ShieldCheck size={13} className="text-emerald-400" />
+                    Fraud Shield
+                  </span>
                   <span className="text-slate-600">•</span>
-                  <span>Reliable</span>
+                  <span className="flex items-center gap-1.5">
+                    <Lock size={12} className="text-blue-400" />
+                    256-Bit SSL
+                  </span>
                   <span className="text-slate-600">•</span>
-                  <span>Trusted</span>
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles size={12} className="text-indigo-400" />
+                    Verified
+                  </span>
                 </motion.div>
               </div>
             </motion.aside>
