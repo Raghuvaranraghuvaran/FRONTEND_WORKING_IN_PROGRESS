@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Check, Copy, Eye, EyeOff, Store, ShieldCheck, ArrowRight, Mail, Lock, User, Tag } from 'lucide-react'
+import { Check, Copy, Eye, EyeOff, Store, ShieldCheck, ArrowRight, Mail, Lock, User, Tag, MapPin, Phone, Building } from 'lucide-react'
 import { api } from '../mock/api'
 import BrandLogo from '../components/BrandLogo'
 
@@ -12,6 +12,12 @@ export default function MerchantRegisterPage() {
     password: '',
     businessName: '',
     storeSlug: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+    phone: '',
+    gstin: '',
   })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -69,6 +75,18 @@ export default function MerchantRegisterPage() {
       setError('Store Slug can only contain lowercase letters, numbers, and hyphens.')
       return
     }
+    if (!form.address.trim()) {
+      setError('Store Street Address is required.')
+      return
+    }
+    if (!form.city.trim()) {
+      setError('City is required.')
+      return
+    }
+    if (!form.pincode.trim()) {
+      setError('PIN Code is required.')
+      return
+    }
 
     try {
       setSubmitting(true)
@@ -78,6 +96,12 @@ export default function MerchantRegisterPage() {
         password: form.password,
         businessName: form.businessName.trim(),
         storeSlug: form.storeSlug.trim().toLowerCase(),
+        address: form.address.trim(),
+        city: form.city.trim(),
+        state: form.state.trim(),
+        pincode: form.pincode.trim(),
+        phone: form.phone.trim(),
+        gstin: form.gstin.trim(),
       })
 
       // Store created credentials for the modal
@@ -86,6 +110,7 @@ export default function MerchantRegisterPage() {
         merchant_username: res.merchant_username,
         password: form.password,
         business_name: form.businessName.trim(),
+        address: `${form.address.trim()}, ${form.city.trim()}${form.state.trim() ? ', ' + form.state.trim() : ''} - ${form.pincode.trim()}`,
       })
     } catch (err) {
       setError(err.message || 'Failed to create merchant account.')
@@ -104,8 +129,8 @@ export default function MerchantRegisterPage() {
       <div style={{ position:'fixed', inset:0, zIndex:1, backgroundImage:`url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2314b8a6' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
       <div style={{ position:'fixed', inset:0, zIndex:2, background:'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(20,184,166,0.18) 0%, transparent 70%)' }} />
 
-      <main style={{ position:'relative', zIndex:3, minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px 16px', fontFamily:"'Segoe UI', Roboto, Arial, sans-serif" }}>
-      <div className="w-full max-w-lg">
+      <main style={{ position:'relative', zIndex:3, minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', padding:'32px 16px', fontFamily:"'Segoe UI', Roboto, Arial, sans-serif" }}>
+      <div className="w-full max-w-xl">
         {/* Brand Logo Header */}
         <div style={{ marginBottom:24, display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
           <Link to="/" style={{ display:'inline-block', textDecoration:'none' }}>
@@ -113,7 +138,7 @@ export default function MerchantRegisterPage() {
           </Link>
           <div style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(20,184,166,0.15)', border:'1px solid rgba(20,184,166,0.35)', borderRadius:20, padding:'4px 12px' }}>
             <span style={{ width:6, height:6, borderRadius:'50%', background:'#2dd4bf', flexShrink:0, boxShadow:'0 0 6px #2dd4bf' }} />
-            <span style={{ fontSize:11, fontWeight:600, color:'#5eead4', letterSpacing:'0.06em' }}>MERCHANT PORTAL</span>
+            <span style={{ fontSize:11, fontWeight:600, color:'#5eead4', letterSpacing:'0.06em' }}>MERCHANT ONBOARDING</span>
           </div>
         </div>
 
@@ -123,7 +148,7 @@ export default function MerchantRegisterPage() {
           <div style={{ marginBottom:24 }}>
             <h1 style={{ fontSize:22, fontWeight:800, color:'#f8fafc', margin:'0 0 4px', letterSpacing:'-0.02em' }}>Create Merchant Account</h1>
             <p style={{ fontSize:12.5, color:'rgba(148,163,184,0.9)', margin:0 }}>
-              Register your business to begin managing returns and risk scoring.
+              Register your business, store details & address to begin automated risk intelligence.
             </p>
           </div>
 
@@ -133,11 +158,11 @@ export default function MerchantRegisterPage() {
             </div>
           )}
 
-          <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:18 }}>
             {/* Personal Information */}
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               <div style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'#5eead4' }}>
-                Personal Information
+                1. Account & Admin Credentials
               </div>
 
               <div>
@@ -184,7 +209,7 @@ export default function MerchantRegisterPage() {
             {/* Business Information */}
             <div style={{ borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:16, display:'flex', flexDirection:'column', gap:12 }}>
               <div style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'#5eead4' }}>
-                Business Information
+                2. Business Identity
               </div>
 
               <div>
@@ -194,7 +219,7 @@ export default function MerchantRegisterPage() {
                   <input
                     type="text" required value={form.businessName} onChange={update('businessName')}
                     style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
-                    placeholder="e.g. Sai Fashion Store"
+                    placeholder="e.g. Aria Fashion House"
                   />
                 </div>
               </div>
@@ -206,25 +231,82 @@ export default function MerchantRegisterPage() {
                   <input
                     type="text" required value={form.storeSlug} onChange={update('storeSlug')}
                     style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', fontFamily:'monospace', outline:'none', transition:'border-color .15s' }}
-                    placeholder="sai-fashion-store"
+                    placeholder="aria-fashion-house"
                   />
                 </div>
-                <p style={{ marginTop:5, fontSize:11, color:'#64748b' }}>
-                  Unique identifier used in URLs (lowercase letters, numbers, hyphens).
-                </p>
+              </div>
+            </div>
+
+            {/* Store Address & Location */}
+            <div style={{ borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:16, display:'flex', flexDirection:'column', gap:12 }}>
+              <div style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'#5eead4' }}>
+                3. Business Location & Address
+              </div>
+
+              <div>
+                <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>Street Address / Building *</label>
+                <div style={{ position:'relative' }}>
+                  <MapPin style={{ position:'absolute', left:13, top:13, width:15, height:15, color:'#475569' }} />
+                  <textarea
+                    rows={2} required value={form.address} onChange={update('address')}
+                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:14, paddingTop:10, paddingBottom:10, fontSize:13, color:'#f1f5f9', outline:'none', resize:'none', transition:'border-color .15s' }}
+                    placeholder="e.g. 42 MG Road, Indiranagar, 2nd Floor"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div>
+                  <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>City *</label>
+                  <input
+                    type="text" required value={form.city} onChange={update('city')}
+                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:14, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
+                    placeholder="e.g. Bengaluru"
+                  />
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>State</label>
+                  <input
+                    type="text" value={form.state} onChange={update('state')}
+                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:14, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
+                    placeholder="e.g. Karnataka"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div>
+                  <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>PIN Code *</label>
+                  <input
+                    type="text" required value={form.pincode} onChange={update('pincode')}
+                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:14, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
+                    placeholder="e.g. 560038"
+                  />
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>Phone</label>
+                  <div style={{ position:'relative' }}>
+                    <Phone style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569' }} />
+                    <input
+                      type="text" value={form.phone} onChange={update('phone')}
+                      style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
+                      placeholder="e.g. 9876543210"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
             <button
               type="submit" disabled={submitting}
-              style={{ width:'100%', border:'none', padding:'13px 0', borderRadius:12, fontSize:13, fontWeight:700, color:'#fff', cursor: submitting ? 'not-allowed' : 'pointer', background: submitting ? 'rgba(13,148,136,0.5)' : 'linear-gradient(135deg, #0d9488, #0f766e)', display:'flex', alignItems:'center', justifyContent:'center', gap:8, boxShadow: submitting ? 'none' : '0 4px 20px rgba(13,148,136,0.45)', letterSpacing:'0.04em', textTransform:'uppercase', transition:'all .15s', opacity: submitting ? 0.7 : 1 }}
+              style={{ width:'100%', border:'none', padding:'14px 0', borderRadius:12, fontSize:13, fontWeight:700, color:'#fff', cursor: submitting ? 'not-allowed' : 'pointer', background: submitting ? 'rgba(13,148,136,0.5)' : 'linear-gradient(135deg, #0d9488, #0f766e)', display:'flex', alignItems:'center', justifyContent:'center', gap:8, boxShadow: submitting ? 'none' : '0 4px 20px rgba(13,148,136,0.45)', letterSpacing:'0.04em', textTransform:'uppercase', transition:'all .15s', opacity: submitting ? 0.7 : 1, marginTop:8 }}
             >
-              {submitting ? 'Creating account…' : 'Create Merchant Account'}
+              {submitting ? 'Registering Merchant Account…' : 'Register Merchant Account →'}
             </button>
           </form>
 
           <p style={{ marginTop:20, textAlign:'center', fontSize:12.5, color:'#64748b' }}>
-            Already have an account?{' '}
+            Already registered?{' '}
             <Link to="/merchant/login" style={{ color:'#2dd4bf', fontWeight:600, textDecoration:'none' }}>
               Sign in with username
             </Link>
@@ -249,19 +331,31 @@ export default function MerchantRegisterPage() {
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900">Merchant Account Created Successfully</h3>
-                <p className="text-xs text-slate-500">Your account has been created successfully.</p>
+                <p className="text-xs text-slate-500">Your store & address details are saved.</p>
               </div>
             </div>
 
             {/* Credentials box */}
-            <div className="my-5 space-y-3.5 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              {/* Registered Email */}
-              <div>
-                <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Registered Email
-                </span>
-                <span className="text-xs font-semibold text-slate-800">{successData.email}</span>
+            <div className="my-5 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              {/* Store & Email */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Store Name</span>
+                  <span className="font-semibold text-slate-800 truncate block">{successData.business_name}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Registered Email</span>
+                  <span className="font-semibold text-slate-800 truncate block">{successData.email}</span>
+                </div>
               </div>
+
+              {/* Registered Address */}
+              {successData.address && (
+                <div className="border-t border-slate-200/80 pt-2.5">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Store Address</span>
+                  <span className="text-xs text-slate-700 font-medium leading-relaxed block mt-0.5">{successData.address}</span>
+                </div>
+              )}
 
               {/* Merchant Username */}
               <div className="flex items-center justify-between border-t border-slate-200/80 pt-3">

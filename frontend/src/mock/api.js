@@ -1665,7 +1665,7 @@ export const api = {
     return clone(merchant)
   },
 
-  async registerMerchantAccount({ name, email, password, businessName, storeSlug }) {
+  async registerMerchantAccount({ name, email, password, businessName, storeSlug, address, city, state, pincode, phone, gstin }) {
     if (hasLiveApi()) {
       return live('/merchants/register/', {
         method: 'POST',
@@ -1675,6 +1675,12 @@ export const api = {
           password,
           business_name: businessName,
           store_slug: storeSlug,
+          address: address || '',
+          city: city || '',
+          state: state || '',
+          pincode: pincode || '',
+          phone: phone || '',
+          gstin: gstin || '',
         },
       })
     }
@@ -1707,6 +1713,12 @@ export const api = {
       store_slug: storeSlug,
       admin_email: email,
       plan_tier: 'Pilot',
+      address: address || '',
+      city: city || '',
+      state: state || '',
+      pincode: pincode || '',
+      phone: phone || '',
+      gstin: gstin || '',
       created_at: new Date().toISOString(),
     }
     
@@ -1720,6 +1732,12 @@ export const api = {
       name,
       business_name: businessName,
       store_slug: storeSlug,
+      address,
+      city,
+      state,
+      pincode,
+      phone,
+      gstin,
     }
   },
 

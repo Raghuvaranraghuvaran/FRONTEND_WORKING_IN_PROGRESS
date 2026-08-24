@@ -21,6 +21,12 @@ class Merchant(TimestampedModel):
     admin_email = models.EmailField()
     plan_tier = models.CharField(max_length=16, choices=PLAN_CHOICES, default="Pilot")
     return_window_days = models.PositiveIntegerField(default=7)
+    address = models.TextField(blank=True, default="")
+    city = models.CharField(max_length=128, blank=True, default="")
+    state = models.CharField(max_length=128, blank=True, default="")
+    pincode = models.CharField(max_length=16, blank=True, default="")
+    phone = models.CharField(max_length=32, blank=True, default="")
+    gstin = models.CharField(max_length=32, blank=True, default="")
 
     def __str__(self):
         return f"{self.business_name} ({self.merchant_username or self.id})"

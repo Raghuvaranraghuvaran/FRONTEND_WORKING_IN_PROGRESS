@@ -42,15 +42,26 @@ function StorefrontLayout() {
   )
 }
 
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-teal-400 border-t-transparent" />
+        <span className="text-xs font-semibold text-slate-300">Loading ReturnGuard...</span>
+      </div>
+    </div>
+  )
+}
+
 function RequireShopper({ children }) {
   const { shopper, authReady } = useApp()
-  if (!authReady) return null
+  if (!authReady) return <LoadingFallback />
   return shopper ? children : <Navigate to="/login" replace />
 }
 
 function RequireMerchant({ children }) {
   const { merchant, authReady } = useApp()
-  if (!authReady) return null
+  if (!authReady) return <LoadingFallback />
   return merchant ? children : <Navigate to="/merchant/login" replace />
 }
 
@@ -60,19 +71,21 @@ function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       
       {/* Shopper pages - with sidebar layout */}
-      <Route element={<RequireShopper><ShopperLayout /></RequireShopper>}>
-        <Route path="/dashboard" element={<DashboardPage />} />
+      <Route element={<ShopperLayout />}>
         <Route path="/shop" element={<ShopPage />} />
         <Route path="/products/:productId" element={<ProductDetailPage />} />
         <Route path="/wishlist" element={<WishlistPage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
-        <Route path="/orders" element={<OrdersPage />} />
-        <Route path="/returns" element={<OrdersPage />} />
-        <Route path="/track-return" element={<OrdersPage />} />
-        <Route path="/orders/:orderId/return" element={<ReturnRequestPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
         <Route path="/help" element={<HelpPage />} />
+
+        {/* Authenticated / protected shopper pages */}
+        <Route path="/dashboard" element={<RequireShopper><DashboardPage /></RequireShopper>} />
+        <Route path="/orders" element={<RequireShopper><OrdersPage /></RequireShopper>} />
+        <Route path="/returns" element={<RequireShopper><OrdersPage /></RequireShopper>} />
+        <Route path="/track-return" element={<RequireShopper><OrdersPage /></RequireShopper>} />
+        <Route path="/orders/:orderId/return" element={<RequireShopper><ReturnRequestPage /></RequireShopper>} />
+        <Route path="/profile" element={<RequireShopper><ProfilePage /></RequireShopper>} />
       </Route>
 
       <Route path="/login" element={<LoginPage />} />

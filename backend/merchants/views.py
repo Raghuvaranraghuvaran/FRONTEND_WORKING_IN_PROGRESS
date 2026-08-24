@@ -141,6 +141,12 @@ class MerchantRegisterView(APIView):
         password = request.data.get("password") or ""
         business_name = (request.data.get("business_name") or "").strip()
         store_slug = (request.data.get("store_slug") or "").strip().lower()
+        address = (request.data.get("address") or "").strip()
+        city = (request.data.get("city") or "").strip()
+        state_val = (request.data.get("state") or "").strip()
+        pincode = (request.data.get("pincode") or "").strip()
+        phone = (request.data.get("phone") or "").strip()
+        gstin = (request.data.get("gstin") or "").strip()
 
         # Validations
         if not name:
@@ -164,6 +170,8 @@ class MerchantRegisterView(APIView):
         if not re.match(r"^[a-z0-9-]+$", store_slug):
             raise AppError("Store Slug can only contain lowercase letters, numbers, and hyphens.", code="INVALID_SLUG")
 
+        import secrets
+
         # Generate or reuse unique merchant username
         existing_user = User.objects.filter(email__iexact=email).first()
         existing_merchant = Merchant.objects.filter(admin_email__iexact=email).first()
@@ -184,6 +192,12 @@ class MerchantRegisterView(APIView):
                 merchant = existing_merchant
                 merchant.business_name = business_name
                 merchant.store_slug = effective_slug
+                if address: merchant.address = address
+                if city: merchant.city = city
+                if state_val: merchant.state = state_val
+                if pincode: merchant.pincode = pincode
+                if phone: merchant.phone = phone
+                if gstin: merchant.gstin = gstin
                 if not merchant.merchant_username:
                     merchant.merchant_username = Merchant.generate_unique_merchant_username(business_name)
                 merchant.save()
@@ -195,6 +209,12 @@ class MerchantRegisterView(APIView):
                     store_slug=effective_slug,
                     admin_email=email,
                     merchant_username=merchant_username,
+                    address=address,
+                    city=city,
+                    state=state_val,
+                    pincode=pincode,
+                    phone=phone,
+                    gstin=gstin,
                 )
 
             user.merchant_username = merchant_username
@@ -208,6 +228,12 @@ class MerchantRegisterView(APIView):
                 store_slug=effective_slug,
                 admin_email=email,
                 merchant_username=merchant_username,
+                address=address,
+                city=city,
+                state=state_val,
+                pincode=pincode,
+                phone=phone,
+                gstin=gstin,
             )
             user = User.objects.create_user(
                 email=email,
@@ -225,6 +251,7 @@ class MerchantRegisterView(APIView):
         print("\n==========================================")
         print(f"[ReturnGuard Merchant Registered] Store: {business_name}")
         print(f"[ReturnGuard Merchant Registered] Email: {email}")
+        print(f"[ReturnGuard Merchant Registered] Address: {address}, {city} {pincode}")
         print(f"[ReturnGuard Merchant Registered] Username: {merchant_username}")
         print(f"[ReturnGuard Merchant Registered] Password: {password}")
         print("==========================================\n")
@@ -236,6 +263,12 @@ class MerchantRegisterView(APIView):
                 "name": name,
                 "business_name": business_name,
                 "store_slug": effective_slug,
+                "address": address,
+                "city": city,
+                "state": state_val,
+                "pincode": pincode,
+                "phone": phone,
+                "gstin": gstin,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -364,7 +397,18 @@ class MerchantMeView(APIView):
         merchant = get_merchant_from_user(request.user)
         if merchant is None:
             raise AppError("No merchant context.", code="MERCHANT_NOT_FOUND")
-        allowed = {"business_name", "plan_tier", "admin_email"}
+        allowed = {
+            "business_name",
+            "plan_tier",
+            "admin_email",
+            "address",
+            "city",
+            "state",
+            "pincode",
+            "phone",
+            "gstin",
+            "return_window_days",
+        }
         for field, value in request.data.items():
             if field in allowed:
                 setattr(merchant, field, value)
