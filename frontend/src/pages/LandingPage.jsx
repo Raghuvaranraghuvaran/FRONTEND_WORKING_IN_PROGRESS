@@ -689,34 +689,37 @@ export default function LandingPage() {
               onClick={() => setNavOpen(false)}
             />
 
-            {/* Centered Floating Glass Portal Modal with wide horizontal layout and auto-height */}
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-              <motion.aside
-                key="drawer"
-                initial={{ opacity: 0, scale: 0.94, y: 15 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.94, y: 15 }}
-                transition={{ type: 'spring', stiffness: 360, damping: 28 }}
-                className="relative w-full max-w-[460px] flex flex-col overflow-hidden rounded-[26px] shadow-[0_25px_80px_rgba(0,0,0,0.85)] p-5 sm:p-7 border border-indigo-500/25"
-                style={{
-                  background: 'radial-gradient(circle at top right, #1a2238 0%, #0d121f 45%, #080b14 100%)',
-                  color: '#fff',
-                  fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif",
-                }}
-              >
+            {/* Slide-out Drawer on Right with compact horizontal width and generous vertical card gap */}
+            <motion.aside
+              key="drawer"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[295px] sm:max-w-[310px] flex-col justify-between overflow-y-auto rounded-t-[20px] sm:rounded-t-none sm:rounded-l-[24px] shadow-2xl p-4 sm:p-4.5 border-t sm:border-t-0 sm:border-l border-indigo-500/20"
+              style={{
+                background: 'radial-gradient(circle at top right, #1a2238 0%, #0d121f 45%, #080b14 100%)',
+                color: '#fff',
+                fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif",
+              }}
+            >
+              <div className="relative w-full">
+                {/* Mobile Drag Indicator */}
+                <div className="sm:hidden w-10 h-1 bg-slate-500/40 rounded-full mx-auto mb-2" />
+
                 {/* Close Button with micro-interaction */}
                 <motion.button
                   whileHover={{ scale: 1.1, rotate: 90 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setNavOpen(false)}
-                  className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-colors z-10"
+                  className="absolute top-0 right-0 w-7 h-7 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-colors z-10"
                   aria-label="Close menu"
                 >
-                  <X size={15} />
+                  <X size={14} />
                 </motion.button>
 
                 {/* Center Brand Badge & Floating Icon */}
-                <div className="text-center pt-1 mb-5">
+                <div className="text-center pt-1 mb-4">
                   <motion.div
                     initial={{ scale: 0.85, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1, y: [0, -3, 0] }}
@@ -725,132 +728,132 @@ export default function LandingPage() {
                       opacity: { duration: 0.3 },
                       y: { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }
                     }}
-                    className="mx-auto mb-3 relative grid place-items-center rounded-2xl shadow-[0_0_28px_rgba(99,102,241,0.25)]"
+                    className="mx-auto mb-2.5 relative grid place-items-center rounded-xl shadow-[0_0_22px_rgba(99,102,241,0.22)]"
                     style={{
-                      width: 52,
-                      height: 52,
+                      width: 46,
+                      height: 46,
                       background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.98) 100%)',
                       border: '1px solid rgba(99, 102, 241, 0.35)',
                     }}
                   >
-                    <img src="/returnguard-icon.svg" alt="ReturnGuard" className="w-8 h-8 object-contain drop-shadow-sm" />
+                    <img src="/returnguard-icon.svg" alt="ReturnGuard" className="w-7 h-7 object-contain drop-shadow-sm" />
                   </motion.div>
 
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/25 text-indigo-300 text-[10.5px] font-bold tracking-wider uppercase mb-2 shadow-xs">
-                    <Sparkles size={11} className="text-indigo-400" />
+                  <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/25 text-indigo-300 text-[10px] font-bold tracking-wider uppercase mb-1.5 shadow-xs">
+                    <Sparkles size={10} className="text-indigo-400" />
                     ReturnGuard Portals
                   </div>
 
-                  <h1 className="text-[22px] sm:text-[24px] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-indigo-200 m-0 leading-tight tracking-tight">
+                  <h1 className="text-[18px] sm:text-[19.5px] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-indigo-200 m-0 leading-tight tracking-tight">
                     Welcome Back
                   </h1>
-                  <p className="text-[12.5px] text-[#94A3B8] mt-1.5 mb-0 font-normal">
-                    Choose your dedicated portal to sign in or get started
+                  <p className="text-[11px] text-[#94A3B8] mt-1 mb-0 font-normal">
+                    Choose your dedicated portal to continue
                   </p>
                 </div>
 
-                {/* Portal Cards with wide horizontal layout and generous breathing room */}
-                <div className="grid gap-3.5 w-full">
+                {/* Portal Cards with distinct vertical gap */}
+                <div className="flex flex-col gap-4 sm:gap-4.5 w-full">
                   {/* Shopper Portal Card with spring hover */}
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.12, duration: 0.35, ease: 'easeOut' }}
-                    whileHover={{ scale: 1.015, y: -2 }}
+                    whileHover={{ scale: 1.015, y: -1.5 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     <Link
                       to="/login"
                       onClick={() => setNavOpen(false)}
-                      className="group relative flex items-center gap-3.5 sm:gap-4 p-3.5 sm:p-4 text-left rounded-2xl text-white transition-all duration-300 border border-blue-500/20 hover:border-blue-400/70 bg-gradient-to-br from-slate-900/90 via-slate-900/75 to-blue-950/40 hover:from-blue-950/70 hover:to-slate-900/95 hover:shadow-[0_10px_30px_rgba(37,99,235,0.22)] overflow-hidden"
+                      className="group relative flex items-center gap-2.5 p-3 sm:p-3.5 text-left rounded-xl text-white transition-all duration-300 border border-blue-500/20 hover:border-blue-400/70 bg-gradient-to-br from-slate-900/90 via-slate-900/75 to-blue-950/40 hover:from-blue-950/70 hover:to-slate-900/95 hover:shadow-[0_8px_24px_rgba(37,99,235,0.22)] overflow-hidden"
                       style={{ textDecoration: 'none' }}
                     >
                       {/* Ambient glow accent */}
-                      <div className="absolute top-0 right-0 w-28 h-28 bg-blue-500/10 rounded-full blur-xl pointer-events-none group-hover:bg-blue-500/20 transition-all" />
+                      <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/10 rounded-full blur-xl pointer-events-none group-hover:bg-blue-500/20 transition-all" />
 
                       {/* Icon Box */}
                       <div
-                        className="grid place-items-center shrink-0 rounded-xl shadow-md transition-transform duration-300 group-hover:scale-105"
+                        className="grid place-items-center shrink-0 rounded-lg shadow-md transition-transform duration-300 group-hover:scale-105"
                         style={{
-                          width: 44,
-                          height: 44,
+                          width: 38,
+                          height: 38,
                           background: 'linear-gradient(135deg, #2563EB 0%, #06B6D4 100%)',
-                          boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+                          boxShadow: '0 3px 12px rgba(37, 99, 235, 0.35)',
                         }}
                       >
-                        <ShoppingBag className="w-5 h-5 text-white" />
+                        <ShoppingBag className="w-4 h-4 text-white" />
                       </div>
 
                       {/* Text Content */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <h2 className="text-[15px] sm:text-[16px] font-bold text-white m-0 leading-tight group-hover:text-blue-200 transition-colors">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <h2 className="text-[13.5px] font-bold text-white m-0 leading-tight group-hover:text-blue-200 transition-colors">
                             Shopper Portal
                           </h2>
-                          <span className="px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wider bg-blue-500/15 text-blue-300 rounded-full border border-blue-500/30">
+                          <span className="px-1.5 py-0.2 text-[8px] font-bold uppercase tracking-wider bg-blue-500/15 text-blue-300 rounded-full border border-blue-500/30">
                             Customer
                           </span>
                         </div>
-                        <p className="text-[11.5px] sm:text-[12px] text-[#94A3B8] m-0 leading-normal font-normal">
-                          Shop verified items, track orders & request instant returns.
+                        <p className="text-[10.5px] text-[#94A3B8] m-0 leading-snug font-normal">
+                          Shop verified items, track orders & request returns.
                         </p>
                       </div>
 
                       {/* Action Arrow */}
-                      <div className="shrink-0 w-7 h-7 rounded-full bg-blue-500/10 border border-blue-400/20 flex items-center justify-center text-blue-400 group-hover:bg-blue-600 group-hover:text-white group-hover:translate-x-1 transition-all duration-300">
-                        <ChevronRight size={15} />
+                      <div className="shrink-0 w-6 h-6 rounded-full bg-blue-500/10 border border-blue-400/20 flex items-center justify-center text-blue-400 group-hover:bg-blue-600 group-hover:text-white group-hover:translate-x-0.5 transition-all duration-300">
+                        <ChevronRight size={13} />
                       </div>
                     </Link>
                   </motion.div>
 
                   {/* Merchant Portal Card with spring hover */}
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.18, duration: 0.35, ease: 'easeOut' }}
-                    whileHover={{ scale: 1.015, y: -2 }}
+                    whileHover={{ scale: 1.015, y: -1.5 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     <Link
                       to="/merchant/login"
                       onClick={() => setNavOpen(false)}
-                      className="group relative flex items-center gap-3.5 sm:gap-4 p-3.5 sm:p-4 text-left rounded-2xl text-white transition-all duration-300 border border-purple-500/25 hover:border-purple-400/80 bg-gradient-to-br from-slate-900/90 via-slate-900/75 to-purple-950/40 hover:from-purple-950/70 hover:to-slate-900/95 hover:shadow-[0_10px_30px_rgba(147,51,234,0.22)] overflow-hidden"
+                      className="group relative flex items-center gap-2.5 p-3 sm:p-3.5 text-left rounded-xl text-white transition-all duration-300 border border-purple-500/25 hover:border-purple-400/80 bg-gradient-to-br from-slate-900/90 via-slate-900/75 to-purple-950/40 hover:from-purple-950/70 hover:to-slate-900/95 hover:shadow-[0_8px_24px_rgba(147,51,234,0.22)] overflow-hidden"
                       style={{ textDecoration: 'none' }}
                     >
                       {/* Ambient glow accent */}
-                      <div className="absolute top-0 right-0 w-28 h-28 bg-purple-500/10 rounded-full blur-xl pointer-events-none group-hover:bg-purple-500/20 transition-all" />
+                      <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/10 rounded-full blur-xl pointer-events-none group-hover:bg-purple-500/20 transition-all" />
 
                       {/* Icon Box */}
                       <div
-                        className="grid place-items-center shrink-0 rounded-xl shadow-md transition-transform duration-300 group-hover:scale-105"
+                        className="grid place-items-center shrink-0 rounded-lg shadow-md transition-transform duration-300 group-hover:scale-105"
                         style={{
-                          width: 44,
-                          height: 44,
+                          width: 38,
+                          height: 38,
                           background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #EC4899 100%)',
-                          boxShadow: '0 4px 14px rgba(139, 92, 246, 0.35)',
+                          boxShadow: '0 3px 12px rgba(139, 92, 246, 0.35)',
                         }}
                       >
-                        <Store className="w-5 h-5 text-white" />
+                        <Store className="w-4 h-4 text-white" />
                       </div>
 
                       {/* Text Content */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <h2 className="text-[15px] sm:text-[16px] font-bold text-white m-0 leading-tight group-hover:text-purple-200 transition-colors">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <h2 className="text-[13.5px] font-bold text-white m-0 leading-tight group-hover:text-purple-200 transition-colors">
                             Merchant Portal
                           </h2>
-                          <span className="px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wider bg-purple-500/15 text-purple-300 rounded-full border border-purple-500/30">
+                          <span className="px-1.5 py-0.2 text-[8px] font-bold uppercase tracking-wider bg-purple-500/15 text-purple-300 rounded-full border border-purple-500/30">
                             Store Admin
                           </span>
                         </div>
-                        <p className="text-[11.5px] sm:text-[12px] text-[#94A3B8] m-0 leading-normal font-normal">
-                          Manage store catalog, fraud protection & flagged return cases.
+                        <p className="text-[10.5px] text-[#94A3B8] m-0 leading-snug font-normal">
+                          Manage store catalog, fraud rules & flagged returns.
                         </p>
                       </div>
 
                       {/* Action Arrow */}
-                      <div className="shrink-0 w-7 h-7 rounded-full bg-purple-500/10 border border-purple-400/20 flex items-center justify-center text-purple-400 group-hover:bg-purple-600 group-hover:text-white group-hover:translate-x-1 transition-all duration-300">
-                        <ChevronRight size={15} />
+                      <div className="shrink-0 w-6 h-6 rounded-full bg-purple-500/10 border border-purple-400/20 flex items-center justify-center text-purple-400 group-hover:bg-purple-600 group-hover:text-white group-hover:translate-x-0.5 transition-all duration-300">
+                        <ChevronRight size={13} />
                       </div>
                     </Link>
                   </motion.div>
@@ -860,26 +863,26 @@ export default function LandingPage() {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ delay: 0.28, duration: 0.4 }}
-                  className="mt-6 pt-4 border-t border-white/10 flex flex-wrap justify-center items-center gap-3 sm:gap-4 text-[#8B98AB] text-[11px] font-medium"
+                  transition={{ delay: 0.26, duration: 0.4 }}
+                  className="mt-6 pt-3.5 border-t border-white/10 flex flex-wrap justify-center items-center gap-2 sm:gap-3 text-[#8B98AB] text-[10px] font-medium"
                 >
-                  <span className="flex items-center gap-1.5">
-                    <ShieldCheck size={12} className="text-emerald-400" />
+                  <span className="flex items-center gap-1">
+                    <ShieldCheck size={11} className="text-emerald-400" />
                     Fraud Shield
                   </span>
                   <span className="text-slate-600">•</span>
-                  <span className="flex items-center gap-1.5">
-                    <Lock size={11} className="text-blue-400" />
+                  <span className="flex items-center gap-1">
+                    <Lock size={10} className="text-blue-400" />
                     256-Bit SSL
                   </span>
                   <span className="text-slate-600">•</span>
-                  <span className="flex items-center gap-1.5">
-                    <Sparkles size={11} className="text-indigo-400" />
+                  <span className="flex items-center gap-1">
+                    <Sparkles size={10} className="text-indigo-400" />
                     Verified
                   </span>
                 </motion.div>
-              </motion.aside>
-            </div>
+              </div>
+            </motion.aside>
           </>
         )}
       </AnimatePresence>
