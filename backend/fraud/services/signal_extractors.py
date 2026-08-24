@@ -225,3 +225,49 @@ def escalation_signals(escalation_level=0, config_weights=None):
     elif escalation_level >= 1:
         return _weight("escalation_bonus", config_weights), ["Existing escalation level"]
     return 0, []
+
+
+# ──────────────────────────────────────────────────────────
+# 8. Whitelist & Blacklist Overrides (Feature 2)
+# ──────────────────────────────────────────────────────────
+
+def check_merchant_rules(*, merchant=None, email="", phone="", device_token="", pincode=""):
+    """Check explicit VIP Whitelist and Permanent Blacklist rules.
+
+    Returns:
+        is_whitelisted: bool
+        is_blacklisted: bool
+        rule_reason: str
+    """
+    if not merchant:
+        return False, False, ""
+
+    try:
+        from fraud.models import MerchantListRule
+        rules = MerchantListRule.objects.filter(merchant=merchant, is_active=True)
+
+        for rule in rules:
+            rtype = rule.rule_type
+            etype = rule.entry_type
+            val = rule.value.strip().lower()
+
+            matched = False
+            if etype == "email" and email and email.lower() == val:
+                matched = True
+            elif etype == "phone" and phone and val in phone:
+                matched = True
+            elif etype == "device_token" and device_token and val == device_token:
+                matched = True
+            elif etype == "pincode" and pincode and val == pincode:
+                matched = True
+
+            if matched:
+                if rtype == "whitelist":
+                    return True, False, rule.reason or "VIP Whitelisted"
+                elif rtype == "blacklist":
+                    return False, True, rule.reason or "Blacklisted entity"
+    except Exception:
+        pass
+
+    return False, False, ""
+

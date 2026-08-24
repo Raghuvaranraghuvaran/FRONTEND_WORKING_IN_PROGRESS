@@ -63,8 +63,9 @@ export default function CheckoutPage() {
   const pointsToRedeem = useRewardPoints
     ? Math.min(Math.max(0, parsedPointsInput), maxAllowedPoints)
     : 0
-  const rewardDiscount = Math.round(pointsToRedeem / 10)
-  const finalTotal = Math.max(0, remainingBeforePoints - rewardDiscount)
+  const [prepaidBonusApplied, setPrepaidBonusApplied] = useState(false)
+  const prepaidDiscount = prepaidBonusApplied && paymentMethod !== 'COD' ? 50 : 0
+  const finalTotal = Math.max(0, remainingBeforePoints - rewardDiscount - prepaidDiscount)
 
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId)
   const baseAddressLine = selectedAddressId === 'custom'
@@ -759,6 +760,55 @@ export default function CheckoutPage() {
             </div>
           )}
 
+          {/* Smart COD-to-Prepaid Conversion Banner (Feature 1) */}
+          {paymentMethod === 'COD' && (
+            <div className="rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 p-5 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 text-xl border border-emerald-200 shadow-xs">
+                    ⚡
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-emerald-950 flex items-center gap-2">
+                      Switch to UPI / Online & Save ₹50 Instantly!
+                      <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
+                        Special Offer
+                      </span>
+                    </h4>
+                    <p className="text-xs text-emerald-800 mt-1">
+                      Pay online with UPI, Card, or Netbanking to unlock instant ₹50 discount and 100% priority doorstep dispatch.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentMethod('UPI')
+                    setPrepaidBonusApplied(true)
+                  }}
+                  className="shrink-0 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-sm transition active:scale-95 cursor-pointer text-center"
+                >
+                  Switch to UPI & Save ₹50 →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {prepaidBonusApplied && paymentMethod !== 'COD' && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs text-emerald-800 flex items-center justify-between font-medium shadow-xs">
+              <span className="flex items-center gap-1.5">
+                <span className="text-emerald-600 font-bold">✓</span> ₹50 Smart Prepaid Conversion Discount applied to your order!
+              </span>
+              <button
+                type="button"
+                onClick={() => setPrepaidBonusApplied(false)}
+                className="text-emerald-600 font-bold hover:text-emerald-900 cursor-pointer ml-3"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <PaymentMethodSelector
               onSelect={setPaymentMethod}
@@ -786,6 +836,12 @@ export default function CheckoutPage() {
             <div className="mt-2 flex justify-between text-sm">
               <span className="text-amber-700 font-medium flex items-center gap-1">⭐ {pointsToRedeem} pts</span>
               <span className="font-semibold text-amber-700">−{INR.format(rewardDiscount)}</span>
+            </div>
+          )}
+          {prepaidDiscount > 0 && (
+            <div className="mt-2 flex justify-between text-sm">
+              <span className="text-emerald-700 font-medium flex items-center gap-1">⚡ Prepaid Bonus</span>
+              <span className="font-semibold text-emerald-700">−{INR.format(prepaidDiscount)}</span>
             </div>
           )}
           <div className="mt-2 flex justify-between text-sm text-slate-600">

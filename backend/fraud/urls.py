@@ -38,4 +38,22 @@ urlpatterns = [
         views.de_escalate_customer,
         name="fraud-de-escalate",
     ),
+    # VIP Whitelist & Blacklist Rules (Feature 2)
+    path(
+        "rules/list/",
+        views.merchant_list_rules,
+        name="fraud-rules-list",
+    ),
+    path(
+        "rules/list/<str:pk>/",
+        views.merchant_list_rule_detail,
+        name="fraud-rule-detail",
+    ),
+    # Loss Prevention & ROI Analytics (Feature 4)
+    path(
+        "analytics/roi/",
+        views.fraud_roi_analytics,
+        name="fraud-roi-analytics",
+    ),
 ]
+

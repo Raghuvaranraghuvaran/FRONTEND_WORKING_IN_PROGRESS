@@ -748,3 +748,50 @@ export const ESCALATION_HISTORY = [
     created_at: '2026-07-20T10:00:00Z',
   },
 ]
+
+export const LIST_RULES = [
+  {
+    id: 'rule_1',
+    merchant_id: 'merchant_1',
+    rule_type: 'whitelist',
+    entry_type: 'email',
+    value: 'ananya@example.com',
+    reason: 'VIP loyal customer (100% order completion)',
+    created_by: 'admin@merchant.com',
+    is_active: true,
+    created_at: '2026-08-01T10:00:00Z',
+  },
+  {
+    id: 'rule_2',
+    merchant_id: 'merchant_1',
+    rule_type: 'blacklist',
+    entry_type: 'phone',
+    value: '+91 99999 11111',
+    reason: 'Repeated serial fraudster / multiple fake COD returns',
+    created_by: 'admin@merchant.com',
+    is_active: true,
+    created_at: '2026-08-10T10:00:00Z',
+  },
+  {
+    id: 'rule_3',
+    merchant_id: 'merchant_1',
+    rule_type: 'blacklist',
+    entry_type: 'pincode',
+    value: '110099',
+    reason: 'High RTO logistics area with organized scam ring',
+    created_by: 'admin@merchant.com',
+    is_active: true,
+    created_at: '2026-08-15T10:00:00Z',
+  },
+]
+
+export const LOSS_PREVENTION_ROI = {
+  total_financial_saved: 48650,
+  total_blocked_fraud: 37400,
+  rto_costs_avoided: 11250,
+  prevented_rto_count: 75,
+  active_restrictions_count: 8,
+  confirmed_abuse_cases: 4,
+  cod_refusal_reduction_pct: 34.8,
+}
+

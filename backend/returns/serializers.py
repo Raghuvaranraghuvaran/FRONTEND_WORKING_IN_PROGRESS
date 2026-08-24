@@ -35,6 +35,8 @@ class ReturnRequestSerializer(serializers.ModelSerializer):
             "signals",
             "return_lines",
             "pickup_slot",
+            "proof_image_url",
+            "proof_verified",
             "timeline",
             "created_at",
             "reviewed_by",
@@ -49,6 +51,7 @@ class CreateReturnSerializer(serializers.Serializer):
     order_id = serializers.CharField()
     reason = serializers.CharField()
     note = serializers.CharField(required=False, allow_blank=True, default="")
+    proof_image_url = serializers.CharField(required=False, allow_blank=True, default="")
     return_lines = serializers.ListField(
         child=serializers.DictField(), required=False, default=list
     )

@@ -125,3 +125,38 @@ class EscalationHistory(TimestampedModel):
 
     def __str__(self):
         return f"{self.customer_id} L{self.previous_level}→L{self.new_level}"
+
+
+class MerchantListRule(TimestampedModel):
+    """Explicit VIP Whitelist and Permanent Blacklist management for merchants."""
+
+    RULE_TYPES = (
+        ("whitelist", "VIP Whitelist (Bypass Risk Scoring)"),
+        ("blacklist", "Permanent Blacklist (Block Orders)"),
+    )
+
+    ENTRY_TYPES = (
+        ("email", "Email Address"),
+        ("phone", "Phone Number"),
+        ("device_token", "Device Fingerprint / Token"),
+        ("pincode", "Pincode / Postal Area"),
+        ("customer", "Specific Customer ID"),
+    )
+
+    merchant = models.ForeignKey(
+        "merchants.Merchant", on_delete=models.CASCADE, related_name="list_rules"
+    )
+    rule_type = models.CharField(max_length=16, choices=RULE_TYPES, default="blacklist")
+    entry_type = models.CharField(max_length=16, choices=ENTRY_TYPES, default="email")
+    value = models.CharField(max_length=255, help_text="The email, phone, token, or pincode to match.")
+    reason = models.TextField(blank=True, default="")
+    created_by = models.CharField(max_length=255, default="merchant")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        unique_together = ("merchant", "rule_type", "entry_type", "value")
+
+    def __str__(self):
+        return f"{self.rule_type.upper()}: {self.entry_type}={self.value} ({self.merchant_id})"
+

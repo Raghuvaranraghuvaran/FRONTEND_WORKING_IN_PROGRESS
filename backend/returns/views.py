@@ -102,10 +102,26 @@ class ReturnProofView(APIView):
         return success(DoorstepProofSerializer(proofs, many=True).data)
 
     def post(self, request, pk):
-        return_request = ReturnRequest.objects.filter(user=request.user, pk=pk).first()
+        return_request = ReturnRequest.objects.filter(pk=pk).first()
         if return_request is None:
             raise NotFoundError("Return not found.")
+
+        image_url = request.data.get("image_url") or request.data.get("proof_url")
+        if image_url:
+            return_request.proof_image_url = image_url
+            return_request.save(update_fields=["proof_image_url"])
+            return success({
+                "id": return_request.id,
+                "proof_image_url": return_request.proof_image_url,
+                "proof_verified": return_request.proof_verified,
+                "message": "Return proof photo uploaded successfully.",
+            })
+
         serializer = DoorstepProofSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         proof = serializer.save(return_request=return_request)
+        if proof.file:
+            return_request.proof_image_url = proof.file.url
+            return_request.save(update_fields=["proof_image_url"])
         return success(DoorstepProofSerializer(proof).data, status=status.HTTP_201_CREATED)
+

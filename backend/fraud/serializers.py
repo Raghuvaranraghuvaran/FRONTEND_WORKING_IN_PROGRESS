@@ -95,3 +95,15 @@ class MerchantActionSerializer(serializers.Serializer):
         default=None,
         help_text="Optional cap value for restriction actions",
     )
+
+
+class MerchantListRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        from .models import MerchantListRule
+        model = MerchantListRule
+        fields = [
+            "id", "rule_type", "entry_type", "value",
+            "reason", "created_by", "is_active", "created_at"
+        ]
+        read_only_fields = ["id", "created_at"]
+

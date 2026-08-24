@@ -6,6 +6,8 @@ import {
   DELIVERY_AGENTS,
   ESCALATION_HISTORY,
   FRAUD_CONFIG,
+  LIST_RULES,
+  LOSS_PREVENTION_ROI,
   MERCHANT,
   MERCHANT_ADMIN,
   NOTIFICATIONS,
@@ -192,6 +194,7 @@ let store = {
   coupons: clone(COUPONS),
   restrictions: clone(RESTRICTIONS),
   escalationHistory: clone(ESCALATION_HISTORY),
+  listRules: clone(LIST_RULES),
 }
 
 function persistMerchant(merchant) {
@@ -2137,5 +2140,132 @@ export const api = {
     }
     return { status: 'removed' }
   },
+
+  // ── VIP Whitelist & Blacklist Rules (Feature 2) ──
+  async getListRules(type) {
+    if (hasLiveApi()) {
+      const q = type ? `?type=${type}` : ''
+      return live(`/fraud/rules/list/${q}`, { role: 'merchant' })
+    }
+    await delay(250)
+    let list = clone(store.listRules || [])
+    if (type) list = list.filter((r) => r.rule_type === type)
+    return list
+  },
+
+  async createListRule(data) {
+    if (hasLiveApi()) {
+      return live(`/fraud/rules/list/`, {
+        method: 'POST',
+        body: data,
+        role: 'merchant',
+      })
+    }
+    await delay(300)
+    const newRule = {
+      id: `rule_${Date.now()}`,
+      merchant_id: 'merchant_1',
+      rule_type: data.rule_type || 'blacklist',
+      entry_type: data.entry_type || 'email',
+      value: data.value,
+      reason: data.reason || '',
+      created_by: 'admin@merchant.com',
+      is_active: true,
+      created_at: new Date().toISOString(),
+    }
+    store.listRules.unshift(newRule)
+    return clone(newRule)
+  },
+
+  async deleteListRule(id) {
+    if (hasLiveApi()) {
+      return live(`/fraud/rules/list/${id}/`, {
+        method: 'DELETE',
+        role: 'merchant',
+      })
+    }
+    await delay(200)
+    store.listRules = store.listRules.filter((r) => r.id !== id)
+    return { status: 'deleted' }
+  },
+
+  async toggleListRule(id) {
+    if (hasLiveApi()) {
+      return live(`/fraud/rules/list/${id}/`, {
+        method: 'PATCH',
+        role: 'merchant',
+      })
+    }
+    await delay(200)
+    const rule = store.listRules.find((r) => r.id === id)
+    if (rule) rule.is_active = !rule.is_active
+    return clone(rule)
+  },
+
+  // ── Loss Prevention ROI Analytics (Feature 4) ──
+  async getLossPreventionROI() {
+    if (hasLiveApi()) {
+      return live(`/fraud/analytics/roi/`, { role: 'merchant' })
+    }
+    await delay(200)
+    return clone(LOSS_PREVENTION_ROI)
+  },
+
+  // ── Doorstep Refusal Reporting (Feature 5) ──
+  async reportDoorstepRefusal({ orderId, reason, refusal_type = 'customer_rejected', notes = '' }) {
+    if (hasLiveApi()) {
+      return live(`/orders/${orderId}/doorstep-refusal/`, {
+        method: 'POST',
+        body: { reason, refusal_type, notes },
+        role: 'merchant',
+      })
+    }
+    await delay(400)
+    const order = store.orders.find((o) => o.id === orderId || o.order_number === orderId)
+    if (!order) throw new Error('Order not found')
+    order.delivery_status = 'Refused'
+    order.is_cod_refused = true
+    order.tracking_events = [
+      ...(order.tracking_events || []),
+      { label: `Doorstep Refused: ${reason}`, at: new Date().toISOString(), done: true },
+    ]
+
+    const shopper = store.shoppers.find((s) => s.id === order.user_id)
+    if (shopper) {
+      shopper.total_cod_refusals = (shopper.total_cod_refusals || 0) + 1
+      const prevLvl = shopper.escalation_level || 0
+      shopper.escalation_level = Math.min(5, prevLvl + 1)
+      store.escalationHistory.unshift({
+        id: `esc_${Date.now()}`,
+        merchant_id: 'merchant_1',
+        customer_id: shopper.id,
+        previous_level: prevLvl,
+        new_level: shopper.escalation_level,
+        trigger_event: `Doorstep Refusal on Order ${order.order_number}: ${reason}`,
+        notes,
+        created_at: new Date().toISOString(),
+      })
+    }
+    return { order_number: order.order_number, status: 'Refused', is_cod_refused: true }
+  },
+
+  // ── Return Proof Upload (Feature 3) ──
+  async uploadReturnProof({ returnId, imageUrl }) {
+    if (hasLiveApi()) {
+      return live(`/returns/${returnId}/proof/`, {
+        method: 'POST',
+        body: { image_url: imageUrl },
+        role: 'shopper',
+      })
+    }
+    await delay(300)
+    const ret = store.returns.find((r) => r.id === returnId)
+    if (ret) {
+      ret.proof_image_url = imageUrl
+      ret.proof_verified = false
+    }
+    return { id: returnId, proof_image_url: imageUrl, proof_verified: false }
+  },
 }
+
 

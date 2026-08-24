@@ -54,6 +54,11 @@ class RiskEngine:
     def score(
         self,
         *,
+        merchant=None,
+        email: str = "",
+        phone: str = "",
+        device_token: str = "",
+        pincode: str = "",
         shopper_profile=None,
         payment_method: str = "",
         category_slug: Optional[str] = None,
@@ -63,6 +68,21 @@ class RiskEngine:
         escalation_level: int = 0,
         order_date=None,
     ) -> RiskResult:
+        # Check Whitelist / Blacklist overrides (Feature 2)
+        if shopper_profile:
+            user = getattr(shopper_profile, "user", None)
+            if user:
+                email = email or getattr(user, "email", "")
+                phone = phone or getattr(user, "phone", "")
+        
+        is_wl, is_bl, rule_reason = signal_extractors.check_merchant_rules(
+            merchant=merchant, email=email, phone=phone, device_token=device_token, pincode=pincode
+        )
+        if is_wl:
+            return RiskResult(score=0, tier="Low", signals=["VIP Whitelist bypass: " + rule_reason], recommended_action="accept")
+        if is_bl:
+            return RiskResult(score=100, tier="High", signals=["Permanent Blacklist: " + rule_reason], recommended_action="reject")
+
         score = 10  # base score
         signals = []
         cw = self.config_weights

@@ -114,7 +114,52 @@ export default function MerchantFraudConfig() {
       setReviewEnabled(data.review_enabled ?? true)
       setLoading(false)
     })
+    api.getListRules().then((r) => setRules(r || [])).catch(() => {})
   }, [])
+
+  // VIP Whitelist & Blacklist State (Feature 2)
+  const [rules, setRules] = useState([])
+  const [ruleFilter, setRuleFilter] = useState('all') // 'all' | 'whitelist' | 'blacklist'
+  const [newRule, setNewRule] = useState({
+    rule_type: 'blacklist',
+    entry_type: 'email',
+    value: '',
+    reason: '',
+  })
+  const [addingRule, setAddingRule] = useState(false)
+
+  const handleAddRule = async (e) => {
+    e.preventDefault()
+    if (!newRule.value.trim()) return
+    setAddingRule(true)
+    try {
+      const created = await api.createListRule(newRule)
+      setRules((prev) => [created, ...prev])
+      setNewRule({ rule_type: 'blacklist', entry_type: 'email', value: '', reason: '' })
+    } catch (err) {
+      setError(err.message || 'Failed to add rule')
+    } finally {
+      setAddingRule(false)
+    }
+  }
+
+  const handleToggleRule = async (id) => {
+    try {
+      const updated = await api.toggleListRule(id)
+      setRules((prev) => prev.map((r) => (r.id === id ? { ...r, is_active: updated.is_active } : r)))
+    } catch (err) {
+      setError(err.message || 'Failed to toggle rule')
+    }
+  }
+
+  const handleDeleteRule = async (id) => {
+    try {
+      await api.deleteListRule(id)
+      setRules((prev) => prev.filter((r) => r.id !== id))
+    } catch (err) {
+      setError(err.message || 'Failed to delete rule')
+    }
+  }
 
   const applyPreset = (presetKey) => {
     const preset = PRESET_TEMPLATES[presetKey]
@@ -267,6 +312,14 @@ export default function MerchantFraudConfig() {
           }`}
         >
           ⚡ Live Risk Simulator & Playground
+        </button>
+        <button
+          onClick={() => setActiveTab('rules')}
+          className={`border-b-2 px-4 py-2.5 transition-colors ${
+            activeTab === 'rules' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          🛡️ VIP Whitelist & Blacklist ({rules.length})
         </button>
       </div>
 
@@ -670,6 +723,190 @@ export default function MerchantFraudConfig() {
           </div>
         </div>
       )}
+
+      {/* TAB 4: VIP WHITELIST & BLACKLIST MANAGER (Feature 2) */}
+      {activeTab === 'rules' && (
+        <div className="space-y-6">
+          {/* Add New Rule Form Card */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <span>➕</span> Add New Override Rule
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Whitelisted entries immediately bypass fraud checks (score = 0). Blacklisted entries are permanently blocked from checkout.
+            </p>
+
+            <form onSubmit={handleAddRule} className="mt-4 grid gap-3 sm:grid-cols-4">
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">Rule Policy</label>
+                <select
+                  value={newRule.rule_type}
+                  onChange={(e) => setNewRule({ ...newRule, rule_type: e.target.value })}
+                  className="w-full rounded-xl border border-slate-300 p-2 text-xs font-semibold focus:border-indigo-500 focus:outline-none bg-white"
+                >
+                  <option value="blacklist">⛔ Permanent Blacklist (Block)</option>
+                  <option value="whitelist">⭐ VIP Whitelist (Bypass)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">Match On</label>
+                <select
+                  value={newRule.entry_type}
+                  onChange={(e) => setNewRule({ ...newRule, entry_type: e.target.value })}
+                  className="w-full rounded-xl border border-slate-300 p-2 text-xs font-semibold focus:border-indigo-500 focus:outline-none bg-white"
+                >
+                  <option value="email">Email Address</option>
+                  <option value="phone">Phone Number</option>
+                  <option value="pincode">Pincode / Postal Area</option>
+                  <option value="device_token">Device Fingerprint</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">Target Value</label>
+                <input
+                  type="text"
+                  required
+                  value={newRule.value}
+                  onChange={(e) => setNewRule({ ...newRule, value: e.target.value })}
+                  placeholder={newRule.entry_type === 'email' ? 'user@domain.com' : newRule.entry_type === 'phone' ? '+91 9876543210' : '110099'}
+                  className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">Reason / Note</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newRule.reason}
+                    onChange={(e) => setNewRule({ ...newRule, reason: e.target.value })}
+                    placeholder="e.g. Serial fraudster or VIP"
+                    className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-indigo-500 focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={addingRule}
+                    className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50 cursor-pointer shrink-0"
+                  >
+                    {addingRule ? 'Adding…' : 'Add Rule'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          {/* Active Rules List */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Active Whitelist & Blacklist Entries ({rules.length})</h2>
+                <p className="text-xs text-slate-500">Live override rules applied during real-time fraud scoring and checkout validation.</p>
+              </div>
+
+              {/* Filter Tabs */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setRuleFilter('all')}
+                  className={`px-3 py-1 rounded-lg transition cursor-pointer ${ruleFilter === 'all' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-500'}`}
+                >
+                  All ({rules.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRuleFilter('whitelist')}
+                  className={`px-3 py-1 rounded-lg transition cursor-pointer ${ruleFilter === 'whitelist' ? 'bg-white shadow-xs text-emerald-700 font-bold' : 'text-slate-500'}`}
+                >
+                  ⭐ Whitelist ({rules.filter((r) => r.rule_type === 'whitelist').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRuleFilter('blacklist')}
+                  className={`px-3 py-1 rounded-lg transition cursor-pointer ${ruleFilter === 'blacklist' ? 'bg-white shadow-xs text-rose-700 font-bold' : 'text-slate-500'}`}
+                >
+                  ⛔ Blacklist ({rules.filter((r) => r.rule_type === 'blacklist').length})
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 overflow-x-auto">
+              {rules.length === 0 ? (
+                <p className="text-xs text-slate-400 py-6 text-center italic">No override rules added yet. Add a whitelist or blacklist rule above.</p>
+              ) : (
+                <table className="min-w-full divide-y divide-slate-200 text-xs">
+                  <thead className="bg-slate-50 text-slate-500 font-semibold uppercase">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Type</th>
+                      <th className="px-3 py-2 text-left">Matched Attribute</th>
+                      <th className="px-3 py-2 text-left">Target Value</th>
+                      <th className="px-3 py-2 text-left">Reason / Audit Note</th>
+                      <th className="px-3 py-2 text-left">Status</th>
+                      <th className="px-3 py-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {rules
+                      .filter((r) => (ruleFilter === 'all' ? true : r.rule_type === ruleFilter))
+                      .map((rule) => {
+                        const isWl = rule.rule_type === 'whitelist'
+                        return (
+                          <tr key={rule.id} className="hover:bg-slate-50">
+                            <td className="px-3 py-2.5">
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                                  isWl ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                }`}
+                              >
+                                {isWl ? '⭐ VIP Whitelist' : '⛔ Blacklist'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2.5 font-semibold text-slate-700 capitalize">
+                              {rule.entry_type?.replaceAll('_', ' ')}
+                            </td>
+                            <td className="px-3 py-2.5 font-mono font-bold text-slate-900">
+                              {rule.value}
+                            </td>
+                            <td className="px-3 py-2.5 text-slate-600">
+                              {rule.reason || '—'}
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <span
+                                className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
+                                  rule.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-400'
+                                }`}
+                              >
+                                {rule.is_active ? 'Active' : 'Paused'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2.5 text-right space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleRule(rule.id)}
+                                className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                              >
+                                {rule.is_active ? 'Pause' : 'Activate'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRule(rule.id)}
+                                className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 cursor-pointer ml-2"
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* Save Button */}
       <div className="flex items-center gap-3 pt-2">

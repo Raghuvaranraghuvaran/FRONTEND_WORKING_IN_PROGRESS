@@ -37,6 +37,8 @@ class ReturnRequest(TimestampedModel):
     risk_context = models.TextField(blank=True, default="")
     signals = models.JSONField(default=list)
     pickup_slot = models.CharField(max_length=64, blank=True, default="")
+    proof_image_url = models.TextField(blank=True, default="", help_text="Unboxing photo / return proof image URL")
+    proof_verified = models.BooleanField(default=False)
     reviewed_by = models.CharField(max_length=255, blank=True, default="")
     reviewed_at = models.DateTimeField(null=True, blank=True)
 

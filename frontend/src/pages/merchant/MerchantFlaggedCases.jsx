@@ -567,6 +567,73 @@ export default function MerchantFlaggedCases() {
                         </div>
                       </div>
                     </div>
+
+                    {/* DOORSTEP UNBOXING & RETURN PROOF INSPECTOR (Feature 3) */}
+                    <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">📸</span>
+                          <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-950">
+                            Doorstep Proof & Unboxing Evidence (Feature 3)
+                          </h3>
+                        </div>
+                        <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
+                          selected.proof_verified ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-800 border border-amber-300'
+                        }`}>
+                          {selected.proof_verified ? '✓ Verified Proof' : 'Pending Verification'}
+                        </span>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-[140px_1fr]">
+                        <div className="relative group overflow-hidden rounded-xl border border-slate-300 bg-white aspect-square flex items-center justify-center">
+                          <img
+                            src={selected.proof_image_url || 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=400&q=80'}
+                            alt="Return product proof"
+                            className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+                          />
+                          <a
+                            href={selected.proof_image_url || 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=400&q=80'}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold"
+                          >
+                            🔍 Zoom Photo
+                          </a>
+                        </div>
+
+                        <div className="space-y-2 text-xs">
+                          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+                            <p className="font-semibold text-slate-800">Uploaded Evidence Details:</p>
+                            <p className="text-slate-600 mt-0.5">
+                              {selected.note || 'Shopper uploaded unboxing image demonstrating package condition before courier handover.'}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelected((prev) => ({ ...prev, proof_verified: true }))
+                                setMessage('✓ Return proof verified and approved.')
+                              }}
+                              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-xs cursor-pointer"
+                            >
+                              ✓ Verify Proof as Legitimate
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelected((prev) => ({ ...prev, proof_verified: false }))
+                                setMessage('✕ Return proof marked insufficient / rejected.')
+                              }}
+                              className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 cursor-pointer"
+                            >
+                              ✕ Mark Inconclusive
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
