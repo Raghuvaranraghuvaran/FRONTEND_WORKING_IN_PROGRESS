@@ -59,7 +59,7 @@ class CheckoutItemSerializer(serializers.Serializer):
 
 
 class CheckoutSerializer(serializers.Serializer):
-    items = CheckoutItemSerializer(many=True)
+    items = CheckoutItemSerializer(many=True, allow_empty=False)
     payment_method = serializers.ChoiceField(choices=(
         "COD", "UPI", "CREDIT_CARD", "DEBIT_CARD", "NET_BANKING", "MOBILE_BANKING", "Prepaid"
     ))

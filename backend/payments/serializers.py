@@ -32,11 +32,12 @@ class ProcessPaymentSerializer(serializers.Serializer):
 
 
 class WebhookSerializer(serializers.Serializer):
-    gateway = serializers.CharField(default="mock")
-    gateway_payment_id = serializers.CharField()
-    order_id = serializers.CharField()
-    status = serializers.ChoiceField(choices=("paid", "failed", "rejected", "processing"))
-    amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
+    """Serializer for gateway webhook payloads"""
+    gateway = serializers.CharField(required=False, default="mock")
+    gateway_payment_id = serializers.CharField(required=False, allow_blank=True)
+    order_id = serializers.CharField(required=False)
+    status = serializers.CharField(required=False)
+    amount = serializers.CharField(required=False)
     failure_reason = serializers.CharField(required=False, allow_blank=True, default="")
-    signature = serializers.CharField()
+    signature = serializers.CharField(required=False, allow_blank=True)
     event_id = serializers.CharField(required=False, allow_blank=True, default="")
