@@ -372,6 +372,7 @@ export default function LandingPage() {
           font-size: 13px;
           font-weight: 600;
           letter-spacing: 0.01em;
+          box-shadow: none;
           transition: all .25s cubic-bezier(0.16, 1, 0.3, 1);
           text-decoration: none;
         }
@@ -380,45 +381,47 @@ export default function LandingPage() {
           transition: transform .25s ease, color .25s ease;
         }
         .vlc-login-btn:hover {
-          background: rgba(255, 255, 255, 0.12);
+          background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 50%, #0284C7 100%);
           color: #FFFFFF;
-          border-color: rgba(99, 102, 241, 0.35);
-          box-shadow: 0 2px 14px rgba(99, 102, 241, 0.15);
-          transform: translateY(-1px);
+          border-color: rgba(255, 255, 255, 0.35);
+          box-shadow: 0 5px 22px rgba(37, 99, 235, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+          transform: translateY(-1px) scale(1.02);
         }
         .vlc-login-btn:hover .btn-icon {
-          color: #818CF8;
+          color: #FFFFFF;
           transform: scale(1.1);
         }
         .vlc-merchant-btn {
           display: flex;
           align-items: center;
           gap: 7px;
-          background: linear-gradient(135deg, #4F46E5 0%, #6366F1 50%, #7C3AED 100%);
-          border: 1px solid rgba(255, 255, 255, 0.22);
-          color: #FFFFFF;
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          color: #E2E8F0;
           border-radius: 9999px;
-          padding: 8px 18px;
+          padding: 8px 16px;
           cursor: pointer;
           font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
           font-size: 13px;
-          font-weight: 700;
+          font-weight: 600;
           letter-spacing: 0.01em;
-          box-shadow: 0 3px 14px rgba(99, 102, 241, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+          box-shadow: none;
           transition: all .25s cubic-bezier(0.16, 1, 0.3, 1);
           text-decoration: none;
         }
         .vlc-merchant-btn .btn-icon {
-          color: #E0E7FF;
-          transition: transform .25s ease;
+          color: #94A3B8;
+          transition: transform .25s ease, color .25s ease;
         }
         .vlc-merchant-btn:hover {
           background: linear-gradient(135deg, #4338CA 0%, #4F46E5 50%, #6D28D9 100%);
+          color: #FFFFFF;
           box-shadow: 0 5px 22px rgba(99, 102, 241, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.45);
           border-color: rgba(255, 255, 255, 0.35);
           transform: translateY(-1px) scale(1.02);
         }
         .vlc-merchant-btn:hover .btn-icon {
+          color: #FFFFFF;
           transform: scale(1.1) rotate(-4deg);
         }
         .vlc-burger {
