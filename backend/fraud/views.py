@@ -238,10 +238,10 @@ def merchant_action(request, customer_id):
                 merchant=merchant,
                 customer=customer,
                 previous_level=prev_level,
-                new_level=target_level,
-                trigger_event=notes or f"Manual level change to Step {target_level}",
+                new_level=lvl,
+                trigger_event=notes or f"Manual level change to Step {lvl}",
             )
-            result["new_escalation_level"] = target_level
+            result["new_escalation_level"] = lvl
 
     elif action == "remove_restriction":
         rid = serializer.validated_data.get("restriction_id")
