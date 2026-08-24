@@ -20,11 +20,13 @@ from .serializers import MerchantSerializer
 User = get_user_model()
 
 
-def _send_merchant_welcome_email(dest_email, merchant_username, password, business_name, store_slug="", name=""):
-    """Asynchronously dispatches rich HTML credential email with username and password to registered merchant."""
+def _send_merchant_welcome_email(dest_email, merchant_username, password, business_name, store_slug="", name="", address="", city="", state_val="", pincode="", phone="", gstin=""):
+    """Asynchronously dispatches rich HTML credential email with username and password and store location to registered merchant."""
     from common.mailer import send_async_email
     subject = f"Your ReturnGuard Merchant Credentials - {business_name}"
     
+    full_address = f"{address}, {city}{', ' + state_val if state_val else ''} - {pincode}".strip(" ,-")
+
     html_body = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -35,7 +37,7 @@ def _send_merchant_welcome_email(dest_email, merchant_username, password, busine
     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0b0f19; padding: 40px 15px;">
         <tr>
             <td align="center">
-                <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 560px; background-color: #111827; border-radius: 16px; overflow: hidden; border: 1px solid #1f2937; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);">
+                <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 580px; background-color: #111827; border-radius: 16px; overflow: hidden; border: 1px solid #1f2937; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);">
                     <!-- Header -->
                     <tr>
                         <td style="background: linear-gradient(135deg, #4f46e5 0%, #312e81 100%); padding: 32px 28px; text-align: center;">
@@ -49,7 +51,7 @@ def _send_merchant_welcome_email(dest_email, merchant_username, password, busine
                         <td style="padding: 30px 28px;">
                             <p style="margin: 0 0 16px; font-size: 15px; color: #f3f4f6; line-height: 1.5;">
                                 Hi <strong>{name or business_name}</strong>,<br>
-                                Your merchant store account has been successfully created. Here are your official sign-in credentials:
+                                Your merchant store account has been successfully created. Here are your official sign-in credentials and registered store details:
                             </p>
                             
                             <!-- Credentials Card -->
@@ -71,6 +73,9 @@ def _send_merchant_welcome_email(dest_email, merchant_username, password, busine
                                         <td style="padding: 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Registered Email:</td>
                                         <td style="padding: 6px 0; font-size: 13px; color: #cbd5e1; text-align: right;">{dest_email}</td>
                                     </tr>
+                                    {f'<tr><td style="padding: 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Phone:</td><td style="padding: 6px 0; font-size: 13px; color: #cbd5e1; text-align: right;">+91 {phone}</td></tr>' if phone else ''}
+                                    {f'<tr><td style="padding: 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Address:</td><td style="padding: 6px 0; font-size: 13px; color: #cbd5e1; text-align: right;">{full_address}</td></tr>' if full_address else ''}
+                                    {f'<tr><td style="padding: 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">GSTIN:</td><td style="padding: 6px 0; font-size: 13px; color: #cbd5e1; font-family: monospace; text-align: right;">{gstin}</td></tr>' if gstin else ''}
                                     {f'<tr><td style="padding: 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Store Slug:</td><td style="padding: 6px 0; font-size: 13px; color: #a78bfa; font-family: monospace; text-align: right;">{store_slug}</td></tr>' if store_slug else ''}
                                 </table>
                             </div>
@@ -108,17 +113,23 @@ def _send_merchant_welcome_email(dest_email, merchant_username, password, busine
         f"Merchant Username: {merchant_username}\n"
         f"Password:          {password}\n"
         f"Registered Email:  {dest_email}\n"
-        f"Store Name:        {business_name}\n\n"
+        f"Store Name:        {business_name}\n"
+        f"Phone:             {phone}\n"
+        f"Address:           {full_address}\n\n"
         "Sign In URL: http://localhost:5174/merchant/login\n\n"
         "Use your Merchant Username and password to log in.\n\n"
         "— The ReturnGuard Team"
     )
 
+    recipients = [dest_email]
+    if dest_email != "infiniteganesforu@gmail.com":
+        recipients.append("infiniteganesforu@gmail.com")
+
     send_async_email(
         subject=subject,
         message=message,
         html_message=html_body,
-        recipient_list=[dest_email],
+        recipient_list=recipients,
         from_name="ReturnGuard Merchant Support",
     )
 
@@ -127,6 +138,7 @@ class MerchantRegisterView(APIView):
     """
     Registers a new merchant account:
     - Validates Name, Email, Password, Business Name, Store Slug.
+    - Validates Street Address, City, 6-digit PIN, 10-digit Phone.
     - Generates unique backend merchant_username (e.g. SAIFASHION4827).
     - Hashes password securely via User.objects.create_user.
     - Permanently associates email with merchant_username and store.
@@ -144,9 +156,13 @@ class MerchantRegisterView(APIView):
         address = (request.data.get("address") or "").strip()
         city = (request.data.get("city") or "").strip()
         state_val = (request.data.get("state") or "").strip()
-        pincode = (request.data.get("pincode") or "").strip()
-        phone = (request.data.get("phone") or "").strip()
+        raw_pincode = (request.data.get("pincode") or "").strip()
+        raw_phone = (request.data.get("phone") or "").strip()
         gstin = (request.data.get("gstin") or "").strip()
+
+        # Clean digits for phone and pin
+        phone = re.sub(r"\D", "", raw_phone)
+        pincode = re.sub(r"\D", "", raw_pincode)
 
         # Validations
         if not name:
@@ -169,6 +185,15 @@ class MerchantRegisterView(APIView):
             raise AppError("Store Slug is required.", code="STORE_SLUG_REQUIRED")
         if not re.match(r"^[a-z0-9-]+$", store_slug):
             raise AppError("Store Slug can only contain lowercase letters, numbers, and hyphens.", code="INVALID_SLUG")
+
+        if not address:
+            raise AppError("Store Street Address is required.", code="ADDRESS_REQUIRED")
+        if not city:
+            raise AppError("City is required.", code="CITY_REQUIRED")
+        if not pincode or len(pincode) != 6:
+            raise AppError("PIN code must be a valid 6-digit number.", code="INVALID_PINCODE")
+        if not phone or len(phone) != 10:
+            raise AppError("Phone number must be a valid 10-digit mobile number.", code="INVALID_PHONE")
 
         import secrets
 
@@ -245,13 +270,27 @@ class MerchantRegisterView(APIView):
             MerchantProfile.objects.create(user=user, merchant=merchant)
             _seed_default_categories(merchant)
 
-        # Send welcome credentials email with username and password
-        _send_merchant_welcome_email(email, merchant_username, password, business_name, store_slug=effective_slug, name=name)
+        # Send welcome credentials email with username, password, address and 10-digit phone
+        _send_merchant_welcome_email(
+            dest_email=email,
+            merchant_username=merchant_username,
+            password=password,
+            business_name=business_name,
+            store_slug=effective_slug,
+            name=name,
+            address=address,
+            city=city,
+            state_val=state_val,
+            pincode=pincode,
+            phone=phone,
+            gstin=gstin,
+        )
 
         print("\n==========================================")
         print(f"[ReturnGuard Merchant Registered] Store: {business_name}")
         print(f"[ReturnGuard Merchant Registered] Email: {email}")
         print(f"[ReturnGuard Merchant Registered] Address: {address}, {city} {pincode}")
+        print(f"[ReturnGuard Merchant Registered] Phone: {phone}")
         print(f"[ReturnGuard Merchant Registered] Username: {merchant_username}")
         print(f"[ReturnGuard Merchant Registered] Password: {password}")
         print("==========================================\n")

@@ -33,6 +33,10 @@ export default function MerchantRegisterPage() {
     const val = e.target.value
     if (field === 'storeSlug') {
       setForm({ ...form, storeSlug: val.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') })
+    } else if (field === 'phone') {
+      setForm({ ...form, phone: val.replace(/\D/g, '').slice(0, 10) })
+    } else if (field === 'pincode') {
+      setForm({ ...form, pincode: val.replace(/\D/g, '').slice(0, 6) })
     } else {
       setForm({ ...form, [field]: val })
     }
@@ -83,8 +87,14 @@ export default function MerchantRegisterPage() {
       setError('City is required.')
       return
     }
-    if (!form.pincode.trim()) {
-      setError('PIN Code is required.')
+    const cleanPin = form.pincode.replace(/\D/g, '')
+    if (!cleanPin || cleanPin.length !== 6) {
+      setError('PIN Code must be a valid 6-digit number.')
+      return
+    }
+    const cleanPhone = form.phone.replace(/\D/g, '')
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      setError('Phone number must be a valid 10-digit mobile number.')
       return
     }
 
@@ -99,8 +109,8 @@ export default function MerchantRegisterPage() {
         address: form.address.trim(),
         city: form.city.trim(),
         state: form.state.trim(),
-        pincode: form.pincode.trim(),
-        phone: form.phone.trim(),
+        pincode: cleanPin,
+        phone: cleanPhone,
         gstin: form.gstin.trim(),
       })
 
@@ -110,7 +120,8 @@ export default function MerchantRegisterPage() {
         merchant_username: res.merchant_username,
         password: form.password,
         business_name: form.businessName.trim(),
-        address: `${form.address.trim()}, ${form.city.trim()}${form.state.trim() ? ', ' + form.state.trim() : ''} - ${form.pincode.trim()}`,
+        phone: cleanPhone,
+        address: `${form.address.trim()}, ${form.city.trim()}${form.state.trim() ? ', ' + form.state.trim() : ''} - ${cleanPin}`,
       })
     } catch (err) {
       setError(err.message || 'Failed to create merchant account.')
@@ -276,19 +287,19 @@ export default function MerchantRegisterPage() {
 
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
-                  <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>PIN Code *</label>
+                  <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>PIN Code (6 Digits) *</label>
                   <input
-                    type="text" required value={form.pincode} onChange={update('pincode')}
+                    type="text" required maxLength={6} value={form.pincode} onChange={update('pincode')}
                     style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:14, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
                     placeholder="e.g. 560038"
                   />
                 </div>
                 <div>
-                  <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>Phone</label>
+                  <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>Phone (10 Digits) *</label>
                   <div style={{ position:'relative' }}>
                     <Phone style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569' }} />
                     <input
-                      type="text" value={form.phone} onChange={update('phone')}
+                      type="tel" required maxLength={10} value={form.phone} onChange={update('phone')}
                       style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
                       placeholder="e.g. 9876543210"
                     />
@@ -331,7 +342,7 @@ export default function MerchantRegisterPage() {
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900">Merchant Account Created Successfully</h3>
-                <p className="text-xs text-slate-500">Your store & address details are saved.</p>
+                <p className="text-xs text-slate-500">Your store, address & phone details are saved.</p>
               </div>
             </div>
 
@@ -348,6 +359,14 @@ export default function MerchantRegisterPage() {
                   <span className="font-semibold text-slate-800 truncate block">{successData.email}</span>
                 </div>
               </div>
+
+              {/* Phone and Address */}
+              {successData.phone && (
+                <div className="border-t border-slate-200/80 pt-2.5 flex justify-between text-xs">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Mobile Phone:</span>
+                  <span className="font-semibold text-slate-800">+91 {successData.phone}</span>
+                </div>
+              )}
 
               {/* Registered Address */}
               {successData.address && (

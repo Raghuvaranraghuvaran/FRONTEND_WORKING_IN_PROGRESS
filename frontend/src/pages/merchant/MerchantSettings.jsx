@@ -45,9 +45,26 @@ export default function MerchantSettings() {
   const submit = async (e) => {
     e.preventDefault()
     setError('')
+
+    const cleanPin = form.pincode ? form.pincode.replace(/\D/g, '') : ''
+    if (cleanPin && cleanPin.length !== 6) {
+      setError('PIN Code must be a valid 6-digit number.')
+      return
+    }
+
+    const cleanPhone = form.phone ? form.phone.replace(/\D/g, '') : ''
+    if (cleanPhone && cleanPhone.length !== 10) {
+      setError('Phone number must be a valid 10-digit mobile number.')
+      return
+    }
+
     setSaving(true)
     try {
-      const updated = await api.updateMerchantSettings(form)
+      const updated = await api.updateMerchantSettings({
+        ...form,
+        pincode: cleanPin,
+        phone: cleanPhone,
+      })
       setSettings(updated)
       setSaving(false)
       setSaved(true)
@@ -202,22 +219,24 @@ export default function MerchantSettings() {
               </div>
 
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-1">PIN / Postal Code</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-1">PIN / Postal Code (6 Digits)</label>
                 <input
                   type="text"
+                  maxLength={6}
                   value={form.pincode}
-                  onChange={(e) => setForm({ ...form, pincode: e.target.value })}
+                  onChange={(e) => setForm({ ...form, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
                   placeholder="e.g. 560038"
                   className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs font-medium text-slate-900 focus:border-indigo-500 focus:outline-none font-mono"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-1">Contact Phone</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-1">Contact Phone (10 Digits)</label>
                 <input
-                  type="text"
+                  type="tel"
+                  maxLength={10}
                   value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                   placeholder="e.g. 9876543210"
                   className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs font-medium text-slate-900 focus:border-indigo-500 focus:outline-none font-mono"
                 />
