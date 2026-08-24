@@ -563,45 +563,86 @@ export default function MerchantFlaggedCases() {
 
                   {/* Requested Order Line Items with Images */}
                   <div>
-                    <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">
-                      🛍️ Order Line Items in this Return:
-                    </span>
-                    <div className="mt-2 space-y-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[11px] font-bold uppercase text-slate-600 tracking-wider flex items-center gap-1.5">
+                        <span>🛍️</span> Return Claimed Line Items ({(selected.return_lines?.length || 1)} Items)
+                      </span>
+                      <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+                        Total Items: {(selected.return_lines || [{ quantity: 1 }]).reduce((acc, it) => acc + (it.quantity || 1), 0)}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5">
                       {(selected.return_lines && selected.return_lines.length > 0 ? selected.return_lines : [
-                        { name: selected.product_name || 'Smart Fitness Band', quantity: 1, price: selected.total || 2749, image: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?auto=format&fit=crop&w=400&q=80' }
+                        { product_id: 'prod_8', name: selected.product_name || 'Smart Fitness Band', quantity: 1, price: selected.total || 2749, size: 'Standard', color: 'Midnight Black', sku: 'ELEC-FIT-008', image: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?auto=format&fit=crop&w=400&q=80' }
                       ]).map((item, idx) => {
                         const itemImage = item.image || (
                           item.name?.toLowerCase().includes('lehenga') ? 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=400&q=80' :
                           item.name?.toLowerCase().includes('saree') ? 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=400&q=80' :
+                          item.name?.toLowerCase().includes('dupatta') ? 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=400&q=80' :
                           item.name?.toLowerCase().includes('kurta') ? 'https://images.unsplash.com/photo-1597983073493-88cd35cf93b0?auto=format&fit=crop&w=400&q=80' :
                           item.name?.toLowerCase().includes('shirt') ? 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=400&q=80' :
-                          item.name?.toLowerCase().includes('earbuds') ? 'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?auto=format&fit=crop&w=400&q=80' :
+                          item.name?.toLowerCase().includes('earbuds') || item.name?.toLowerCase().includes('earphone') ? 'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?auto=format&fit=crop&w=400&q=80' :
                           item.name?.toLowerCase().includes('band') || item.name?.toLowerCase().includes('fitness') ? 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?auto=format&fit=crop&w=400&q=80' :
                           item.name?.toLowerCase().includes('sneakers') ? 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=400&q=80' :
                           item.name?.toLowerCase().includes('lamp') ? 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=400&q=80' :
                           'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=400&q=80'
                         )
 
+                        const lineTotal = (item.price || 0) * (item.quantity || 1)
+
                         return (
-                          <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-2xl border border-slate-200 text-xs shadow-2xs gap-3">
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={itemImage}
-                                alt={item.name}
-                                className="h-12 w-12 rounded-xl object-cover border border-slate-200 shrink-0"
-                              />
+                          <div
+                            key={idx}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-3.5 rounded-2xl border border-slate-200 text-xs shadow-2xs gap-3 hover:border-indigo-200 transition-colors"
+                          >
+                            <div className="flex items-center gap-3.5">
+                              <div className="relative group overflow-hidden rounded-xl border border-slate-200 shrink-0 h-14 w-14 bg-slate-50">
+                                <img
+                                  src={itemImage}
+                                  alt={item.name}
+                                  className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+                                />
+                              </div>
                               <div>
-                                <p className="font-bold text-slate-900 text-xs">{item.name}</p>
-                                <p className="text-slate-500 text-[11px] mt-0.5">Qty: {item.quantity} | SKU: #{item.product_id || `PRD-${idx+101}`}</p>
+                                <h4 className="font-bold text-slate-900 text-xs leading-snug">{item.name}</h4>
+                                <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-slate-500">
+                                  <span className="font-mono font-semibold text-slate-600">SKU: {item.sku || item.product_id || `PRD-${idx+101}`}</span>
+                                  {item.size && <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] text-slate-700">Size: {item.size}</span>}
+                                  {item.color && <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] text-slate-700">Color: {item.color}</span>}
+                                </div>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <span className="font-extrabold text-slate-900 text-sm">₹{item.price}</span>
-                              <span className="block text-[10px] text-emerald-600 font-semibold">In Return Claim</span>
+
+                            <div className="flex sm:flex-col items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
+                              <div className="text-right">
+                                <span className="font-black text-slate-900 text-sm">₹{lineTotal.toLocaleString('en-IN')}</span>
+                                {item.quantity > 1 && (
+                                  <p className="text-[10px] text-slate-400 font-medium">(₹{item.price} × {item.quantity})</p>
+                                )}
+                              </div>
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md mt-1 border border-emerald-200">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                                Return Requested (Qty: {item.quantity})
+                              </span>
                             </div>
                           </div>
                         )
                       })}
+                    </div>
+
+                    {/* Multi-Item Return Total Summary Bar */}
+                    <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-100/80 px-4 py-2.5 text-xs border border-slate-200">
+                      <span className="font-bold text-slate-700">
+                        Total Refundable Value for {(selected.return_lines?.length || 1)} Item(s):
+                      </span>
+                      <span className="text-sm font-black text-indigo-950">
+                        ₹{(
+                          (selected.return_lines && selected.return_lines.length > 0)
+                            ? selected.return_lines.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+                            : (selected.order_total || selected.total || 2749)
+                        ).toLocaleString('en-IN')}
+                      </span>
                     </div>
                   </div>
                 </div>
