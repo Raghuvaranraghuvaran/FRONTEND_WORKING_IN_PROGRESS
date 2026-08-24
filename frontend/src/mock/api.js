@@ -1988,7 +1988,21 @@ export const api = {
     const shopper = store.shoppers.find((s) => s.id === customerId || s.customer_id === customerId)
     if (!shopper) throw new Error('Customer not found')
 
-    if (action === 'increase_restriction' || action === 'suspend_account') {
+    if (action === 'set_escalation_level') {
+      const prevLevel = shopper.escalation_level || 0
+      const newLvl = threshold_value !== null && threshold_value !== undefined ? Number(threshold_value) : 1
+      shopper.escalation_level = Math.max(0, Math.min(5, newLvl))
+      store.escalationHistory.unshift({
+        id: `esc_${Date.now()}`,
+        merchant_id: 'merchant_1',
+        customer_id: shopper.id,
+        previous_level: prevLevel,
+        new_level: shopper.escalation_level,
+        trigger_event: notes || `Direct manual switch to Level ${shopper.escalation_level}`,
+        notes: notes,
+        created_at: new Date().toISOString(),
+      })
+    } else if (action === 'increase_restriction' || action === 'suspend_account') {
       const prevLevel = shopper.escalation_level || 0
       shopper.escalation_level = Math.min(prevLevel + 1, 5)
       shopper.confirmed_violations = (shopper.confirmed_violations || 0) + 1

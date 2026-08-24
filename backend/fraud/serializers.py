@@ -77,10 +77,12 @@ class MerchantActionSerializer(serializers.Serializer):
         "restrict_high_value", "require_prepaid",
         "manual_review", "increase_restriction",
         "remove_restriction", "suspend_account",
+        "set_escalation_level",
     ]
 
     action = serializers.ChoiceField(choices=ACTION_CHOICES)
     notes = serializers.CharField(required=False, default="", allow_blank=True)
+    escalation_level = serializers.IntegerField(required=False, min_value=0, max_value=5)
     restriction_id = serializers.IntegerField(
         required=False,
         help_text="Required when action is remove_restriction",

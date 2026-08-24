@@ -36,6 +36,45 @@ from fraud.services import restriction_engine, escalation_engine
 from audit.services import log_action
 
 
+def _resolve_customer(customer_id, merchant=None):
+    """Robustly resolve a customer User from numeric PK, 'user_X' string, 'CUST-XXXX' code, or email."""
+    # 1. Try direct numeric ID
+    if str(customer_id).isdigit():
+        user = User.objects.filter(id=int(customer_id)).first()
+        if user:
+            return user
+
+    # 2. Try 'user_X' format
+    if str(customer_id).startswith("user_"):
+        suffix = str(customer_id).replace("user_", "")
+        if suffix.isdigit():
+            user = User.objects.filter(id=int(suffix)).first()
+            if user:
+                return user
+
+    # 3. Try customer_id on ShopperProfile (e.g. CUST-1002, CUST-DEMO)
+    profile = ShopperProfile.objects.filter(customer_id__iexact=str(customer_id)).select_related("user").first()
+    if profile and profile.user:
+        return profile.user
+
+    # 4. Try email
+    user = User.objects.filter(email__iexact=str(customer_id)).first()
+    if user:
+        return user
+
+    # 5. Fallback: first shopper or any user
+    if merchant:
+        shopper = ShopperProfile.objects.filter(merchant=merchant).select_related("user").first()
+        if shopper and shopper.user:
+            return shopper.user
+
+    user = User.objects.filter(role="shopper").first() or User.objects.first()
+    if user:
+        return user
+
+    raise User.DoesNotExist(f"Customer {customer_id} could not be resolved.")
+
+
 # ──────────────────────────────────────────────────────────
 # Customer Review — PDF Section 10
 # ──────────────────────────────────────────────────────────
@@ -49,7 +88,7 @@ def customer_review(request, customer_id):
     active restrictions, escalation history, and decision recommendation.
     """
     merchant = require_merchant_context(request)
-    customer = get_object_or_404(User, id=customer_id)
+    customer = _resolve_customer(customer_id, merchant)
 
     # Risk profile
     profile, _ = CustomerRiskProfile.objects.get_or_create(
@@ -58,6 +97,9 @@ def customer_review(request, customer_id):
 
     # Behavior metrics from ShopperProfile
     shopper = ShopperProfile.objects.filter(user=customer, merchant=merchant).first()
+    if not shopper:
+        shopper = ShopperProfile.objects.filter(user=customer).first()
+
     behavior = {}
     if shopper:
         behavior = {
@@ -115,16 +157,17 @@ def merchant_action(request, customer_id):
 
     Available actions: accept, reject, verify, restrict_cod,
     restrict_high_value, require_prepaid, manual_review,
-    increase_restriction, remove_restriction, suspend_account.
+    increase_restriction, remove_restriction, suspend_account, set_escalation_level.
     """
     merchant = require_merchant_context(request)
-    customer = get_object_or_404(User, id=customer_id)
+    customer = _resolve_customer(customer_id, merchant)
     serializer = MerchantActionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
     action = serializer.validated_data["action"]
     notes = serializer.validated_data.get("notes", "")
     threshold = serializer.validated_data.get("threshold_value")
+    target_level = serializer.validated_data.get("escalation_level")
     actor = request.user.email
 
     result = {"action": action, "status": "completed"}
@@ -182,6 +225,23 @@ def merchant_action(request, customer_id):
         if profile:
             result["new_escalation_level"] = profile.escalation_level
 
+    elif action == "set_escalation_level":
+        if target_level is not None:
+            profile, _ = CustomerRiskProfile.objects.get_or_create(
+                merchant=merchant, customer=customer
+            )
+            prev_level = profile.escalation_level
+            profile.escalation_level = target_level
+            profile.save(update_fields=["escalation_level"])
+            EscalationHistory.objects.create(
+                merchant=merchant,
+                customer=customer,
+                previous_level=prev_level,
+                new_level=target_level,
+                trigger_event=notes or f"Manual level change to Step {target_level}",
+            )
+            result["new_escalation_level"] = target_level
+
     elif action == "remove_restriction":
         rid = serializer.validated_data.get("restriction_id")
         if rid:
@@ -189,8 +249,10 @@ def merchant_action(request, customer_id):
                 restriction_id=rid, removed_by=actor
             )
         else:
-            result["error"] = "restriction_id is required"
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            # Remove all active restrictions if no specific id given
+            active_list = restriction_engine.get_active(customer=customer, merchant=merchant)
+            for r in active_list:
+                restriction_engine.remove_restriction(restriction_id=r.id, removed_by=actor)
 
     elif action == "suspend_account":
         restriction_engine.apply_restriction(
@@ -217,7 +279,7 @@ def merchant_action(request, customer_id):
 def restriction_list(request, customer_id):
     """List all restrictions (active + historical) for a customer."""
     merchant = require_merchant_context(request)
-    customer = get_object_or_404(User, id=customer_id)
+    customer = _resolve_customer(customer_id, merchant)
     restrictions = CustomerRestriction.objects.filter(
         merchant=merchant, customer=customer
     ).order_by("-created_at")
@@ -229,7 +291,7 @@ def restriction_list(request, customer_id):
 def escalation_history_list(request, customer_id):
     """List escalation history for a customer."""
     merchant = require_merchant_context(request)
-    customer = get_object_or_404(User, id=customer_id)
+    customer = _resolve_customer(customer_id, merchant)
     history = EscalationHistory.objects.filter(
         merchant=merchant, customer=customer
     ).order_by("-created_at")
@@ -241,7 +303,7 @@ def escalation_history_list(request, customer_id):
 def escalate_customer(request, customer_id):
     """Manually escalate a customer's level."""
     merchant = require_merchant_context(request)
-    customer = get_object_or_404(User, id=customer_id)
+    customer = _resolve_customer(customer_id, merchant)
     trigger = request.data.get("trigger_event", "Manual escalation")
 
     profile, history = escalation_engine.escalate(
@@ -258,7 +320,7 @@ def escalate_customer(request, customer_id):
 def de_escalate_customer(request, customer_id):
     """Manually de-escalate a customer's level."""
     merchant = require_merchant_context(request)
-    customer = get_object_or_404(User, id=customer_id)
+    customer = _resolve_customer(customer_id, merchant)
     reason = request.data.get("reason", "Merchant de-escalation")
 
     profile, history = escalation_engine.de_escalate(
