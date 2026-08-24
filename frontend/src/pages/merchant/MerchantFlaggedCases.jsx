@@ -5,13 +5,55 @@ import RiskBadge from '../../components/RiskBadge'
 import StatusBadge from '../../components/StatusBadge'
 import EmptyState from '../../components/EmptyState'
 
-const ESCALATION_LABELS = [
-  'Level 0: Normal Ordering',
-  'Level 1: Warning / OTP Verification',
-  'Level 2: COD Restricted',
-  'Level 3: Prepaid + Manual Review',
-  'Level 4: Temporary Account Restriction',
-  'Level 5: Merchant Final Review / Block',
+const ESCALATION_STEPS = [
+  {
+    level: 0,
+    title: 'Normal Ordering',
+    subtitle: 'Standard shopping privileges',
+    icon: '🟢',
+    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    activeClass: 'border-emerald-500 bg-emerald-50/80 text-emerald-950 ring-2 ring-emerald-500 shadow-md',
+  },
+  {
+    level: 1,
+    title: 'Warning & OTP',
+    subtitle: 'SMS/OTP verification on checkout',
+    icon: '🟡',
+    badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+    activeClass: 'border-amber-500 bg-amber-50/90 text-amber-950 ring-2 ring-amber-500 shadow-md',
+  },
+  {
+    level: 2,
+    title: 'COD Restricted',
+    subtitle: 'Prepaid-only for next orders',
+    icon: '🟠',
+    badgeClass: 'bg-orange-50 text-orange-700 border-orange-200',
+    activeClass: 'border-orange-500 bg-orange-50/90 text-orange-950 ring-2 ring-orange-500 shadow-md',
+  },
+  {
+    level: 3,
+    title: 'Prepaid + Review',
+    subtitle: 'Manual staff approval on orders',
+    icon: '💳',
+    badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
+    activeClass: 'border-purple-500 bg-purple-50/90 text-purple-950 ring-2 ring-purple-500 shadow-md',
+  },
+  {
+    level: 4,
+    title: 'Temp Restriction',
+    subtitle: 'High-value orders blocked',
+    icon: '🚫',
+    badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
+    activeClass: 'border-rose-500 bg-rose-50/90 text-rose-950 ring-2 ring-rose-500 shadow-md',
+  },
+  {
+    level: 5,
+    title: 'Final Block',
+    subtitle: 'Account suspended by merchant',
+    icon: '⛔',
+    badgeClass: 'bg-slate-900 text-rose-300 border-slate-700',
+    activeClass: 'border-slate-900 bg-slate-950 text-rose-300 ring-2 ring-slate-900 shadow-md',
+  },
 ]
 
 export default function MerchantFlaggedCases() {
@@ -22,9 +64,17 @@ export default function MerchantFlaggedCases() {
   const [loadingReview, setLoadingReview] = useState(false)
   const [notes, setNotes] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
+  const [toast, setToast] = useState(null)
   const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'history' | 'behavior'
+
+  // Toast notification helper that never causes layout shifting
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type, id: Date.now() })
+    window.clearTimeout(window.__toastTimeout)
+    window.__toastTimeout = window.setTimeout(() => {
+      setToast(null)
+    }, 2800)
+  }
 
   const load = () => {
     setLoading(true)
@@ -44,8 +94,6 @@ export default function MerchantFlaggedCases() {
 
   const selectCase = async (record) => {
     setSelected(record)
-    setMessage('')
-    setError('')
     setLoadingReview(true)
     const custId = record.user_id || record.customer_id || record.user || 'user_2'
     try {
@@ -104,15 +152,13 @@ export default function MerchantFlaggedCases() {
     }
   }
 
-  // Set escalation level directly (Steps 0 to 5)
+  // Set escalation level directly (Steps 0 to 5) with zero visual glitches
   const handleSetEscalationLevel = async (targetLevel) => {
     if (!selected) return
-    setActionLoading(true)
-    setMessage('')
-    setError('')
     const custId = selected.user_id || selected.customer_id || selected.user || 'user_2'
+    const stepObj = ESCALATION_STEPS[targetLevel]
 
-    // Optimistically update UI level immediately
+    // 1. Instantly update UI without waiting or flickering
     setCustomerReview((prev) => {
       if (!prev) return prev
       const prevLvl = prev.profile?.escalation_level ?? 0
@@ -121,14 +167,14 @@ export default function MerchantFlaggedCases() {
         profile: {
           ...prev.profile,
           escalation_level: targetLevel,
-          escalation_label: ESCALATION_LABELS[targetLevel] || 'Normal',
+          escalation_label: stepObj.title,
         },
         escalation_history: [
           {
             id: `esc_${Date.now()}`,
             previous_level: prevLvl,
             new_level: targetLevel,
-            trigger_event: notes || `Manual switch to Step ${targetLevel}`,
+            trigger_event: notes || `Direct switch to Step ${targetLevel}: ${stepObj.title}`,
             created_at: new Date().toISOString(),
           },
           ...(prev.escalation_history || []),
@@ -136,22 +182,19 @@ export default function MerchantFlaggedCases() {
       }
     })
 
+    showToast(`✓ Shifted to Level ${targetLevel}: ${stepObj.title}`)
+
+    // 2. Background sync to backend
     try {
       await api.performMerchantAction({
         customerId: custId,
         action: 'set_escalation_level',
         escalation_level: targetLevel,
         threshold_value: targetLevel,
-        notes: notes || `Direct manual switch to Level ${targetLevel}: ${ESCALATION_LABELS[targetLevel]}`,
+        notes: notes || `Direct manual switch to Level ${targetLevel}: ${stepObj.title}`,
       })
-
-      setMessage(`✓ Escalation level updated to Level ${targetLevel} (${ESCALATION_LABELS[targetLevel].split(':')[1]})`)
     } catch (err) {
       console.warn('Backend sync note for escalation:', err)
-      // Keep optimistic update active with a friendly notification
-      setMessage(`✓ Escalation level set to Level ${targetLevel} (${ESCALATION_LABELS[targetLevel].split(':')[1]})`)
-    } finally {
-      setActionLoading(false)
     }
   }
 
@@ -159,8 +202,6 @@ export default function MerchantFlaggedCases() {
   const handleAction = async (actionType) => {
     if (!selected) return
     setActionLoading(true)
-    setMessage('')
-    setError('')
     const custId = selected.user_id || selected.customer_id || selected.user || 'user_2'
 
     try {
@@ -184,7 +225,7 @@ export default function MerchantFlaggedCases() {
       }
 
       const actionTitle = actionType.replace('_', ' ').toUpperCase()
-      setMessage(`✓ Action "${actionTitle}" applied successfully!`)
+      showToast(`✓ Action "${actionTitle}" applied successfully!`)
       setNotes('')
 
       // Refresh customer review state
@@ -192,7 +233,6 @@ export default function MerchantFlaggedCases() {
       if (updated) {
         setCustomerReview(updated)
       } else {
-        // Optimistically update
         setCustomerReview((prev) => {
           if (!prev) return prev
           let newLevel = prev.profile?.escalation_level ?? 0
@@ -208,9 +248,8 @@ export default function MerchantFlaggedCases() {
           }
         })
       }
-      load()
     } catch (err) {
-      setError(err.message || 'Action failed')
+      showToast(err.message || 'Action failed', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -220,12 +259,12 @@ export default function MerchantFlaggedCases() {
     setActionLoading(true)
     try {
       await api.removeCustomerRestriction(restrictionId)
-      setMessage('✓ Restriction removed successfully.')
+      showToast('✓ Restriction removed successfully.')
       const custId = selected.user_id || selected.customer_id || selected.user || 'user_2'
       const updated = await api.getCustomerReview(custId).catch(() => null)
       if (updated) setCustomerReview(updated)
     } catch (err) {
-      setError(err.message || 'Failed to remove restriction')
+      showToast(err.message || 'Failed to remove restriction', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -258,17 +297,22 @@ export default function MerchantFlaggedCases() {
         </div>
       </div>
 
-      {message && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 flex items-center justify-between shadow-xs">
-          <span className="font-medium">{message}</span>
-          <button onClick={() => setMessage('')} className="text-emerald-600 font-bold hover:text-emerald-900 ml-4 cursor-pointer">✕</button>
-        </div>
-      )}
-
-      {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 flex items-center justify-between shadow-xs">
-          <span>{error}</span>
-          <button onClick={() => setError('')} className="text-rose-600 font-bold hover:text-rose-900 ml-4 cursor-pointer">✕</button>
+      {/* Floating Glitch-Free Toast Notification */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl px-5 py-3.5 text-xs font-semibold shadow-2xl transition-all animate-in fade-in slide-in-from-bottom-4 ${
+            toast.type === 'error'
+              ? 'bg-rose-950 text-rose-200 border border-rose-800'
+              : 'bg-slate-950 text-emerald-300 border border-slate-800'
+          }`}
+        >
+          <span>{toast.message}</span>
+          <button
+            onClick={() => setToast(null)}
+            className="text-slate-400 hover:text-white font-bold cursor-pointer ml-2"
+          >
+            ✕
+          </button>
         </div>
       )}
 
@@ -371,8 +415,8 @@ export default function MerchantFlaggedCases() {
 
                       {/* Escalation Level */}
                       <div className="text-center rounded-xl bg-white/10 px-4 py-2 backdrop-blur-sm border border-white/10">
-                        <p className="text-xs text-indigo-200 font-medium">Escalation Level</p>
-                        <p className="text-2xl font-black text-amber-400">
+                        <p className="text-xs text-indigo-200 font-medium">Active Escalation</p>
+                        <p className="text-2xl font-black text-amber-400 transition-all duration-300">
                           L{currentLevel}
                         </p>
                       </div>
@@ -400,47 +444,74 @@ export default function MerchantFlaggedCases() {
                   </div>
                 </div>
 
-                {/* Interactive Escalation Ladder Stepper (PDF §6 & §7) */}
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center justify-between mb-2">
+                {/* Interactive Progressive Escalation Ladder (PDF §6 & §7) */}
+                <div className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-5 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                     <div>
-                      <p className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                        Interactive Escalation Ladder (PDF §6 & §7)
-                      </p>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                        <span>🪜</span> Progressive Escalation Ladder (PDF §6 & §7)
+                      </h3>
                       <p className="text-[11px] text-slate-500">
-                        Click on any Step (0 to 5) to manually set or test the escalation level for this customer.
+                        Click on any step below to instantaneously test and adjust the customer's escalation tier.
                       </p>
                     </div>
-                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
-                      Current: Step {currentLevel}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg">
+                        Active: Step {currentLevel} ({ESCALATION_STEPS[currentLevel]?.title})
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-6">
-                    {ESCALATION_LABELS.map((lbl, idx) => {
-                      const isActive = idx === currentLevel
-                      const isPast = idx < currentLevel
+                  {/* Connected Progress Line */}
+                  <div className="relative mb-3 hidden sm:block">
+                    <div className="absolute top-1/2 left-4 right-4 h-1 -translate-y-1/2 bg-slate-200 rounded-full" />
+                    <div
+                      className="absolute top-1/2 left-4 h-1 -translate-y-1/2 bg-amber-500 rounded-full transition-all duration-300 ease-out"
+                      style={{ width: `${(currentLevel / 5) * 100}%` }}
+                    />
+                  </div>
+
+                  {/* Stepper Cards */}
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-6">
+                    {ESCALATION_STEPS.map((step) => {
+                      const isActive = step.level === currentLevel
+                      const isPast = step.level < currentLevel
                       return (
                         <button
-                          key={idx}
+                          key={step.level}
                           type="button"
-                          onClick={() => handleSetEscalationLevel(idx)}
-                          disabled={actionLoading}
-                          className={`rounded-xl p-2.5 text-center text-xs transition-all cursor-pointer border ${
+                          onClick={() => handleSetEscalationLevel(step.level)}
+                          className={`group relative rounded-2xl p-3 text-left transition-all duration-200 cursor-pointer border ${
                             isActive
-                              ? 'border-amber-500 bg-amber-100/90 font-bold text-amber-950 ring-2 ring-amber-500 shadow-sm'
+                              ? step.activeClass
                               : isPast
-                              ? 'bg-rose-50/70 border-rose-200 text-rose-800 hover:bg-rose-100'
-                              : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30'
+                              ? 'bg-rose-50/50 border-rose-200 text-rose-900 hover:bg-rose-100/70 hover:border-rose-300'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/20 hover:shadow-xs'
                           }`}
                         >
-                          <div className="flex items-center justify-center gap-1">
-                            <span className="text-[10px] font-mono font-bold">STEP {idx}</span>
-                            {isActive && <span className="h-2 w-2 rounded-full bg-amber-600 animate-ping" />}
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-mono font-black uppercase tracking-wider">
+                              STEP {step.level}
+                            </span>
+                            <span className="text-sm">{step.icon}</span>
                           </div>
-                          <div className="truncate text-[11px] mt-0.5 font-medium">{lbl.split(':')[1]}</div>
-                          <div className="mt-1 text-[9px] font-semibold text-slate-400">
-                            {isActive ? '● ACTIVE' : 'Click to Set'}
+                          <div className="font-bold text-xs mt-1 text-slate-900 leading-tight">
+                            {step.title}
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-1 line-clamp-2 leading-snug">
+                            {step.subtitle}
+                          </p>
+                          <div className="mt-2 flex items-center gap-1 text-[10px] font-bold">
+                            {isActive ? (
+                              <span className="text-amber-700 font-extrabold flex items-center gap-1">
+                                <span className="h-1.5 w-1.5 rounded-full bg-amber-600" />
+                                ACTIVE
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 group-hover:text-indigo-600 transition-colors">
+                                Shift →
+                              </span>
+                            )}
                           </div>
                         </button>
                       )
@@ -618,7 +689,7 @@ export default function MerchantFlaggedCases() {
                               type="button"
                               onClick={() => {
                                 setSelected((prev) => ({ ...prev, proof_verified: true }))
-                                setMessage('✓ Return proof verified and approved.')
+                                showToast('✓ Return proof verified as legitimate.')
                               }}
                               className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-xs cursor-pointer"
                             >
@@ -628,7 +699,7 @@ export default function MerchantFlaggedCases() {
                               type="button"
                               onClick={() => {
                                 setSelected((prev) => ({ ...prev, proof_verified: false }))
-                                setMessage('✕ Return proof marked insufficient / rejected.')
+                                showToast('✕ Return proof marked inconclusive.')
                               }}
                               className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 cursor-pointer"
                             >
