@@ -22,6 +22,7 @@ def api_root(request):
                 "/api/notifications/",
                 "/api/admin/",
                 "/api/analytics/",
+                "/api/fraud/",
             ],
         }
     )
@@ -43,6 +44,7 @@ urlpatterns = [
     path("api/notifications/", include("notifications.urls")),
     path("api/admin/", include("admin_api.urls")),
     path("api/analytics/", include("analytics.urls")),
+    path("api/fraud/", include("fraud.urls")),
 ]
 
 if settings.DEBUG:

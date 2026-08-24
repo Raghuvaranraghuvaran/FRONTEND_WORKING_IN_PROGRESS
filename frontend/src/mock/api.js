@@ -4,12 +4,14 @@ import {
   CATEGORY_RETURN_RATES,
   COUPONS,
   DELIVERY_AGENTS,
+  ESCALATION_HISTORY,
   FRAUD_CONFIG,
   MERCHANT,
   MERCHANT_ADMIN,
   NOTIFICATIONS,
   ORDERS,
   PRODUCTS,
+  RESTRICTIONS,
   RETURNS,
   RISK_SCORING_EVENTS,
   SELF_TUNING_SUGGESTIONS,
@@ -188,6 +190,8 @@ let store = {
   payments: [],
   invoices: [],
   coupons: clone(COUPONS),
+  restrictions: clone(RESTRICTIONS),
+  escalationHistory: clone(ESCALATION_HISTORY),
 }
 
 function persistMerchant(merchant) {
@@ -1884,4 +1888,223 @@ export const api = {
     if (!invoice) throw new Error('Invoice not found.')
     return { download_url: invoice.invoice_url }
   },
+
+  async getCustomerReview(customerId) {
+    if (hasLiveApi()) {
+      return live(`/fraud/customers/${customerId}/review/`, { role: 'merchant' })
+    }
+    await delay(300)
+    const shopper = store.shoppers.find((s) => s.id === customerId || s.customer_id === customerId)
+    if (!shopper) throw new Error('Customer not found')
+
+    const scoring = clone(store.scoringEvents || []).filter(
+      (e) => e.customer_id === shopper.id || e.customer_id === shopper.customer_id
+    )
+    const restrictions = clone(store.restrictions || []).filter(
+      (r) => r.customer_id === shopper.id
+    )
+    const escalation_history = clone(store.escalationHistory || []).filter(
+      (h) => h.customer_id === shopper.id
+    )
+
+    const behavior = {
+      total_orders: shopper.total_orders || 0,
+      total_returns: shopper.total_returns || 0,
+      total_cod_refusals: shopper.total_cod_refusals || 0,
+      successful_deliveries: shopper.successful_deliveries || 0,
+      multiple_variant_orders: shopper.multiple_variant_orders || 0,
+      high_value_cod_count: shopper.high_value_cod_count || 0,
+      address_mismatch_count: shopper.address_mismatch_count || 0,
+      return_rate: shopper.total_orders ? Number((shopper.total_returns / shopper.total_orders).toFixed(2)) : 0,
+    }
+
+    const level = shopper.escalation_level || 0
+    let recommended_action = 'accept'
+    let available_actions = ['accept']
+    if (shopper.risk_tier === 'Medium') {
+      recommended_action = 'verify'
+      available_actions = ['accept', 'reject', 'verify', 'restrict_cod', 'restrict_high_value']
+    } else if (shopper.risk_tier === 'High') {
+      recommended_action = level >= 4 ? 'suspend_account' : level >= 3 ? 'require_prepaid' : 'manual_review'
+      available_actions = [
+        'accept', 'reject', 'verify', 'restrict_cod',
+        'restrict_high_value', 'require_prepaid',
+        'manual_review', 'increase_restriction', 'suspend_account'
+      ]
+    }
+
+    return {
+      profile: {
+        id: shopper.id,
+        customer_id: shopper.customer_id,
+        customer_email: shopper.email,
+        customer_name: shopper.name,
+        risk_tier: shopper.risk_tier || 'Low',
+        latest_score: shopper.risk_tier === 'High' ? 87 : shopper.risk_tier === 'Medium' ? 55 : 15,
+        device_reuse_flag: shopper.device_reuse_flag || false,
+        escalation_level: level,
+        escalation_label: ['Normal', 'Warning / Verification', 'COD Restricted', 'Prepaid + Manual Review', 'Temporary Account Restriction', 'Merchant Final Review'][level] || 'Normal',
+        confirmed_violations: shopper.confirmed_violations || 0,
+        restriction_count: restrictions.filter((r) => r.status === 'active').length,
+        created_at: shopper.joined_at,
+      },
+      behavior,
+      scoring,
+      restrictions,
+      escalation_history,
+      decision: {
+        status: shopper.risk_tier === 'Low' ? 'approved' : 'manual_review',
+        outcome: shopper.risk_tier === 'Low' ? 'auto_approved' : 'pending_review',
+        requires_otp: shopper.risk_tier === 'Medium',
+        recommended_action,
+        available_actions,
+        escalation_recommendation: shopper.risk_tier === 'High' ? 'increase_restriction' : null,
+      },
+    }
+  },
+
+  async performMerchantAction({ customerId, action, notes = '', threshold_value = null, restriction_id = null }) {
+    if (hasLiveApi()) {
+      return live(`/fraud/customers/${customerId}/action/`, {
+        method: 'POST',
+        body: { action, notes, threshold_value, restriction_id },
+        role: 'merchant',
+      })
+    }
+    await delay(300)
+    const shopper = store.shoppers.find((s) => s.id === customerId || s.customer_id === customerId)
+    if (!shopper) throw new Error('Customer not found')
+
+    if (action === 'increase_restriction' || action === 'suspend_account') {
+      const prevLevel = shopper.escalation_level || 0
+      shopper.escalation_level = Math.min(prevLevel + 1, 5)
+      shopper.confirmed_violations = (shopper.confirmed_violations || 0) + 1
+      store.escalationHistory.unshift({
+        id: `esc_${Date.now()}`,
+        merchant_id: 'merchant_1',
+        customer_id: shopper.id,
+        previous_level: prevLevel,
+        new_level: shopper.escalation_level,
+        trigger_event: notes || `Action: ${action}`,
+        notes: notes,
+        created_at: new Date().toISOString(),
+      })
+      if (action === 'suspend_account') {
+        store.restrictions.unshift({
+          id: `rest_${Date.now()}`,
+          merchant_id: 'merchant_1',
+          customer_id: shopper.id,
+          restriction_type: 'account_restricted',
+          reason: notes || 'Account suspended by merchant',
+          status: 'active',
+          threshold_value: null,
+          start_date: new Date().toISOString(),
+          end_date: null,
+          applied_by: 'admin@merchant.com',
+          removed_by: '',
+          created_at: new Date().toISOString(),
+        })
+      }
+    } else if (action === 'restrict_cod') {
+      store.restrictions.unshift({
+        id: `rest_${Date.now()}`,
+        merchant_id: 'merchant_1',
+        customer_id: shopper.id,
+        restriction_type: 'cod_suspended',
+        reason: notes || 'COD restricted by merchant',
+        status: 'active',
+        threshold_value: threshold_value,
+        start_date: new Date().toISOString(),
+        end_date: null,
+        applied_by: 'admin@merchant.com',
+        removed_by: '',
+        created_at: new Date().toISOString(),
+      })
+    } else if (action === 'require_prepaid') {
+      store.restrictions.unshift({
+        id: `rest_${Date.now()}`,
+        merchant_id: 'merchant_1',
+        customer_id: shopper.id,
+        restriction_type: 'prepaid_only',
+        reason: notes || 'Prepaid required by merchant',
+        status: 'active',
+        threshold_value: null,
+        start_date: new Date().toISOString(),
+        end_date: null,
+        applied_by: 'admin@merchant.com',
+        removed_by: '',
+        created_at: new Date().toISOString(),
+      })
+    } else if (action === 'restrict_high_value') {
+      store.restrictions.unshift({
+        id: `rest_${Date.now()}`,
+        merchant_id: 'merchant_1',
+        customer_id: shopper.id,
+        restriction_type: 'high_value_restricted',
+        reason: notes || 'High-value orders restricted',
+        status: 'active',
+        threshold_value: threshold_value || 5000,
+        start_date: new Date().toISOString(),
+        end_date: null,
+        applied_by: 'admin@merchant.com',
+        removed_by: '',
+        created_at: new Date().toISOString(),
+      })
+    } else if (action === 'remove_restriction' && restriction_id) {
+      const rest = store.restrictions.find((r) => r.id === restriction_id)
+      if (rest) {
+        rest.status = 'removed'
+        rest.removed_by = 'admin@merchant.com'
+        rest.end_date = new Date().toISOString()
+      }
+    }
+
+    store.auditLog.unshift({
+      id: `audit_${Date.now()}`,
+      merchant_id: 'merchant_1',
+      actor: 'admin@merchant.com',
+      action: action,
+      target: shopper.email,
+      notes: notes || `Action: ${action}`,
+      created_at: new Date().toISOString(),
+    })
+
+    return { action, status: 'completed' }
+  },
+
+  async getCustomerRestrictions(customerId) {
+    if (hasLiveApi()) {
+      return live(`/fraud/customers/${customerId}/restrictions/`, { role: 'merchant' })
+    }
+    await delay(200)
+    return clone(store.restrictions || []).filter((r) => r.customer_id === customerId)
+  },
+
+  async getEscalationHistory(customerId) {
+    if (hasLiveApi()) {
+      return live(`/fraud/customers/${customerId}/escalation-history/`, { role: 'merchant' })
+    }
+    await delay(200)
+    return clone(store.escalationHistory || []).filter((h) => h.customer_id === customerId)
+  },
+
+  async removeCustomerRestriction(restrictionId) {
+    if (hasLiveApi()) {
+      // Handled via action endpoint with remove_restriction
+      return live(`/fraud/customers/0/action/`, {
+        method: 'POST',
+        body: { action: 'remove_restriction', restriction_id: restrictionId },
+        role: 'merchant',
+      })
+    }
+    await delay(200)
+    const rest = store.restrictions.find((r) => r.id === restrictionId)
+    if (rest) {
+      rest.status = 'removed'
+      rest.removed_by = 'admin@merchant.com'
+      rest.end_date = new Date().toISOString()
+    }
+    return { status: 'removed' }
+  },
 }
+
