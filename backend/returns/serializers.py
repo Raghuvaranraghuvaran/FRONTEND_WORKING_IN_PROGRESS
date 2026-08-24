@@ -4,9 +4,22 @@ from .models import DoorstepProof, ReturnLine, ReturnRequest
 
 
 class ReturnLineSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
     class Meta:
         model = ReturnLine
-        fields = ("product_id", "name", "quantity", "price")
+        fields = ("product_id", "name", "quantity", "price", "image")
+
+    def get_image(self, obj):
+        if obj.product and obj.product.image:
+            return obj.product.image
+        from catalog.models import Product
+        if obj.product_id:
+            p = Product.objects.filter(id=obj.product_id).first()
+            if p and p.image:
+                return p.image
+        return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=400&q=80"
+
 
 
 class ReturnRequestSerializer(serializers.ModelSerializer):
