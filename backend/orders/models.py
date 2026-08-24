@@ -43,6 +43,7 @@ class Order(TimestampedModel):
     coupon_code = models.CharField(max_length=64, blank=True, default="")
     reward_points_used = models.PositiveIntegerField(default=0)
     reward_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    reward_points_earned = models.PositiveIntegerField(default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2)
     payment_method = models.CharField(max_length=16, choices=PAYMENT_METHOD_CHOICES, default="COD")
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default="Pending")

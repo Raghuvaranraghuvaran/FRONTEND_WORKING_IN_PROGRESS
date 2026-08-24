@@ -174,10 +174,13 @@ export default function CheckoutPage() {
 
       if (placed.user) {
         setShopper(placed.user)
-      } else if (shopper && pointsToRedeem > 0) {
+      } else if (shopper) {
+        const curPts = shopper.reward_points ?? 1000
+        const remPts = pointsToRedeem > 0 ? Math.max(0, curPts - pointsToRedeem) : curPts
+        const pointsEarned = placedOrder?.reward_points_earned ?? (Math.floor(Number(placedOrder.total || finalTotal) / 100) * 10)
         setShopper({
           ...shopper,
-          reward_points: Math.max(0, (shopper.reward_points ?? 1000) - pointsToRedeem),
+          reward_points: remPts + pointsEarned,
           total_orders: (shopper.total_orders || 0) + 1,
         })
       }
@@ -454,6 +457,13 @@ export default function CheckoutPage() {
           {Number(order.reward_points_used) > 0 && (
             <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200">
               ⭐ <strong>{order.reward_points_used} reward points</strong> redeemed ({INR.format(Number(order.reward_discount) || Math.round(order.reward_points_used / 10))} saved)
+            </div>
+          )}
+
+          {/* Earned reward points badge */}
+          {(Number(order.reward_points_earned) > 0 || Math.floor(orderTotal / 100) * 10 > 0) && (
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200">
+              🎉 <strong>+{order.reward_points_earned || Math.floor(orderTotal / 100) * 10} reward points</strong> earned on this order! (10 pts per ₹100)
             </div>
           )}
 
@@ -787,6 +797,17 @@ export default function CheckoutPage() {
             <span>Total Amount</span>
             <span className="text-indigo-600">{INR.format(finalTotal)}</span>
           </div>
+
+          {Math.floor(finalTotal / 100) * 10 > 0 && (
+            <div className="mt-3.5 flex items-center justify-between rounded-xl bg-amber-50/90 border border-amber-200/90 px-3.5 py-2 text-xs shadow-xs">
+              <span className="flex items-center gap-1.5 font-semibold text-amber-900">
+                <span className="text-sm">⭐</span> Points to earn:
+              </span>
+              <span className="font-bold text-amber-800">
+                +{Math.floor(finalTotal / 100) * 10} pts <span className="text-[11px] font-medium text-amber-600">(10 pts / ₹100)</span>
+              </span>
+            </div>
+          )}
 
           {useRewardPoints && rewardDiscount > 0 && (
             <p className="mt-2 text-center text-xs font-semibold text-emerald-600">
