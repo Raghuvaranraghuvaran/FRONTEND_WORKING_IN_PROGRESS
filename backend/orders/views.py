@@ -18,8 +18,33 @@ User = get_user_model()
 
 def _resolve_shopper(request):
     user = None
-    if request.user and request.user.is_authenticated:
+    if request.user and request.user.is_authenticated and not request.user.is_anonymous:
         user = request.user
+    
+    if user is None:
+        # Check if email is passed in request body, query parameters, or headers
+        email = None
+        if hasattr(request, "data") and isinstance(request.data, dict):
+            email = request.data.get("email") or request.data.get("customer_email") or (request.data.get("user") or {}).get("email") if isinstance(request.data.get("user"), dict) else None
+        if not email and hasattr(request, "query_params"):
+            email = request.query_params.get("email")
+        if not email and hasattr(request, "headers"):
+            email = request.headers.get("X-Customer-Email")
+        
+        if email and str(email).strip():
+            clean_email = str(email).strip().lower()
+            user = User.objects.filter(email__iexact=clean_email).first()
+            if user is None:
+                cust_name = ""
+                if hasattr(request, "data") and isinstance(request.data, dict):
+                    cust_name = request.data.get("customer_name") or request.data.get("name") or ""
+                user = User.objects.create_user(
+                    email=clean_email,
+                    name=cust_name or clean_email.split("@")[0].capitalize(),
+                    password="demo123",
+                    role=User.ROLE_SHOPPER,
+                )
+
     if user is None:
         user = User.objects.filter(role=User.ROLE_SHOPPER).first() or User.objects.filter(email__iexact="demo@shopper.com").first()
     if user is None:
@@ -60,7 +85,7 @@ class CheckoutView(APIView):
                 user=user,
                 merchant=merchant,
                 items=data["items"],
-                payment_method=data["payment_method"],
+                payment_method=data.get("payment_method", "COD"),
                 payment_details=data.get("payment_details"),
                 coupon_code=data.get("coupon_code", ""),
                 discount=data.get("discount", 0),
@@ -87,14 +112,23 @@ class ShopperOrderListView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        from django.db.models import Q
         user = _resolve_shopper(request)
+        
+        # Match orders by user foreign key or user email
         orders = (
-            Order.objects.filter(user=user)
-            .prefetch_related("items")
+            Order.objects.filter(
+                Q(user=user) | Q(user__email__iexact=user.email)
+            )
+            .prefetch_related("items", "items__product")
+            .select_related("user", "merchant", "invoice")
             .order_by("-created_at")
         )
-        if not orders.exists():
-            orders = Order.objects.all().prefetch_related("items").order_by("-created_at")[:15]
+        
+        # If demo shopper has no orders placed yet, provide the demo seed orders
+        if not orders.exists() and user.email.lower() == "demo@shopper.com":
+            orders = Order.objects.all().prefetch_related("items", "items__product").select_related("user", "merchant", "invoice").order_by("-created_at")[:15]
+            
         return success(OrderListSerializer(orders, many=True).data)
 
 
@@ -102,10 +136,11 @@ class ShopperOrderDetailView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, pk):
+        from django.db.models import Q
         user = _resolve_shopper(request)
         order = Order.objects.filter(pk=pk if str(pk).isdigit() else 0).first() or Order.objects.filter(order_number__icontains=str(pk)).first()
         if not order and user:
-            order = Order.objects.filter(user=user).first()
+            order = Order.objects.filter(Q(user=user) | Q(user__email__iexact=user.email)).first()
         if not order:
             order = Order.objects.first()
         if not order:

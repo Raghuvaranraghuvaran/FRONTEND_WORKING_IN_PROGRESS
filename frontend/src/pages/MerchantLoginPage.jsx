@@ -57,23 +57,15 @@ export default function MerchantLoginPage() {
     }
   }
 
-  const fillDemo = () => {
-    setUsername('ARIAFASHION4827')
-    setPassword('demo123')
-    setIsVerifying(false)
-    setIsVerified(true)
-    setRecaptchaToken(`verified_token_demo_${Date.now()}`)
-    setError('')
-  }
-
   return (
     <>
       <style>{`
         @keyframes rg-spin { to { transform: rotate(360deg); } }
         .ml-field:focus-within { border-color: ${A} !important; box-shadow: 0 0 0 3px ${A}22; }
-        .ml-input { border: none !important; outline: none !important; box-shadow: none !important; background: transparent !important; }
-        .ml-input:focus, .ml-input:active, .ml-input:focus-visible { border: none !important; outline: none !important; box-shadow: none !important; }
+        .ml-input { border: none !important; outline: none !important; box-shadow: none !important; background: transparent !important; background-image: none !important; background-repeat: no-repeat !important; }
+        .ml-input:focus, .ml-input:active, .ml-input:focus-visible { border: none !important; outline: none !important; box-shadow: none !important; background-image: none !important; }
         .ml-input::placeholder { color: #9ca3af; }
+        .ml-field, .ml-field * { background-image: none !important; }
       `}</style>
 
       {/* ── Full-screen background photo ─────────────────────────────────── */}
@@ -254,24 +246,7 @@ export default function MerchantLoginPage() {
               </button>
             </form>
 
-            {/* Demo + register */}
-            <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#9ca3af' }}>
-                <ShieldCheck style={{ width: 14, height: 14, color: A }} /> Demo store:
-              </span>
-              <button
-                type="button"
-                onClick={fillDemo}
-                style={{
-                  fontFamily: 'monospace', fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                  color: A, background: `${A}12`,
-                  border: `1px solid ${A}30`, borderRadius: 8,
-                  padding: '5px 12px', transition: 'all .15s',
-                }}
-              >
-                Fill Demo Credentials
-              </button>
-            </div>
+
 
             <p style={{ textAlign: 'center', fontSize: 12.5, color: '#6b7280', marginTop: 14, marginBottom: 0 }}>
               Don't have an account?{' '}

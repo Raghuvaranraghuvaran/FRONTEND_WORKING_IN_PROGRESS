@@ -89,9 +89,7 @@ class CheckoutItemSerializer(serializers.Serializer):
 
 class CheckoutSerializer(serializers.Serializer):
     items = CheckoutItemSerializer(many=True, allow_empty=False)
-    payment_method = serializers.ChoiceField(choices=(
-        "COD", "UPI", "CREDIT_CARD", "DEBIT_CARD", "NET_BANKING", "MOBILE_BANKING", "Prepaid"
-    ))
+    payment_method = serializers.CharField(required=False, default="COD")
     payment_details = serializers.JSONField(required=False, allow_null=True)
     coupon_code = serializers.CharField(required=False, allow_blank=True)
     discount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
@@ -99,3 +97,30 @@ class CheckoutSerializer(serializers.Serializer):
     address = serializers.CharField(required=False, allow_blank=True)
     phone = serializers.CharField(required=False, allow_blank=True)
     device_token = serializers.CharField(required=False, allow_blank=True)
+    email = serializers.CharField(required=False, allow_blank=True)
+    customer_name = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_payment_method(self, value):
+        if not value:
+            return "COD"
+        val = str(value).strip().upper()
+        mapping = {
+            "CASH": "COD",
+            "CASH ON DELIVERY": "COD",
+            "COD": "COD",
+            "UPI": "UPI",
+            "CARD": "CREDIT_CARD",
+            "CREDIT": "CREDIT_CARD",
+            "CREDIT_CARD": "CREDIT_CARD",
+            "CREDIT CARD": "CREDIT_CARD",
+            "DEBIT": "DEBIT_CARD",
+            "DEBIT_CARD": "DEBIT_CARD",
+            "DEBIT CARD": "DEBIT_CARD",
+            "NETBANKING": "NET_BANKING",
+            "NET_BANKING": "NET_BANKING",
+            "NET BANKING": "NET_BANKING",
+            "MOBILE_BANKING": "MOBILE_BANKING",
+            "MOBILE BANKING": "MOBILE_BANKING",
+            "PREPAID": "Prepaid",
+        }
+        return mapping.get(val, value)

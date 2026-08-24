@@ -109,18 +109,49 @@ input:focus-visible, input:focus, input:active {
   }
 }
 
-/* Prevent browser extensions (TempMail, Inboxes, etc.) from injecting icons into input containers */
-.rg-field, .rg-m-field {
+/* Prevent browser extensions (TempMail, Inboxes, autofill badges, etc.) from injecting background images or boxes into input containers */
+.rg-field, .rg-m-field, .ml-field {
   position: relative;
   overflow: hidden;
+  background: #ffffff !important;
+  background-image: none !important;
+}
+
+input, input[type="text"], input[type="email"], input[type="search"], input[type="password"], .rg-input, .ml-input {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  background-repeat: no-repeat !important;
+  background-position: -9999px -9999px !important;
+}
+
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-credentials-auto-fill-button {
+  visibility: hidden !important;
+  display: none !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  margin: 0 !important;
 }
 
 .rg-field > *:not(svg):not(input):not(button),
 .rg-m-field > *:not(svg):not(input):not(button),
+.ml-field > *:not(svg):not(input):not(button),
 .rg-field iframe,
 .rg-m-field iframe,
+.ml-field iframe,
 .rg-field div:not(.rg-custom),
-.rg-m-field div:not(.rg-custom) {
+.rg-m-field div:not(.rg-custom),
+.ml-field div:not(.rg-custom),
+[class*="tempmail"],
+[class*="inbox"],
+[class*="disposable"],
+[data-tempmail],
+[data-tempmail-icon],
+[id*="tempmail"],
+[id*="inbox"],
+[id*="disposable"] {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;

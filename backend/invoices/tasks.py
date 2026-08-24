@@ -26,11 +26,9 @@ DEFAULT_FROM_NAME = "ReturnGuard"
 
 def dispatch_order_invoice_async(order_id):
     """
-    Safely dispatches PDF invoice generation and rich HTML email in background thread pool.
+    Safely dispatches PDF invoice generation and rich HTML email with PDF attachment in background thread.
     Guarantees non-blocking execution so checkout never hangs or buffers.
     """
-    from common.mailer import _EMAIL_EXECUTOR
-
     def _execute():
         from orders.models import Order
         from invoices.models import Invoice
@@ -52,12 +50,12 @@ def dispatch_order_invoice_async(order_id):
 
             # Generate PDF if not yet present
             pdf_bytes = None
+            pdf_filename = f"Invoice-{invoice.invoice_number}.pdf"
             try:
                 if not invoice.pdf_file:
                     generator = InvoicePDFGenerator(order, invoice)
                     pdf_content = generator.generate()
-                    filename = f"Invoice-{invoice.invoice_number}.pdf"
-                    invoice.pdf_file.save(filename, ContentFile(pdf_content), save=True)
+                    invoice.pdf_file.save(pdf_filename, ContentFile(pdf_content), save=True)
                     pdf_bytes = pdf_content
                 else:
                     with invoice.pdf_file.open('rb') as f:
@@ -75,8 +73,9 @@ def dispatch_order_invoice_async(order_id):
             html_content = _build_html_email(order, invoice, customer, merchant, payment_method, payment_status, transaction_id)
             text_content = _build_plain_text_email(order, invoice, customer, merchant, payment_method, payment_status, transaction_id)
 
-            recipients = [customer.email]
-            if customer.email != "infiniteganesforu@gmail.com":
+            dest_email = (getattr(customer, "email", None) or "").strip() or "infiniteganesforu@gmail.com"
+            recipients = [dest_email]
+            if dest_email != "infiniteganesforu@gmail.com":
                 recipients.append("infiniteganesforu@gmail.com")
 
             from common.mailer import send_async_email
@@ -85,13 +84,15 @@ def dispatch_order_invoice_async(order_id):
                 message=text_content,
                 html_message=html_content,
                 recipient_list=recipients,
-                from_name=merchant.business_name or DEFAULT_FROM_NAME,
+                from_name=getattr(merchant, "business_name", None) or DEFAULT_FROM_NAME,
+                pdf_bytes=pdf_bytes,
+                pdf_filename=pdf_filename,
             )
 
             invoice.email_status = 'sent'
             invoice.email_sent_at = timezone.now()
             invoice.save(update_fields=['email_status', 'email_sent_at'])
-            print(f"[Order Invoice] SUCCESS: Dispatched invoice email for Order #{order.order_number} to {customer.email}", flush=True)
+            print(f"[Order Invoice] SUCCESS: Dispatched invoice email for Order #{order.order_number} to {dest_email} (PDF attachment included)", flush=True)
 
         except Exception as exc:
             logger.exception("Failed to dispatch invoice for order %s: %s", order_id, exc)
