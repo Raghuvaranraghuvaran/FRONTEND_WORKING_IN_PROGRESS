@@ -170,6 +170,8 @@ export default function OrdersPage() {
                 (r) => String(r.order_id) === String(order.id) || r.order_number === order.order_number
               )
 
+              const canTrack = !isDelivered && !existingReturn
+
               // Check 7 day return window
               let isWindowExpired = false
               if (order.delivered_at) {
@@ -223,7 +225,7 @@ export default function OrdersPage() {
                   </div>
 
                   <div className="mt-4 flex flex-wrap items-center gap-2.5 pt-3 border-t border-slate-100">
-                    {/* Return button logic */}
+                    {/* Return Status / Action */}
                     {existingReturn ? (
                       <span className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 border border-indigo-200">
                         <span>↩ Return:</span>
@@ -248,8 +250,8 @@ export default function OrdersPage() {
                       </span>
                     )}
 
-                    {/* Track Order button (ONLY shown if NOT delivered) */}
-                    {!isDelivered ? (
+                    {/* Track Order button (ONLY shown when order is active in transit and has no return) */}
+                    {canTrack ? (
                       <button
                         onClick={() => toggleTrackOrder(order.id)}
                         className={`rounded-xl border px-3.5 py-2 text-xs font-semibold transition-colors cursor-pointer ${
@@ -261,14 +263,16 @@ export default function OrdersPage() {
                         {activeTrackingId === order.id ? 'Hide Tracking' : 'Track Order'}
                       </button>
                     ) : (
-                      <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-                        ✓ Delivered
-                      </span>
+                      !existingReturn && isDelivered && (
+                        <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                          ✓ Delivered
+                        </span>
+                      )
                     )}
                   </div>
 
                   {/* Order-specific Tracking Timeline (Only for non-delivered tracking) */}
-                  {!isDelivered && activeTrackingId === order.id && trackingOrderMap[order.id] && (
+                  {canTrack && activeTrackingId === order.id && trackingOrderMap[order.id] && (
                     <div className="mt-4 rounded-xl bg-slate-50 p-4 border border-slate-100">
                       <p className="text-xs font-bold text-slate-900 mb-2.5">Live Delivery Timeline</p>
                       <div className="space-y-2.5">
