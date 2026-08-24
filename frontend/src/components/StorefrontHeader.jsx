@@ -224,10 +224,10 @@ export default function StorefrontHeader() {
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '21px',
+                      gap: '15px',
                       width: '100%',
-                      marginTop: '10px',
-                      marginBottom: '10px',
+                      marginTop: '28px',
+                      marginBottom: '12px',
                     }}
                   >
                     {/* Shopper Portal Card with spring hover */}
@@ -278,7 +278,7 @@ export default function StorefrontHeader() {
                       transition={{ delay: 0.18, duration: 0.35, ease: 'easeOut' }}
                       whileHover={{ scale: 1.015, y: -1.5 }}
                       whileTap={{ scale: 0.98 }}
-                      style={{ marginTop: '21px' }}
+                      style={{ marginTop: '15px' }}
                     >
                       <Link
                         to="/merchant/login"
