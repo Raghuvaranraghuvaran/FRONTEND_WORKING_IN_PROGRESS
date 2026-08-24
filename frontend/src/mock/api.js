@@ -580,6 +580,33 @@ export const api = {
     return clone(shopper)
   },
 
+  async requestPasswordReset(email) {
+    if (hasLiveApi()) {
+      return live('/auth/forgot-password/', { method: 'POST', body: { email } })
+    }
+    await delay(500)
+    return { sent: true, challenge_id: `mock-reset-${Date.now()}`, expires_in: 300 }
+  },
+
+  async resetPassword({ email, challengeId, code, newPassword }) {
+    if (hasLiveApi()) {
+      return live('/auth/reset-password/', {
+        method: 'POST',
+        body: { email, challenge_id: challengeId, code, new_password: newPassword },
+      })
+    }
+    await delay(500)
+    const shopper = findShopperByEmail(email)
+    if (!shopper) {
+      throw new Error('No account found for this email.')
+    }
+    if (code !== '123456') {
+      throw new Error('Invalid reset code. For demo, use 123456.')
+    }
+    shopper.password = newPassword
+    return { reset: true }
+  },
+
   async merchantLogin({ username, password }) {
     const cleanUsername = String(username || '').trim().toUpperCase()
     if (hasLiveApi()) {

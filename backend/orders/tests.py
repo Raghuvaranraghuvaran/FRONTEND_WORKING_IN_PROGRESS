@@ -46,8 +46,8 @@ class CheckoutApiTests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data["data"]["order_number"], "#1028")
-        self.assertEqual(response.data["data"]["total"], "2000.00")
+        self.assertEqual(response.data["data"]["order"]["order_number"], "#1028")
+        self.assertEqual(response.data["data"]["order"]["total"], "2000.00")
 
     def test_checkout_insufficient_stock(self):
         response = self.client.post(

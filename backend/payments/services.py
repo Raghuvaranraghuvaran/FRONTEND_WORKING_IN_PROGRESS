@@ -12,6 +12,8 @@ from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 
+from common.exceptions import AppError, PaymentSignatureInvalid
+from .gateway import get_gateway
 from .models import Payment, PaymentEvent
 
 logger = logging.getLogger(__name__)
@@ -157,6 +159,66 @@ class PaymentService:
         
         logger.warning(f"Payment rejected: {payment.id} - Reason: {reason}")
     
+    @transaction.atomic
+    def handle_webhook(self, payload, signature):
+        """Process a signed gateway webhook and update the payment/order state.
+
+        The signature proves the outcome came from the gateway, not a forged
+        frontend message. Idempotent on ``event_id`` so replays never double-apply.
+        """
+        gateway_name = payload.get("gateway", "mock")
+        gateway = get_gateway(gateway_name)
+        if not gateway.verify_signature(payload, signature):
+            raise PaymentSignatureInvalid()
+
+        order_id = payload.get("order_id")
+        try:
+            payment = Payment.objects.select_related("order").get(order_id=order_id)
+        except Payment.DoesNotExist:
+            raise AppError("Payment not found.", code="PAYMENT_NOT_FOUND")
+
+        event_id = payload.get("event_id", "")
+        if event_id:
+            existing = PaymentEvent.objects.filter(
+                payment=payment, gateway_event_id=event_id
+            ).first()
+            if existing is not None:
+                return payment, existing, False
+
+        gateway_payment_id = payload.get("gateway_payment_id", "")
+        if gateway_payment_id and not payment.gateway_payment_id:
+            payment.gateway_payment_id = gateway_payment_id
+
+        status = payload.get("status")
+        status_map = {
+            "paid": Payment.STATUS_PAID,
+            "failed": Payment.STATUS_FAILED,
+            "rejected": Payment.STATUS_REJECTED,
+            "processing": Payment.STATUS_PROCESSING,
+        }
+        if status in status_map:
+            payment.status = status_map[status]
+
+        if payload.get("failure_reason"):
+            payment.failure_reason = payload["failure_reason"]
+
+        payment.save(update_fields=["status", "gateway_payment_id", "failure_reason"])
+
+        if status == "paid":
+            order = payment.order
+            if order.status != "Confirmed":
+                order.status = "Confirmed" if order.risk_tier != "High" else "Review"
+                order.save(update_fields=["status"])
+
+        event = PaymentEvent.objects.create(
+            payment=payment,
+            event_type=status if status in dict(PaymentEvent.EVENT_CHOICES) else "processing",
+            gateway_event_id=event_id,
+            payload=payload,
+        )
+
+        return payment, event, True
+
     def get_payment_status(self, payment_id):
         """Get current payment status"""
         try:

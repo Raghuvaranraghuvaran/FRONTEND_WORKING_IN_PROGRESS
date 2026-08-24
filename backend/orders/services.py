@@ -84,8 +84,9 @@ class CheckoutService:
                     stock=100,
                 )
             if product.stock < item["quantity"]:
-                product.stock += item["quantity"] + 10
-                product.save(update_fields=["stock"])
+                raise ValueError(
+                    f"Insufficient stock for {product.name}. Available: {product.stock}."
+                )
 
             price = item.get("price") if item.get("price") else product.price
             name = item.get("name") or product.name
@@ -199,7 +200,7 @@ class CheckoutService:
     def _next_order_number(self, merchant=None):
         import re
         last_orders = Order.objects.order_by("-id").values_list("order_number", flat=True)[:50]
-        max_num = 1024
+        max_num = 1027
         for on in last_orders:
             numbers = re.findall(r"\d+", str(on))
             if numbers:

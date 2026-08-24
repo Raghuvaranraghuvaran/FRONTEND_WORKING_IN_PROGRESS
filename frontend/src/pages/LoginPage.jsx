@@ -62,6 +62,13 @@ export default function LoginPage() {
   const [otpChallengeId, setOtpChallengeId] = useState(null)
   const [debugCode, setDebugCode] = useState('')
   const [focusedField, setFocusedField] = useState('')
+  const [forgotMode, setForgotMode] = useState(false)
+  const [forgotStep, setForgotStep] = useState('request')
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetCode, setResetCode] = useState('')
+  const [resetChallengeId, setResetChallengeId] = useState(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
   const googleButtonRef = useRef(null)
 
   useEffect(() => {
@@ -107,6 +114,39 @@ export default function LoginPage() {
 
   const switchTab = (t) => {
     setActiveTab(t); setError(''); setOtpSent(false); setOtpCode(''); setOtpChallengeId(null); setDebugCode('')
+  }
+
+  const openForgot = () => {
+    setForgotMode(true); setForgotStep('request'); setError('')
+    setResetEmail(form.email || ''); setResetCode(''); setResetChallengeId(null)
+    setNewPassword(''); setNewPasswordConfirm('')
+  }
+
+  const closeForgot = () => {
+    setForgotMode(false); setError('')
+  }
+
+  const requestResetCode = async (e) => {
+    e.preventDefault(); setError(''); setSubmitting(true)
+    try {
+      const r = await api.requestPasswordReset(resetEmail)
+      setResetChallengeId(r?.challenge_id || null)
+      setForgotStep('code')
+    } catch (err) { setError(err.message) }
+    finally { setSubmitting(false) }
+  }
+
+  const submitNewPassword = async (e) => {
+    e.preventDefault(); setError('')
+    if (newPassword.length < 8) { setError('Password must be at least 8 characters.'); return }
+    if (newPassword !== newPasswordConfirm) { setError('Passwords do not match.'); return }
+    setSubmitting(true)
+    try {
+      await api.resetPassword({ email: resetEmail, challengeId: resetChallengeId, code: resetCode, newPassword })
+      const shopper = await api.login({ email: resetEmail, password: newPassword })
+      setShopper(shopper); navigate('/shop')
+    } catch (err) { setError(err.message) }
+    finally { setSubmitting(false) }
   }
 
   return (
@@ -180,6 +220,102 @@ export default function LoginPage() {
               }}>Shopper</span>
             </div>
 
+            {/* ── Forgot password ─────────────────────────────────────── */}
+            {forgotMode ? (
+              <div>
+                <button type="button" onClick={closeForgot}
+                  style={{ background: 'none', border: 'none', color: A, cursor: 'pointer', fontSize: 12.5, fontWeight: 500, padding: 0, marginBottom: 14 }}>
+                  ← Back to sign in
+                </button>
+
+                {forgotStep === 'request' ? (
+                  <form onSubmit={requestResetCode}>
+                    <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: '#1e1b3a' }}>Reset your password</h3>
+                    <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6b7280' }}>
+                      Enter your account email and we'll send a 6-digit reset code.
+                    </p>
+                    <label style={lbl}>Email Address</label>
+                    <div className="rg-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 18 }}>
+                      <IconMail />
+                      <input
+                        className="rg-input"
+                        type="email"
+                        autoComplete="email"
+                        required
+                        placeholder="you@example.com"
+                        value={resetEmail}
+                        onChange={e => setResetEmail(e.target.value)}
+                        style={inp}
+                      />
+                    </div>
+                    <motion.button type="submit" disabled={submitting || !resetEmail}
+                      whileHover={{ scale: submitting ? 1 : 1.02 }} whileTap={{ scale: 0.97 }}
+                      style={{ ...btn(A), opacity: (!resetEmail || submitting) ? 0.6 : 1, marginBottom: 0 }}>
+                      {submitting ? <><Spinner /> Sending code…</> : 'Send reset code'}
+                    </motion.button>
+                  </form>
+                ) : (
+                  <form onSubmit={submitNewPassword}>
+                    <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: '#1e1b3a' }}>Enter reset code</h3>
+                    <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6b7280' }}>
+                      A 6-digit code was sent to <strong style={{ color: '#0f172a' }}>{resetEmail}</strong>.
+                    </p>
+                    <label style={lbl}>6-Digit Code</label>
+                    <div className="rg-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 14 }}>
+                      <input
+                        className="rg-input"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="\d{6}"
+                        maxLength={6}
+                        autoComplete="one-time-code"
+                        required
+                        placeholder="• • • • • •"
+                        value={resetCode}
+                        onChange={e => setResetCode(e.target.value.replace(/\D/g, ''))}
+                        style={{ ...inp, letterSpacing: '0.35em', textAlign: 'center', fontSize: 18, fontWeight: 700 }}
+                      />
+                    </div>
+                    <label style={lbl}>New Password</label>
+                    <div className="rg-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 14 }}>
+                      <IconLock />
+                      <input
+                        className="rg-input"
+                        type="password"
+                        autoComplete="new-password"
+                        required
+                        minLength={8}
+                        placeholder="At least 8 characters"
+                        value={newPassword}
+                        onChange={e => setNewPassword(e.target.value)}
+                        style={inp}
+                      />
+                    </div>
+                    <label style={lbl}>Confirm New Password</label>
+                    <div className="rg-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 18 }}>
+                      <IconLock />
+                      <input
+                        className="rg-input"
+                        type="password"
+                        autoComplete="new-password"
+                        required
+                        minLength={8}
+                        placeholder="Re-enter new password"
+                        value={newPasswordConfirm}
+                        onChange={e => setNewPasswordConfirm(e.target.value)}
+                        style={inp}
+                      />
+                    </div>
+                    <motion.button type="submit" disabled={submitting || resetCode.length < 6}
+                      whileHover={{ scale: submitting ? 1 : 1.02 }} whileTap={{ scale: 0.97 }}
+                      style={{ ...btn(A), marginBottom: 0, opacity: (resetCode.length < 6 || submitting) ? 0.6 : 1 }}>
+                      {submitting ? <><Spinner /> Resetting…</> : 'Reset password'}
+                    </motion.button>
+                  </form>
+                )}
+              </div>
+            ) : (
+              <>
             {/* tabs */}
             <div style={{
               display: 'flex', background: 'rgba(111,92,240,0.07)',
@@ -244,7 +380,7 @@ export default function LoginPage() {
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <label style={{ ...lbl, margin: 0 }}>Password</label>
-                  <a href="#" style={{ fontSize: 12, color: A, textDecoration: 'none', fontWeight: 500 }}>Forgot password?</a>
+                  <a href="#" onClick={(e) => { e.preventDefault(); openForgot() }} style={{ fontSize: 12, color: A, textDecoration: 'none', fontWeight: 500 }}>Forgot password?</a>
                 </div>
                 <div className="rg-field" style={{ ...field, borderColor: focusedField === 'pw' ? A : 'rgba(0,0,0,0.12)' }}>
                   <IconLock />
@@ -326,30 +462,6 @@ export default function LoginPage() {
                 </div>
                 <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 12px', margin: '0 0 16px', fontSize: 12, color: '#475569', lineHeight: 1.4 }}>
                   ✉️ 6-digit verification code sent to <strong style={{ color: '#0f172a' }}>{form.email}</strong>.
-                  <div style={{ marginTop: 4, color: '#64748b', fontSize: 11.5 }}>
-                    💡 <em>Please check your <strong>Spam / Junk / Promotions</strong> tab if not in your primary inbox.</em>
-                  </div>
-                  {(debugCode || true) && (
-                    <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 11, color: '#64748b' }}>Dev/Demo fallback:</span>
-                      <button
-                        type="button"
-                        onClick={() => setOtpCode(debugCode || '123456')}
-                        style={{
-                          background: 'rgba(79, 70, 229, 0.1)',
-                          border: '1px solid rgba(79, 70, 229, 0.3)',
-                          color: '#4f46e5',
-                          borderRadius: 6,
-                          padding: '2px 8px',
-                          fontSize: 11,
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        ⚡ Fill Code ({debugCode || '123456'})
-                      </button>
-                    </div>
-                  )}
                 </div>
                 <div className="rg-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 16 }}>
                   <input
@@ -411,6 +523,8 @@ export default function LoginPage() {
               New here?{' '}
               <Link to="/register" style={{ color: A, fontWeight: 600, textDecoration: 'none' }}>Create an account</Link>
             </p>
+              </>
+            )}
           </div>
 
           <p style={{ textAlign: 'center', marginTop: 18 }}>

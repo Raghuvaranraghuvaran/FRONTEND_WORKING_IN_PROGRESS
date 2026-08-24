@@ -29,3 +29,14 @@ class ProcessPaymentSerializer(serializers.Serializer):
     """Serializer for processing demo payments"""
     payment_id = serializers.IntegerField()
     payment_data = serializers.JSONField(required=False, allow_null=True)
+
+
+class WebhookSerializer(serializers.Serializer):
+    gateway = serializers.CharField(default="mock")
+    gateway_payment_id = serializers.CharField()
+    order_id = serializers.CharField()
+    status = serializers.ChoiceField(choices=("paid", "failed", "rejected", "processing"))
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
+    failure_reason = serializers.CharField(required=False, allow_blank=True, default="")
+    signature = serializers.CharField()
+    event_id = serializers.CharField(required=False, allow_blank=True, default="")

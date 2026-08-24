@@ -17,6 +17,7 @@ class OTPVerificationService:
     LOGIN_PURPOSE = "login"
     LOGIN_WINDOW_SECONDS = 600
     LOGIN_MAX_REQUESTS = 10
+    RESET_PURPOSE = "password_reset"
 
     def request_login_otp(self, *, email, role):
         clean_email = (email or "").strip().lower()
@@ -204,6 +205,108 @@ class OTPVerificationService:
             challenge.save(update_fields=["verified_at", "updated_at"])
 
         VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="confirmed", confidence=1)
+        return user
+
+    def request_password_reset_otp(self, *, email):
+        clean_email = (email or "").strip().lower()
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = User.objects.filter(email__iexact=clean_email).first()
+        if user is None:
+            # Do not reveal whether the email exists; return a generic sent response.
+            return {"sent": True, "expires_in": self.TTL_SECONDS}
+
+        code = f"{secrets.randbelow(1000000):06d}"
+        now = timezone.now()
+        challenge = OTPChallenge.objects.create(
+            user=user,
+            target=user.email,
+            method=self.LOGIN_METHOD,
+            purpose=self.RESET_PURPOSE,
+            role=user.role,
+            code_hash=self._hash_code(code),
+            expires_at=now + timedelta(seconds=self.TTL_SECONDS),
+        )
+
+        print("\n==========================================")
+        print(f"[ReturnGuard Password Reset] Email: {user.email}")
+        print(f"[ReturnGuard Password Reset] Code: {code}")
+        print("==========================================\n")
+
+        from common.mailer import send_async_email
+        send_async_email(
+            subject=f"Your ReturnGuard password reset code: {code}",
+            message=(
+                f"Hi {user.name or 'there'},\n\n"
+                f"Your ReturnGuard password reset code is: {code}\n\n"
+                "This code expires in 5 minutes. If you did not request this, "
+                "you can safely ignore this email.\n\n"
+                "— ReturnGuard Security Team"
+            ),
+            recipient_list=[user.email],
+            from_name="ReturnGuard Security",
+        )
+
+        res = {"sent": True, "challenge_id": challenge.id, "expires_in": self.TTL_SECONDS}
+        if getattr(settings, "DEBUG", False):
+            res["debug_code"] = code
+        return res
+
+    def reset_password(self, *, email, code, new_password, challenge_id=None):
+        clean_email = (email or "").strip().lower()
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = User.objects.filter(email__iexact=clean_email).first()
+        if user is None:
+            raise AppError("No account found for this email.", code="ACCOUNT_NOT_FOUND")
+
+        demo_match = code == getattr(settings, "DEMO_OTP", "123456")
+        now = timezone.now()
+
+        challenge = None
+        if challenge_id:
+            challenge = OTPChallenge.objects.filter(
+                user=user,
+                id=challenge_id,
+                purpose=self.RESET_PURPOSE,
+                verified_at__isnull=True,
+                expires_at__gt=now,
+            ).first()
+
+        if challenge is None:
+            code_hash = self._hash_code(code)
+            challenge = OTPChallenge.objects.filter(
+                user=user,
+                purpose=self.RESET_PURPOSE,
+                verified_at__isnull=True,
+                expires_at__gt=now,
+                code_hash=code_hash,
+            ).first()
+
+        if challenge is None and demo_match:
+            challenge = OTPChallenge.objects.filter(
+                user=user,
+                purpose=self.RESET_PURPOSE,
+                verified_at__isnull=True,
+                expires_at__gt=now,
+            ).order_by("-created_at").first()
+
+        if challenge is None and not demo_match:
+            raise AppError("Invalid or expired reset code. Please request a new one.", code="OTP_INVALID")
+
+        if challenge:
+            if challenge.attempts >= self.MAX_ATTEMPTS:
+                raise AppError("Too many attempts. Request a new code.", code="OTP_ATTEMPTS_EXCEEDED")
+            challenge.attempts += 1
+            challenge.save(update_fields=["attempts", "updated_at"])
+            code_matches = secrets.compare_digest(self._hash_code(code), challenge.code_hash) or demo_match
+            if not code_matches:
+                raise AppError("Invalid reset code. Please check your email or enter 123456.", code="OTP_INVALID")
+            challenge.verified_at = timezone.now()
+            challenge.save(update_fields=["verified_at", "updated_at"])
+
+        user.set_password(new_password)
+        user.save(update_fields=["password"])
         return user
 
     def _get_existing_user(self, email, role):

@@ -10,11 +10,13 @@ from .google_auth import verify_google_id_token
 from .models import Address, ShopperProfile
 from .serializers import (
     AddressSerializer,
+    ForgotPasswordRequestSerializer,
     GoogleLoginSerializer,
     LoginSerializer,
     LoginOTPRequestSerializer,
     LoginOTPVerifySerializer,
     RegisterSerializer,
+    ResetPasswordSerializer,
     ShopperSerializer,
 )
 from .services import tokens_for_user
@@ -149,6 +151,33 @@ class LoginOTPVerifyView(APIView):
             code=serializer.validated_data["code"],
         )
         return success({"tokens": tokens_for_user(user), "user": ShopperSerializer(user).data})
+
+
+class ForgotPasswordRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ForgotPasswordRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = OTPVerificationService().request_password_reset_otp(
+            email=serializer.validated_data["email"]
+        )
+        return success(result)
+
+
+class ResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ResetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        OTPVerificationService().reset_password(
+            email=serializer.validated_data["email"],
+            code=serializer.validated_data["code"],
+            new_password=serializer.validated_data["new_password"],
+            challenge_id=serializer.validated_data.get("challenge_id"),
+        )
+        return success({"reset": True})
 
 
 class RefreshView(APIView):
