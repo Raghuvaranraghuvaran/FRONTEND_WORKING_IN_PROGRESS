@@ -1215,6 +1215,30 @@ export const api = {
     return clone(store.orders)
   },
 
+  async updateOrderStatus({ orderId, deliveryStatus }) {
+    if (hasLiveApi()) {
+      try {
+        return await live(`/orders/${orderId}/status/`, {
+          method: 'POST',
+          body: { deliveryStatus },
+          role: 'merchant',
+        })
+      } catch (e) {
+        console.warn('Live updateOrderStatus fallback:', e)
+      }
+    }
+    await delay(300)
+    const order = store.orders.find((o) => o.id === orderId || o.order_number === orderId)
+    if (order) {
+      order.delivery_status = deliveryStatus
+      if (deliveryStatus === 'Delivered') {
+        order.status = 'Delivered'
+        order.delivered_at = new Date().toISOString()
+      }
+    }
+    return { status: 'success', orderId, deliveryStatus }
+  },
+
   async getMerchantCustomers() {
     if (hasLiveApi()) {
       try {

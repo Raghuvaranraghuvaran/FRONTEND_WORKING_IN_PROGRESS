@@ -144,3 +144,63 @@ class ReportDoorstepRefusalView(APIView):
             "message": "Doorstep refusal logged and progressive escalation updated.",
         })
 
+
+class UpdateOrderStatusView(APIView):
+    """Update order delivery status (e.g. Processing, In Transit, Delivered, etc.)."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        merchant = require_merchant_context(request)
+        order = Order.objects.filter(pk=pk).first()
+        if not order and isinstance(pk, str):
+            order = Order.objects.filter(order_number=pk).first()
+        if not order:
+            return not_found("Order not found.")
+
+        new_status = request.data.get("deliveryStatus") or request.data.get("delivery_status") or request.data.get("status")
+        if not new_status:
+            return bad_request("deliveryStatus is required.")
+
+        order.delivery_status = new_status
+        update_fields = ["delivery_status"]
+
+        if new_status == "Delivered":
+            order.status = "Delivered"
+            order.delivered_at = timezone.now()
+            update_fields.extend(["status", "delivered_at"])
+
+            events = list(order.tracking_events or [])
+            events.append({
+                "label": "Package Delivered Successfully",
+                "at": timezone.now().isoformat(),
+                "done": True,
+            })
+            order.tracking_events = events
+            update_fields.append("tracking_events")
+
+            # Trigger delivered email if user email is present
+            if order.user and getattr(order.user, "email", None):
+                try:
+                    from common.email import send_email
+                    from common.email_templates import order_delivered_email
+                    html, text = order_delivered_email(order=order)
+                    send_email(
+                        to_email=order.user.email,
+                        subject=f"Delivered: Order #{order.order_number} has arrived!",
+                        html_content=html,
+                        text_content=text,
+                    )
+                except Exception as e:
+                    print(f"[Email error on delivery update]: {e}")
+
+        order.save(update_fields=update_fields)
+
+        return success({
+            "id": order.id,
+            "order_number": order.order_number,
+            "delivery_status": order.delivery_status,
+            "status": order.status,
+            "message": f"Order status updated to {new_status}.",
+        })
+
+
