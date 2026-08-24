@@ -30,7 +30,7 @@ export default function ReturnRequestPage() {
   const [selectedLines, setSelectedLines] = useState({})
   const [pickupSlot, setPickupSlot] = useState('')
   const [result, setResult] = useState(null)
-  const [otp, setOtp] = useState('')
+  const [otp, setOtp] = useState('123456')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [showOtp, setShowOtp] = useState(false)

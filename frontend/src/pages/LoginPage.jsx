@@ -325,7 +325,7 @@ export default function LoginPage() {
                   </button>
                 </div>
                 <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '10px 12px', margin: '0 0 16px', fontSize: 12, color: '#166534', lineHeight: 1.4 }}>
-                  ✅ Verification code {debugCode ? <strong>auto-filled</strong> : 'sent'} for <strong style={{ color: '#0f172a' }}>{form.email}</strong>. Click <strong>Verify &amp; Continue</strong> to proceed.
+                  ✉️ Verification code sent to <strong style={{ color: '#0f172a' }}>{form.email}</strong> and auto-filled below. Click <strong>Verify &amp; Continue</strong> to proceed.
                 </div>
                 <div className="rg-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 16 }}>
                   <input

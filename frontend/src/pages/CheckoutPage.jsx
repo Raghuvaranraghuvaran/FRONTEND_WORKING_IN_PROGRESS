@@ -29,7 +29,7 @@ export default function CheckoutPage() {
   const [step, setStep] = useState('checkout')
   const [order, setOrder] = useState(null)
   const [payment, setPayment] = useState(null)
-  const [otp, setOtp] = useState('')
+  const [otp, setOtp] = useState('123456')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [resolvingPayment, setResolvingPayment] = useState(false)
