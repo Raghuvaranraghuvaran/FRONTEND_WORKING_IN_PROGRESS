@@ -60,7 +60,6 @@ export default function LoginPage() {
   const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState('')
   const [otpChallengeId, setOtpChallengeId] = useState(null)
-  const [debugCode, setDebugCode] = useState('')
   const [focusedField, setFocusedField] = useState('')
   const [forgotMode, setForgotMode] = useState(false)
   const [forgotStep, setForgotStep] = useState('request')
@@ -97,7 +96,7 @@ export default function LoginPage() {
     try {
       const r = await api.requestLoginOTP(form.email)
       if (r?.challenge_id) setOtpChallengeId(r.challenge_id)
-      if (r?.debug_code) setDebugCode(r.debug_code)
+      setOtpCode('')
       setOtpSent(true)
     } catch (e) { setError(e.message) }
     finally { setSubmitting(false) }
@@ -113,7 +112,7 @@ export default function LoginPage() {
   }
 
   const switchTab = (t) => {
-    setActiveTab(t); setError(''); setOtpSent(false); setOtpCode(''); setOtpChallengeId(null); setDebugCode('')
+    setActiveTab(t); setError(''); setOtpSent(false); setOtpCode(''); setOtpChallengeId(null)
   }
 
   const openForgot = () => {

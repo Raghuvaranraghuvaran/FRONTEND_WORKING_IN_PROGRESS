@@ -135,14 +135,11 @@ class OTPVerificationService:
         )
 
         VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="sent")
-        res = {
+        return {
             "sent": True,
             "challenge_id": challenge.id,
             "expires_in": self.TTL_SECONDS,
         }
-        if getattr(settings, "DEBUG", False):
-            res["debug_code"] = code
-        return res
 
     def verify_login_otp(self, *, email, role, challenge_id, code):
         clean_email = (email or "").strip().lower()
