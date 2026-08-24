@@ -54,6 +54,9 @@ class Order(TimestampedModel):
     device_token = models.CharField(max_length=128, blank=True, default="")
     delivery_address = models.TextField(blank=True, default="")
     risk_context = models.TextField(blank=True, default="")
+    risk_score = models.PositiveIntegerField(default=0)
+    variant_count = models.PositiveIntegerField(default=1)
+    is_cod_refused = models.BooleanField(default=False)
     tracking_events = models.JSONField(default=list)
 
     def __str__(self):
