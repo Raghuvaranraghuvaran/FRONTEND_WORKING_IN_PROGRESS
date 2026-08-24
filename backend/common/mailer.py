@@ -1,6 +1,9 @@
+import json
 import logging
 import smtplib
 import ssl
+import urllib.error
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -15,12 +18,62 @@ _EMAIL_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="rg_maile
 
 DEFAULT_FROM_NAME = "ReturnGuard Security"
 
+RESEND_API_URL = "https://api.resend.com/emails"
+
 
 def _get_smtp_credentials():
     user = getattr(settings, "EMAIL_HOST_USER", "infiniteganesforu@gmail.com")
     password = getattr(settings, "EMAIL_HOST_PASSWORD", "kzgzqywjqocxjorv")
     host = getattr(settings, "EMAIL_HOST", "smtp.gmail.com")
     return user, password, host
+
+
+def _send_via_resend(subject, message, recipient, from_name=DEFAULT_FROM_NAME, html_message=None):
+    """Send an email through the Resend HTTP API. Returns True on success, raises on failure."""
+    api_key = getattr(settings, "RESEND_API_KEY", "")
+    if not api_key:
+        raise RuntimeError("RESEND_API_KEY is not configured")
+
+    from_email = getattr(settings, "RESEND_FROM_EMAIL", "")
+    if not from_email:
+        from_email = f"{from_name} <no-reply@returnguard.in>"
+
+    payload = {
+        "from": from_email,
+        "to": [recipient],
+        "subject": subject,
+        "text": message,
+    }
+    if html_message:
+        payload["html"] = html_message
+
+    req = urllib.request.Request(
+        RESEND_API_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "ReturnGuard/1.0",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=20) as response:
+            body = response.read().decode("utf-8")
+            status = getattr(response, "status", 200)
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Resend HTTP {exc.code}: {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Resend network error: {exc.reason}") from exc
+
+    if status >= 400:
+        raise RuntimeError(f"Resend returned status {status}: {body}")
+
+    print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipient} via Resend API!", flush=True)
+    return True
+
 
 
 def _send_direct_smtp(subject, message, recipient, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None):
@@ -101,9 +154,13 @@ def _send_direct_smtp(subject, message, recipient, from_name=DEFAULT_FROM_NAME, 
 
 def _dispatch_task(subject, message, recipient, from_name, from_addr, html_message):
     try:
+        if getattr(settings, "RESEND_API_KEY", ""):
+            _send_via_resend(subject, message, recipient, from_name, html_message)
+            return
         _send_direct_smtp(subject, message, recipient, from_name, from_addr, html_message)
     except Exception as exc:
-        logger.exception("Background email dispatch failed: %s", exc)
+        logger.exception("Background email dispatch failed for %s: %s", recipient, exc)
+        print(f"[Email Dispatch ERROR] Failed to deliver '{subject}' to {recipient}: {exc}", flush=True)
 
 
 def send_async_email(subject, message, recipient_list, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None):

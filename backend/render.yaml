@@ -18,3 +18,7 @@ services:
         value: "1"
       - key: PYTHON_VERSION
         value: "3.12.3"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        value: "ReturnGuard <no-reply@returnguard.in>"
