@@ -37,6 +37,7 @@ class CheckoutService:
             address: Delivery address
             phone: Customer contact phone
             device_token: Device fingerprint
+        """
         shopper = getattr(user, "shopper_profile", None)
         if shopper is None and user is not None:
             from accounts.models import ShopperProfile
