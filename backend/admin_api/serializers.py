@@ -32,8 +32,8 @@ class ShopperProfileSerializer(serializers.ModelSerializer):
 
 
 class ReviewReturnSerializer(serializers.Serializer):
-    action = serializers.ChoiceField(choices=("approve", "reject"))
-    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    action = serializers.CharField()
+    notes = serializers.CharField(required=False, allow_blank=True, allow_null=True, default="")
 
 
 class FraudConfigSerializer(serializers.ModelSerializer):

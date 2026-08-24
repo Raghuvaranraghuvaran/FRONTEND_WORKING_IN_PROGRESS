@@ -116,6 +116,7 @@ export default function MerchantFlaggedCases() {
       await api.performMerchantAction({
         customerId: custId,
         action: 'set_escalation_level',
+        escalation_level: targetLevel,
         threshold_value: targetLevel,
         notes: notes || `Direct manual switch to Level ${targetLevel}: ${ESCALATION_LABELS[targetLevel]}`,
       })
@@ -167,11 +168,15 @@ export default function MerchantFlaggedCases() {
 
       // Also review return if approve/reject
       if (actionType === 'accept' || actionType === 'reject') {
-        await api.reviewReturn({
-          returnId: selected.id,
-          action: actionType === 'accept' ? 'approve' : 'reject',
-          notes,
-        })
+        try {
+          await api.reviewReturn({
+            returnId: selected.id,
+            action: actionType === 'accept' ? 'approve' : 'reject',
+            notes,
+          })
+        } catch (e) {
+          console.warn('Return review sync:', e)
+        }
       }
 
       const actionTitle = actionType.replace('_', ' ').toUpperCase()

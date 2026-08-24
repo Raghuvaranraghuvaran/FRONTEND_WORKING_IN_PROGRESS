@@ -1976,11 +1976,15 @@ export const api = {
     }
   },
 
-  async performMerchantAction({ customerId, action, notes = '', threshold_value = null, restriction_id = null }) {
+  async performMerchantAction({ customerId, action, notes = '', threshold_value = null, restriction_id = null, escalation_level = null }) {
     if (hasLiveApi()) {
+      const body = { action, notes }
+      if (threshold_value !== null && threshold_value !== undefined) body.threshold_value = threshold_value
+      if (restriction_id !== null && restriction_id !== undefined) body.restriction_id = restriction_id
+      if (escalation_level !== null && escalation_level !== undefined) body.escalation_level = escalation_level
       return live(`/fraud/customers/${customerId}/action/`, {
         method: 'POST',
-        body: { action, notes, threshold_value, restriction_id },
+        body,
         role: 'merchant',
       })
     }

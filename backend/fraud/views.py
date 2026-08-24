@@ -226,12 +226,13 @@ def merchant_action(request, customer_id):
             result["new_escalation_level"] = profile.escalation_level
 
     elif action == "set_escalation_level":
-        if target_level is not None:
+        lvl = target_level if target_level is not None else (int(threshold) if threshold is not None else None)
+        if lvl is not None:
             profile, _ = CustomerRiskProfile.objects.get_or_create(
                 merchant=merchant, customer=customer
             )
             prev_level = profile.escalation_level
-            profile.escalation_level = target_level
+            profile.escalation_level = lvl
             profile.save(update_fields=["escalation_level"])
             EscalationHistory.objects.create(
                 merchant=merchant,

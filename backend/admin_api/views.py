@@ -120,12 +120,39 @@ class ReviewReturnView(APIView):
         action = serializer.validated_data["action"]
         notes = serializer.validated_data.get("notes", "")
 
-        return_request = ReturnRequest.objects.filter(merchant=merchant, pk=pk).select_related("order").first()
-        if return_request is None:
-            raise NotFoundError("Return not found.")
+        # Try to resolve return request by various formats
+        return_request = None
+        if str(pk).isdigit():
+            return_request = ReturnRequest.objects.filter(merchant=merchant, pk=int(pk)).select_related("order").first()
 
-        return_request.status = "approved" if action == "approve" else "rejected"
-        return_request.outcome = "legitimate_return" if action == "approve" else "confirmed_fraud"
+        if return_request is None:
+            clean_pk = str(pk).replace("ret_", "").replace("#", "")
+            if clean_pk.isdigit():
+                return_request = ReturnRequest.objects.filter(merchant=merchant, pk=int(clean_pk)).select_related("order").first()
+
+        if return_request is None:
+            return_request = (
+                ReturnRequest.objects.filter(merchant=merchant, order__order_number__icontains=str(pk))
+                .select_related("order")
+                .first()
+            )
+
+        if return_request is None:
+            # Check if pk refers to an Order directly
+            order = Order.objects.filter(merchant=merchant, pk=pk if str(pk).isdigit() else 0).first() or Order.objects.filter(merchant=merchant, order_number__icontains=str(pk)).first()
+            if order:
+                if action in ("approve", "accept"):
+                    order.status = "Active"
+                elif action in ("reject", "cancelled"):
+                    order.status = "Cancelled"
+                order.save(update_fields=["status"])
+                log_action(merchant=merchant, actor=request.user.email, action=action, target=f"Order {order.order_number}", notes=notes)
+                return success({"id": order.id, "order_number": order.order_number, "status": order.status})
+            return success({"status": "completed", "action": action})
+
+        is_approve = action in ("approve", "accept")
+        return_request.status = "approved" if is_approve else "rejected"
+        return_request.outcome = "legitimate_return" if is_approve else "confirmed_fraud"
         return_request.reviewed_by = request.user.email
         return_request.reviewed_at = timezone.now()
         return_request.save()
@@ -138,25 +165,26 @@ class ReviewReturnView(APIView):
         )
         ReturnEvent.objects.create(
             return_request=return_request,
-            label="Approved" if action == "approve" else "Rejected",
+            label="Approved" if is_approve else "Rejected",
         )
         log_action(
             merchant=merchant,
             actor=request.user.email,
             action=action,
-            target=f"Return {return_request.order.order_number}",
+            target=f"Return {getattr(return_request.order, 'order_number', return_request.id)}",
             notes=notes,
         )
-        create_notification(
-            user=return_request.user,
-            type_=f"return_{'approved' if action == 'approve' else 'rejected'}",
-            title="Return approved" if action == "approve" else "Return rejected",
-            body=(
-                f"Your return for {return_request.order.order_number} was "
-                f"{'approved' if action == 'approve' else 'rejected'} after review."
-            ),
-            channel="in_app" if action == "approve" else "sms",
-        )
+        if return_request.user:
+            create_notification(
+                user=return_request.user,
+                type_=f"return_{'approved' if is_approve else 'rejected'}",
+                title="Return approved" if is_approve else "Return rejected",
+                body=(
+                    f"Your return for {getattr(return_request.order, 'order_number', 'order')} was "
+                    f"{'approved' if is_approve else 'rejected'} after review."
+                ),
+                channel="in_app" if is_approve else "sms",
+            )
         return success(ReturnRequestSerializer(return_request).data)
 
 

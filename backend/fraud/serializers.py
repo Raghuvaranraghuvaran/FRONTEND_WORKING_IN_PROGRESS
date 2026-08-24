@@ -81,13 +81,17 @@ class MerchantActionSerializer(serializers.Serializer):
     ]
 
     action = serializers.ChoiceField(choices=ACTION_CHOICES)
-    notes = serializers.CharField(required=False, default="", allow_blank=True)
-    escalation_level = serializers.IntegerField(required=False, min_value=0, max_value=5)
+    notes = serializers.CharField(required=False, default="", allow_blank=True, allow_null=True)
+    escalation_level = serializers.IntegerField(required=False, min_value=0, max_value=5, allow_null=True, default=None)
     restriction_id = serializers.IntegerField(
         required=False,
+        allow_null=True,
+        default=None,
         help_text="Required when action is remove_restriction",
     )
     threshold_value = serializers.DecimalField(
         required=False, max_digits=12, decimal_places=2,
+        allow_null=True,
+        default=None,
         help_text="Optional cap value for restriction actions",
     )
