@@ -60,7 +60,6 @@ export default function LoginPage() {
   const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState('')
   const [otpChallengeId, setOtpChallengeId] = useState(null)
-  const [debugCode, setDebugCode] = useState('')
   const [focusedField, setFocusedField] = useState('')
   const googleButtonRef = useRef(null)
 
@@ -90,7 +89,7 @@ export default function LoginPage() {
     try {
       const r = await api.requestLoginOTP(form.email)
       if (r?.challenge_id) setOtpChallengeId(r.challenge_id)
-      if (r?.debug_code) { setDebugCode(r.debug_code); setOtpCode(r.debug_code) }
+      setOtpCode('')
       setOtpSent(true)
     } catch (e) { setError(e.message) }
     finally { setSubmitting(false) }
@@ -106,7 +105,7 @@ export default function LoginPage() {
   }
 
   const switchTab = (t) => {
-    setActiveTab(t); setError(''); setOtpSent(false); setOtpCode(''); setOtpChallengeId(null); setDebugCode('')
+    setActiveTab(t); setError(''); setOtpSent(false); setOtpCode(''); setOtpChallengeId(null)
   }
 
   return (
@@ -324,8 +323,8 @@ export default function LoginPage() {
                     Change email
                   </button>
                 </div>
-                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '10px 12px', margin: '0 0 16px', fontSize: 12, color: '#166534', lineHeight: 1.4 }}>
-                  ✉️ Verification code sent to <strong style={{ color: '#0f172a' }}>{form.email}</strong> and auto-filled below. Click <strong>Verify &amp; Continue</strong> to proceed.
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 12px', margin: '0 0 16px', fontSize: 12, color: '#475569', lineHeight: 1.4 }}>
+                  ✉️ 6-digit verification code sent to <strong style={{ color: '#0f172a' }}>{form.email}</strong>. Enter the code from your email to sign in.
                 </div>
                 <div className="rg-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 16 }}>
                   <input
