@@ -1,12 +1,12 @@
 const API_BASE_URL = String(
-  import.meta.env.VITE_API_URL || ''
+  import.meta.env.VITE_API_URL || 'https://frontend-working-in-progress.onrender.com/api'
 ).replace(/\/$/, '')
 
 export function hasLiveApi() {
   return Boolean(API_BASE_URL)
 }
 
-export async function request(path, { method = 'GET', body, token, timeoutMs = 5000 } = {}) {
+export async function request(path, { method = 'GET', body, token, timeoutMs = 15000 } = {}) {
   const headers = { Accept: 'application/json' }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
