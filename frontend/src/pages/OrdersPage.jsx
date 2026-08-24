@@ -161,8 +161,10 @@ export default function OrdersPage() {
           <div className="space-y-4">
             {orders.map((order) => {
               const isDelivered =
-                order.delivery_status?.toLowerCase() === 'delivered' ||
-                order.status?.toLowerCase() === 'delivered'
+                order.is_delivered ??
+                ['delivered', 'product returned', 'refund processed', 'return approved', 'return rejected'].includes(
+                  (order.delivery_status || order.status || '').trim().toLowerCase()
+                )
 
               const existingReturn = returns.find(
                 (r) => String(r.order_id) === String(order.id) || r.order_number === order.order_number
@@ -235,7 +237,7 @@ export default function OrdersPage() {
                       ) : (
                         <Link
                           to={`/orders/${order.id}/return`}
-                          className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-500 transition-colors shadow-sm"
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-500 transition-colors shadow-sm"
                         >
                           <span>↩ Return Order</span>
                         </Link>
@@ -246,21 +248,27 @@ export default function OrdersPage() {
                       </span>
                     )}
 
-                    {/* Track Order button */}
-                    <button
-                      onClick={() => toggleTrackOrder(order.id)}
-                      className={`rounded-xl border px-3.5 py-2 text-xs font-semibold transition-colors cursor-pointer ${
-                        activeTrackingId === order.id
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      {activeTrackingId === order.id ? 'Hide Tracking' : 'Track Order'}
-                    </button>
+                    {/* Track Order button (ONLY shown if NOT delivered) */}
+                    {!isDelivered ? (
+                      <button
+                        onClick={() => toggleTrackOrder(order.id)}
+                        className={`rounded-xl border px-3.5 py-2 text-xs font-semibold transition-colors cursor-pointer ${
+                          activeTrackingId === order.id
+                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                            : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {activeTrackingId === order.id ? 'Hide Tracking' : 'Track Order'}
+                      </button>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                        ✓ Delivered
+                      </span>
+                    )}
                   </div>
 
-                  {/* Order-specific Tracking Timeline */}
-                  {activeTrackingId === order.id && trackingOrderMap[order.id] && (
+                  {/* Order-specific Tracking Timeline (Only for non-delivered tracking) */}
+                  {!isDelivered && activeTrackingId === order.id && trackingOrderMap[order.id] && (
                     <div className="mt-4 rounded-xl bg-slate-50 p-4 border border-slate-100">
                       <p className="text-xs font-bold text-slate-900 mb-2.5">Live Delivery Timeline</p>
                       <div className="space-y-2.5">

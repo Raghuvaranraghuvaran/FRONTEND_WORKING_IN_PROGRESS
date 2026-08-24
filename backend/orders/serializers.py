@@ -12,6 +12,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderListSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     invoice = serializers.SerializerMethodField()
+    is_delivered = serializers.SerializerMethodField()
+    can_track = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -33,6 +35,8 @@ class OrderListSerializer(serializers.ModelSerializer):
             "status",
             "delivery_status",
             "delivered_at",
+            "is_delivered",
+            "can_track",
             "risk_tier",
             "verification_status",
             "verification_method",
@@ -43,6 +47,14 @@ class OrderListSerializer(serializers.ModelSerializer):
             "tracking_events",
             "invoice",
         )
+
+    def get_is_delivered(self, obj):
+        st = str(getattr(obj, "delivery_status", "") or getattr(obj, "status", "")).strip().lower()
+        return st in {"delivered", "product returned", "refund processed", "return approved", "return rejected"}
+
+    def get_can_track(self, obj):
+        st = str(getattr(obj, "delivery_status", "") or getattr(obj, "status", "")).strip().lower()
+        return st not in {"delivered", "product returned", "refund processed", "return approved", "return rejected", "cancelled"}
 
     def get_invoice(self, obj):
         invoice = getattr(obj, "invoice", None)
