@@ -1197,26 +1197,54 @@ export const api = {
   },
 
   async getMerchantOrders() {
-    if (hasLiveApi()) return live('/admin/orders/', { role: 'merchant' })
-    await delay(500)
+    if (hasLiveApi()) {
+      try {
+        const data = await live('/admin/orders/', { role: 'merchant' })
+        if (Array.isArray(data) && data.length > 0) return data
+      } catch (e) {
+        console.warn('Live orders fetch fallback:', e)
+      }
+    }
+    await delay(300)
     return clone(store.orders)
   },
 
   async getMerchantCustomers() {
-    if (hasLiveApi()) return live('/admin/customers/', { role: 'merchant' })
-    await delay(500)
+    if (hasLiveApi()) {
+      try {
+        const data = await live('/admin/customers/', { role: 'merchant' })
+        if (Array.isArray(data) && data.length > 0) return data
+      } catch (e) {
+        console.warn('Live customers fetch fallback:', e)
+      }
+    }
+    await delay(300)
     return clone(store.shoppers)
   },
 
   async getMerchantReturns() {
-    if (hasLiveApi()) return live('/admin/flagged-cases/', { role: 'merchant' })
-    await delay(500)
+    if (hasLiveApi()) {
+      try {
+        const data = await live('/admin/flagged-cases/', { role: 'merchant' })
+        if (Array.isArray(data) && data.length > 0) return data
+      } catch (e) {
+        console.warn('Live flagged-cases fetch fallback:', e)
+      }
+    }
+    await delay(300)
     return clone(store.returns)
   },
 
   async getMerchantAuditLog() {
-    if (hasLiveApi()) return live('/admin/audit-log/', { role: 'merchant' })
-    await delay(500)
+    if (hasLiveApi()) {
+      try {
+        const data = await live('/admin/audit-log/', { role: 'merchant' })
+        if (Array.isArray(data) && data.length > 0) return data
+      } catch (e) {
+        console.warn('Live audit-log fetch fallback:', e)
+      }
+    }
+    await delay(300)
     return clone(store.auditLog)
   },
 
@@ -2144,8 +2172,13 @@ export const api = {
   // ── VIP Whitelist & Blacklist Rules (Feature 2) ──
   async getListRules(type) {
     if (hasLiveApi()) {
-      const q = type ? `?type=${type}` : ''
-      return live(`/fraud/rules/list/${q}`, { role: 'merchant' })
+      try {
+        const q = type ? `?type=${type}` : ''
+        const data = await live(`/fraud/rules/list/${q}`, { role: 'merchant' })
+        if (Array.isArray(data) && data.length > 0) return data
+      } catch (e) {
+        console.warn('Live rules fetch fallback:', e)
+      }
     }
     await delay(250)
     let list = clone(store.listRules || [])
