@@ -68,8 +68,11 @@ class Order(TimestampedModel):
     delivery_address = models.TextField(blank=True, default="")
     risk_context = models.TextField(blank=True, default="")
     risk_score = models.PositiveIntegerField(default=0)
-    variant_count = models.PositiveIntegerField(default=1)
     is_cod_refused = models.BooleanField(default=False)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancellation_reason = models.CharField(max_length=255, blank=True, default="")
+    cancelled_by = models.CharField(max_length=255, blank=True, default="")
+    cancellation_notes = models.TextField(blank=True, default="")
     tracking_events = models.JSONField(default=list)
 
     def __str__(self):

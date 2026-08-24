@@ -633,3 +633,394 @@ def build_return_status_update_email(return_request, action, merchant, notes="")
 
     return html_content, plain_text, subject
 
+
+def build_order_cancellation_otp_email(order, code, expires_in_minutes=5):
+    """
+    Renders an HTML email with the 6-digit cancellation OTP code.
+    """
+    order_number = html.escape(str(getattr(order, "order_number", order.id)))
+    customer_name = html.escape(str(getattr(order, "customer_name", "Valued Customer")))
+    total_inr = f"₹{order.total:,.2f}"
+
+    subject = f"Verification Code for Cancelling Order #{order_number}: {code}"
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Order Cancellation Verification Code</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; padding: 30px 15px;">
+            <tr>
+                <td align="center">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 540px; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                        <tr>
+                            <td style="background: linear-gradient(135deg, #e11d48 0%, #be123c 100%); padding: 28px 24px; text-align: center;">
+                                <div style="display: inline-block; background: rgba(255, 255, 255, 0.2); padding: 6px 14px; border-radius: 50px; color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 8px;">
+                                    🔒 Security Verification
+                                </div>
+                                <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 800;">
+                                    Confirm Order Cancellation
+                                </h1>
+                                <p style="margin: 6px 0 0 0; color: #ffe4e6; font-size: 13px;">
+                                    Order #{order_number} · Total: {total_inr}
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 30px 24px; text-align: center;">
+                                <p style="margin: 0 0 16px 0; font-size: 15px; color: #334155;">
+                                    Hi <strong>{customer_name}</strong>,
+                                </p>
+                                <p style="margin: 0 0 24px 0; font-size: 14px; color: #64748b; line-height: 1.5;">
+                                    We received a request to cancel your order <strong>#{order_number}</strong>. Use the 6-digit one-time verification code below to authorize this cancellation:
+                                </p>
+                                <div style="background-color: #fff1f2; border: 2px dashed #f43f5e; border-radius: 12px; padding: 18px 24px; display: inline-block; margin: 0 auto 20px;">
+                                    <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #be123c; font-family: monospace;">{code}</span>
+                                </div>
+                                <p style="margin: 0; font-size: 12px; color: #94a3b8;">
+                                    ⏱️ This code is valid for <strong>{expires_in_minutes} minutes</strong>. If you did not request this, your order remains active and safe.
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px; text-align: center;">
+                                <p style="margin: 0; font-size: 11px; color: #94a3b8;">
+                                    © ReturnGuard · Intelligent E-Commerce Protection
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+    plain_text = f"""
+    Confirm Order Cancellation
+
+    Hi {customer_name},
+
+    Your one-time verification code to cancel Order #{order_number} is: {code}
+
+    This code expires in {expires_in_minutes} minutes.
+
+    If you did not request this cancellation, you can safely ignore this message.
+
+    — ReturnGuard Team
+    """
+
+    return html_content, plain_text, subject
+
+
+def build_order_cancellation_customer_email(order, reason, notes=""):
+    """
+    Renders confirmation email sent to the customer upon successful cancellation.
+    """
+    frontend_url = get_frontend_url()
+    orders_url = f"{frontend_url}/orders"
+    shop_url = f"{frontend_url}/shop"
+
+    order_number = html.escape(str(getattr(order, "order_number", order.id)))
+    customer_name = html.escape(str(getattr(order, "customer_name", "Valued Customer")))
+    cancel_date = timezone.now().strftime("%d %b %Y, %I:%M %p")
+    total_inr = f"₹{order.total:,.2f}"
+    reason_clean = html.escape(str(reason or "Customer requested cancellation"))
+    merchant_name = html.escape(str(getattr(order.merchant, "business_name", "Store Partner")))
+    payment_method = str(getattr(order, "payment_method", "COD")).upper()
+
+    subject = f"Order Cancelled: Order #{order_number} Confirmed"
+
+    refund_info_box = ""
+    if payment_method != "COD":
+        refund_info_box = f"""
+        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: left;">
+            <p style="margin: 0 0 6px 0; font-size: 13px; font-weight: 700; color: #166534;">
+                💰 Refund Information
+            </p>
+            <p style="margin: 0; font-size: 13px; color: #15803d; line-height: 1.5;">
+                A full refund of <strong>{total_inr}</strong> has been initiated to your original payment method ({payment_method}). It typically takes 2–4 business days to reflect in your account.
+            </p>
+        </div>
+        """
+    else:
+        refund_info_box = f"""
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: left;">
+            <p style="margin: 0; font-size: 13px; color: #64748b; line-height: 1.5;">
+                Since this was a <strong>Cash on Delivery (COD)</strong> order, no payment was collected and no refund is required.
+            </p>
+        </div>
+        """
+
+    # Build items list
+    items_html = ""
+    for item in order.items.all():
+        p_name = html.escape(str(item.name))
+        p_qty = item.quantity
+        p_price = f"₹{item.price:,.2f}"
+        items_html += f"""
+        <tr>
+            <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 13px;">
+                {p_name}
+            </td>
+            <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; text-align: center; color: #64748b; font-size: 13px;">
+                × {p_qty}
+            </td>
+            <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; text-align: right; font-weight: 600; color: #0f172a; font-size: 13px;">
+                {p_price}
+            </td>
+        </tr>
+        """
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Your Order Has Been Cancelled</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; padding: 30px 15px;">
+            <tr>
+                <td align="center">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                        
+                        <!-- Header Banner -->
+                        <tr>
+                            <td style="background: linear-gradient(135deg, #475569 0%, #1e293b 100%); padding: 32px 30px; text-align: center;">
+                                <div style="display: inline-block; background: rgba(255, 255, 255, 0.2); padding: 6px 14px; border-radius: 50px; color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 10px;">
+                                    ✕ Order Cancelled
+                                </div>
+                                <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 800;">
+                                    Cancellation Confirmed
+                                </h1>
+                                <p style="margin: 6px 0 0 0; color: #cbd5e1; font-size: 13px;">
+                                    Order #{order_number} has been cancelled successfully.
+                                </p>
+                            </td>
+                        </tr>
+
+                        <!-- Body Content -->
+                        <tr>
+                            <td style="padding: 30px;">
+                                <p style="margin: 0 0 16px 0; font-size: 15px; color: #334155;">
+                                    Hi <strong>{customer_name}</strong>,
+                                </p>
+                                <p style="margin: 0 0 20px 0; font-size: 14px; color: #64748b; line-height: 1.5;">
+                                    Your order <strong>#{order_number}</strong> with <strong>{merchant_name}</strong> has been cancelled on <strong>{cancel_date}</strong>.
+                                </p>
+
+                                <!-- Details Table -->
+                                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border-radius: 12px; padding: 16px 20px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+                                    <tr>
+                                        <td style="padding: 6px 0; font-size: 12px; color: #64748b; font-weight: 600;">Cancellation Reason:</td>
+                                        <td style="padding: 6px 0; font-size: 13px; color: #0f172a; font-weight: 700; text-align: right;">{reason_clean}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 0; font-size: 12px; color: #64748b; font-weight: 600;">Total Order Amount:</td>
+                                        <td style="padding: 6px 0; font-size: 13px; color: #0f172a; font-weight: 700; text-align: right;">{total_inr}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 0; font-size: 12px; color: #64748b; font-weight: 600;">Payment Method:</td>
+                                        <td style="padding: 6px 0; font-size: 13px; color: #0f172a; font-weight: 700; text-align: right;">{payment_method}</td>
+                                    </tr>
+                                </table>
+
+                                <!-- Items -->
+                                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 20px;">
+                                    <tr>
+                                        <th style="padding-bottom: 8px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #e2e8f0;">Item</th>
+                                        <th style="padding-bottom: 8px; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #e2e8f0;">Qty</th>
+                                        <th style="padding-bottom: 8px; text-align: right; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #e2e8f0;">Amount</th>
+                                    </tr>
+                                    {items_html}
+                                </table>
+
+                                {refund_info_box}
+
+                                <!-- Actions CTA -->
+                                <div style="text-align: center; margin: 28px 0 10px;">
+                                    <a href="{shop_url}" style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #ffffff; text-decoration: none; padding: 13px 28px; border-radius: 10px; font-size: 13px; font-weight: 700; display: inline-block; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+                                        Continue Shopping →
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 18px 24px; text-align: center;">
+                                <p style="margin: 0; font-size: 11px; color: #94a3b8;">
+                                    © ReturnGuard · Powered by ReturnGuard Intelligent E-Commerce
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+    plain_text = f"""
+    Order Cancellation Confirmed
+
+    Hi {customer_name},
+
+    Your order #{order_number} has been cancelled successfully.
+
+    Cancellation Reason: {reason_clean}
+    Total Amount: {total_inr}
+    Date: {cancel_date}
+
+    View your orders at: {orders_url}
+
+    — {merchant_name} via ReturnGuard
+    """
+
+    return html_content, plain_text, subject
+
+
+def build_order_cancellation_merchant_email(order, reason, cancelled_by, notes=""):
+    """
+    Renders email alert sent to the merchant when an order is cancelled by customer.
+    """
+    order_number = html.escape(str(getattr(order, "order_number", order.id)))
+    customer_name = html.escape(str(getattr(order, "customer_name", "Customer")))
+    customer_email = html.escape(str(getattr(order.user, "email", "customer@email.com")))
+    cancel_date = timezone.now().strftime("%d %b %Y, %I:%M %p")
+    total_inr = f"₹{order.total:,.2f}"
+    reason_clean = html.escape(str(reason or "Customer request"))
+    merchant_name = html.escape(str(getattr(order.merchant, "business_name", "Merchant Store")))
+    payment_method = str(getattr(order, "payment_method", "COD")).upper()
+
+    subject = f"Order Cancelled: #{order_number} by {customer_name}"
+
+    # Items table
+    items_html = ""
+    for item in order.items.all():
+        p_name = html.escape(str(item.name))
+        p_qty = item.quantity
+        p_price = f"₹{item.price:,.2f}"
+        items_html += f"""
+        <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #334155; color: #cbd5e1; font-size: 12px;">{p_name}</td>
+            <td style="padding: 8px 0; border-bottom: 1px solid #334155; text-align: center; color: #94a3b8; font-size: 12px;">× {p_qty}</td>
+            <td style="padding: 8px 0; border-bottom: 1px solid #334155; text-align: right; font-weight: 600; color: #f8fafc; font-size: 12px;">{p_price}</td>
+        </tr>
+        """
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Customer Cancelled Order #{order_number}</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #0b0f19; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #e2e8f0;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0b0f19; padding: 30px 15px;">
+            <tr>
+                <td align="center">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 580px; background-color: #111827; border-radius: 16px; border: 1px solid #1f2937; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);">
+                        
+                        <!-- Header -->
+                        <tr>
+                            <td style="background: linear-gradient(135deg, #e11d48 0%, #9f1239 100%); padding: 28px 24px; text-align: center;">
+                                <div style="display: inline-block; background: rgba(255, 255, 255, 0.2); padding: 6px 14px; border-radius: 50px; color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 8px;">
+                                    Merchant Alert · Order Cancellation
+                                </div>
+                                <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 800;">
+                                    Order #{order_number} Cancelled
+                                </h1>
+                                <p style="margin: 6px 0 0 0; color: #ffe4e6; font-size: 13px;">
+                                    Cancelled by customer prior to shipment dispatch.
+                                </p>
+                            </td>
+                        </tr>
+
+                        <!-- Body -->
+                        <tr>
+                            <td style="padding: 28px 24px;">
+                                <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 18px 20px; margin-bottom: 20px;">
+                                    <table width="100%" cellpadding="0" cellspacing="0">
+                                        <tr>
+                                            <td style="padding: 5px 0; font-size: 12px; color: #94a3b8; font-weight: 600;">Customer:</td>
+                                            <td style="padding: 5px 0; font-size: 13px; color: #f8fafc; font-weight: 700; text-align: right;">{customer_name} ({customer_email})</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 5px 0; font-size: 12px; color: #94a3b8; font-weight: 600;">Reason:</td>
+                                            <td style="padding: 5px 0; font-size: 13px; color: #f43f5e; font-weight: 700; text-align: right;">{reason_clean}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 5px 0; font-size: 12px; color: #94a3b8; font-weight: 600;">Order Value:</td>
+                                            <td style="padding: 5px 0; font-size: 13px; color: #38bdf8; font-weight: 800; text-align: right;">{total_inr}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 5px 0; font-size: 12px; color: #94a3b8; font-weight: 600;">Payment Method:</td>
+                                            <td style="padding: 5px 0; font-size: 13px; color: #cbd5e1; font-weight: 600; text-align: right;">{payment_method}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 5px 0; font-size: 12px; color: #94a3b8; font-weight: 600;">Cancelled At:</td>
+                                            <td style="padding: 5px 0; font-size: 12px; color: #94a3b8; text-align: right;">{cancel_date}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+
+                                <!-- Items -->
+                                <p style="margin: 0 0 10px 0; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.05em;">
+                                    Cancelled Items (Restock inventory):
+                                </p>
+                                <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px;">
+                                    {items_html}
+                                </table>
+
+                                <div style="text-align: center; margin: 24px 0 6px;">
+                                    <a href="http://localhost:5174/merchant/orders" style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-size: 13px; font-weight: 700; display: inline-block;">
+                                        View Orders Dashboard →
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background-color: #0b0f19; border-top: 1px solid #1f2937; padding: 16px 24px; text-align: center;">
+                                <p style="margin: 0; font-size: 11px; color: #64748b;">
+                                    © ReturnGuard Merchant Intelligence
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+    plain_text = f"""
+    Order Cancellation Alert
+
+    Order #{order_number} has been cancelled by customer {customer_name} ({customer_email}).
+
+    Reason: {reason_clean}
+    Total: {total_inr}
+    Payment: {payment_method}
+    Date: {cancel_date}
+
+    View your dashboard at: http://localhost:5174/merchant/orders
+
+    — ReturnGuard Team
+    """
+
+    return html_content, plain_text, subject
+
+

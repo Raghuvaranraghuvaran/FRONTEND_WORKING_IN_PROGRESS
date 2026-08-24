@@ -14,6 +14,7 @@ class OrderListSerializer(serializers.ModelSerializer):
     invoice = serializers.SerializerMethodField()
     is_delivered = serializers.SerializerMethodField()
     can_track = serializers.SerializerMethodField()
+    is_cancellable = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -37,6 +38,11 @@ class OrderListSerializer(serializers.ModelSerializer):
             "delivered_at",
             "is_delivered",
             "can_track",
+            "is_cancellable",
+            "cancelled_at",
+            "cancellation_reason",
+            "cancelled_by",
+            "cancellation_notes",
             "risk_tier",
             "verification_status",
             "verification_method",
@@ -55,6 +61,16 @@ class OrderListSerializer(serializers.ModelSerializer):
     def get_can_track(self, obj):
         st = str(getattr(obj, "delivery_status", "") or getattr(obj, "status", "")).strip().lower()
         return st not in {"delivered", "product returned", "refund processed", "return approved", "return rejected", "cancelled"}
+
+    def get_is_cancellable(self, obj):
+        st = str(getattr(obj, "delivery_status", "") or getattr(obj, "status", "")).strip().lower()
+        # Allowed only before shipment starts
+        disallowed = {
+            "in transit", "shipped", "in shipment", "out for delivery",
+            "delivered", "cancelled", "return requested", "return approved",
+            "return rejected", "product returned", "refund processed", "refused"
+        }
+        return st not in disallowed
 
     def get_invoice(self, obj):
         invoice = getattr(obj, "invoice", None)

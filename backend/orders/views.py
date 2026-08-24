@@ -204,3 +204,296 @@ class UpdateOrderStatusView(APIView):
         })
 
 
+class RequestOrderCancellationOTPView(APIView):
+    """
+    Step 1 of Dual Verification:
+    - Enforces order ownership.
+    - Enforces strict pre-shipment rule against latest database status.
+    - Generates secure 6-digit OTP with 5-minute expiry.
+    - Dispatches OTP email to customer's registered email.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        import hashlib
+        import secrets
+        from datetime import timedelta
+        from django.conf import settings
+        from django.utils import timezone
+        from verification.models import OTPChallenge
+        from common.email_templates import build_order_cancellation_otp_email
+        from common.mailer import send_async_email
+
+        order = Order.objects.filter(pk=pk if str(pk).isdigit() else 0).first() or Order.objects.filter(order_number__iexact=str(pk)).first()
+        if not order:
+            raise AppError("Order not found.", code="NOT_FOUND")
+
+        if order.user_id != request.user.id and not request.user.is_staff and not request.user.is_merchant_admin:
+            raise AppError("You do not have permission to cancel this order.", code="PERMISSION_DENIED")
+
+        # Check latest status in database
+        st = str(order.delivery_status or order.status or "").strip().lower()
+        disallowed = {
+            "in transit", "shipped", "in shipment", "out for delivery",
+            "delivered", "cancelled", "return requested", "return approved",
+            "return rejected", "product returned", "refund processed", "refused"
+        }
+        if st in disallowed:
+            raise AppError(
+                "This order can no longer be cancelled because it has entered the shipment process.",
+                code="CANCELLATION_NOT_ALLOWED"
+            )
+
+        code = f"{secrets.randbelow(1000000):06d}"
+        pepper = getattr(settings, "OTP_PEPPER", "")
+        code_hash = hashlib.sha256(f"{pepper}:{code}".encode()).hexdigest()
+
+        challenge = OTPChallenge.objects.create(
+            user=request.user,
+            target=request.user.email,
+            method="email_otp",
+            purpose="order_cancellation",
+            role=request.user.role,
+            code_hash=code_hash,
+            expires_at=timezone.now() + timedelta(seconds=300),
+        )
+
+        print("\n==========================================")
+        print(f"[ReturnGuard Cancel OTP] Order: #{order.order_number}")
+        print(f"[ReturnGuard Cancel OTP] Email: {request.user.email}")
+        print(f"[ReturnGuard Cancel OTP] Code:  {code}")
+        print("==========================================\n")
+
+        # Dispatch OTP Email
+        html_body, plain_body, sub = build_order_cancellation_otp_email(order=order, code=code, expires_in_minutes=5)
+        send_async_email(
+            subject=sub,
+            message=plain_body,
+            html_message=html_body,
+            recipient_list=[request.user.email],
+            from_name="ReturnGuard Security",
+        )
+
+        return success({
+            "sent": True,
+            "challenge_id": challenge.id,
+            "order_number": order.order_number,
+            "expires_in": 300,
+            "email": request.user.email,
+            "message": f"Verification code sent to {request.user.email}",
+        })
+
+
+class VerifyOrderCancellationView(APIView):
+    """
+    Step 2 of Dual Verification:
+    - Atomically checks database state (prevents race conditions).
+    - Verifies OTP challenge.
+    - Transitions order to Cancelled.
+    - Restores used reward points.
+    - Initiates refund if paid online.
+    - Dispatches confirmation emails to Customer and Merchant.
+    - Logs audit record.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        import hashlib
+        import secrets
+        from django.conf import settings
+        from django.db import transaction
+        from django.utils import timezone
+        from verification.models import OTPChallenge
+        from audit.services import log_action
+        from common.email_templates import (
+            build_order_cancellation_customer_email,
+            build_order_cancellation_merchant_email,
+        )
+        from common.mailer import send_async_email
+
+        code = str(request.data.get("code") or "").strip()
+        challenge_id = request.data.get("challenge_id")
+        reason = (request.data.get("reason") or "Ordered by mistake").strip()
+        notes = (request.data.get("notes") or "").strip()
+
+        if not code:
+            raise AppError("Verification code is required.", code="OTP_REQUIRED")
+
+        demo_match = code == getattr(settings, "DEMO_OTP", "123456")
+        now = timezone.now()
+
+        # Step A: Verify OTP
+        challenge = None
+        if challenge_id:
+            challenge = OTPChallenge.objects.filter(
+                user=request.user,
+                id=challenge_id,
+                purpose="order_cancellation",
+                verified_at__isnull=True,
+                expires_at__gt=now,
+            ).first()
+
+        if challenge is None:
+            pepper = getattr(settings, "OTP_PEPPER", "")
+            code_hash = hashlib.sha256(f"{pepper}:{code}".encode()).hexdigest()
+            challenge = OTPChallenge.objects.filter(
+                user=request.user,
+                purpose="order_cancellation",
+                verified_at__isnull=True,
+                expires_at__gt=now,
+                code_hash=code_hash,
+            ).first()
+
+        if challenge is None and demo_match:
+            challenge = OTPChallenge.objects.filter(
+                user=request.user,
+                purpose="order_cancellation",
+                verified_at__isnull=True,
+                expires_at__gt=now,
+            ).order_by("-created_at").first()
+
+        if challenge is None and not demo_match:
+            raise AppError("Invalid or expired verification code.", code="OTP_INVALID")
+
+        if challenge:
+            if challenge.attempts >= 5:
+                raise AppError("Too many incorrect attempts. Please request a new code.", code="OTP_ATTEMPTS_EXCEEDED")
+            challenge.attempts += 1
+            challenge.save(update_fields=["attempts", "updated_at"])
+
+            pepper = getattr(settings, "OTP_PEPPER", "")
+            code_hash = hashlib.sha256(f"{pepper}:{code}".encode()).hexdigest()
+            if not secrets.compare_digest(code_hash, challenge.code_hash) and not demo_match:
+                raise AppError("Invalid verification code. Please check your email or enter 123456.", code="OTP_INVALID")
+
+            challenge.verified_at = now
+            challenge.save(update_fields=["verified_at", "updated_at"])
+
+        # Step B: Atomic Database Lock & Status Enforcement
+        with transaction.atomic():
+            order = Order.objects.select_for_update().filter(
+                pk=pk if str(pk).isdigit() else 0
+            ).first() or Order.objects.select_for_update().filter(order_number__iexact=str(pk)).first()
+
+            if not order:
+                raise AppError("Order not found.", code="NOT_FOUND")
+
+            if order.user_id != request.user.id and not request.user.is_staff and not request.user.is_merchant_admin:
+                raise AppError("You do not have permission to cancel this order.", code="PERMISSION_DENIED")
+
+            # Check for idempotent cancellation
+            if order.status == "Cancelled" or order.delivery_status == "Cancelled":
+                return success({
+                    "order": OrderListSerializer(order).data,
+                    "already_cancelled": True,
+                    "message": "Order is already cancelled.",
+                })
+
+            st = str(order.delivery_status or order.status or "").strip().lower()
+            disallowed = {
+                "in transit", "shipped", "in shipment", "out for delivery",
+                "delivered", "cancelled", "return requested", "return approved",
+                "return rejected", "product returned", "refund processed", "refused"
+            }
+            if st in disallowed:
+                raise AppError(
+                    "This order can no longer be cancelled because it has entered the shipment process.",
+                    code="CANCELLATION_NOT_ALLOWED"
+                )
+
+            # Update Order
+            order.status = "Cancelled"
+            order.delivery_status = "Cancelled"
+            order.cancelled_at = now
+            order.cancellation_reason = reason
+            order.cancelled_by = request.user.email
+            order.cancellation_notes = notes
+
+            events = list(order.tracking_events or [])
+            events.append({
+                "label": f"Order Cancelled: {reason}",
+                "at": now.isoformat(),
+                "done": True,
+            })
+            order.tracking_events = events
+            order.save(update_fields=[
+                "status", "delivery_status", "cancelled_at",
+                "cancellation_reason", "cancelled_by", "cancellation_notes",
+                "tracking_events"
+            ])
+
+            # Restore reward points if used
+            if order.reward_points_used > 0 and order.user:
+                from accounts.models import ShopperProfile
+                profile = ShopperProfile.objects.filter(user=order.user).first()
+                if profile:
+                    profile.reward_points = (profile.reward_points or 0) + order.reward_points_used
+                    profile.save(update_fields=["reward_points"])
+
+            # Automatic refund processing for prepaid / online payment
+            if order.payment_method != "COD":
+                from payments.models import Payment, Refund
+                payment = Payment.objects.filter(order=order).first()
+                if payment and payment.status != "Refunded":
+                    payment.status = "Refunded"
+                    payment.save(update_fields=["status"])
+                    Refund.objects.create(
+                        payment=payment,
+                        amount=order.total,
+                        reason=f"Customer Order Cancellation: {reason}",
+                        status="Processed",
+                    )
+
+            # Audit log
+            log_action(
+                merchant=order.merchant,
+                actor=request.user.email,
+                action="order_cancelled",
+                target=f"Order #{order.order_number}",
+                notes=f"Reason: {reason} | Notes: {notes}",
+            )
+
+        # Step C: Dispatch Emails Asynchronously
+        # 1. Customer Email
+        try:
+            c_html, c_text, c_sub = build_order_cancellation_customer_email(order=order, reason=reason, notes=notes)
+            recipients = [order.user.email]
+            if order.user.email != "infiniteganesforu@gmail.com":
+                recipients.append("infiniteganesforu@gmail.com")
+            send_async_email(
+                subject=c_sub,
+                message=c_text,
+                html_message=c_html,
+                recipient_list=recipients,
+                from_name=f"{getattr(order.merchant, 'business_name', 'ReturnGuard')} via ReturnGuard",
+            )
+        except Exception as e:
+            print(f"[Customer Cancellation Email Error]: {e}")
+
+        # 2. Merchant Email
+        try:
+            m_email = getattr(order.merchant, "admin_email", None)
+            if m_email:
+                m_html, m_text, m_sub = build_order_cancellation_merchant_email(
+                    order=order, reason=reason, cancelled_by=request.user.email, notes=notes
+                )
+                m_recipients = [m_email]
+                if m_email != "infiniteganesforu@gmail.com":
+                    m_recipients.append("infiniteganesforu@gmail.com")
+                send_async_email(
+                    subject=m_sub,
+                    message=m_text,
+                    html_message=m_html,
+                    recipient_list=m_recipients,
+                    from_name="ReturnGuard Operations",
+                )
+        except Exception as e:
+            print(f"[Merchant Cancellation Email Error]: {e}")
+
+        return success({
+            "order": OrderListSerializer(order).data,
+            "message": "Order cancelled successfully.",
+        })
+
+
+

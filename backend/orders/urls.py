@@ -7,7 +7,10 @@ urlpatterns = [
     path("", views.ShopperOrderListView.as_view(), name="order-list"),
     path("<str:pk>/", views.ShopperOrderDetailView.as_view(), name="order-detail"),
     path("<str:pk>/track/", views.TrackOrderView.as_view(), name="order-track"),
+    path("<str:pk>/cancel-request-otp/", views.RequestOrderCancellationOTPView.as_view(), name="order-cancel-request-otp"),
+    path("<str:pk>/cancel-verify/", views.VerifyOrderCancellationView.as_view(), name="order-cancel-verify"),
     path("<str:pk>/doorstep-refusal/", views.ReportDoorstepRefusalView.as_view(), name="doorstep-refusal"),
     path("<str:pk>/status/", views.UpdateOrderStatusView.as_view(), name="order-status-update"),
 ]
+
 

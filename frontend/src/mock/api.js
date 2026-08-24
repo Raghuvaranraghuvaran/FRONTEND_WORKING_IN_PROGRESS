@@ -797,6 +797,77 @@ export const api = {
     return clone(order.tracking_events || [])
   },
 
+  async requestOrderCancellationOTP({ orderId, reason }) {
+    if (hasLiveApi()) {
+      return live(`/orders/${orderId}/cancel-request-otp/`, {
+        method: 'POST',
+        body: { reason },
+      })
+    }
+    await delay(500)
+    const order = store.orders.find((o) => o.id === orderId)
+    if (!order) throw new Error('Order not found.')
+
+    const st = (order.delivery_status || order.status || '').toLowerCase()
+    const disallowed = ['in transit', 'shipped', 'out for delivery', 'delivered', 'cancelled', 'return requested', 'return approved', 'refund processed']
+    if (disallowed.includes(st)) {
+      throw new Error('This order can no longer be cancelled because it has entered the shipment process.')
+    }
+
+    const email = session.shopper?.email || order.user?.email || 'shopper@example.com'
+    return {
+      sent: true,
+      challenge_id: 'cancel_otp_' + Date.now(),
+      order_number: order.order_number,
+      expires_in: 300,
+      email,
+      message: `Verification code sent to ${email}`,
+    }
+  },
+
+  async verifyOrderCancellation({ orderId, code, challengeId, reason, notes }) {
+    if (hasLiveApi()) {
+      return live(`/orders/${orderId}/cancel-verify/`, {
+        method: 'POST',
+        body: { code, challenge_id: challengeId, reason, notes },
+      })
+    }
+    await delay(600)
+    const order = store.orders.find((o) => o.id === orderId)
+    if (!order) throw new Error('Order not found.')
+
+    const st = (order.delivery_status || order.status || '').toLowerCase()
+    const disallowed = ['in transit', 'shipped', 'out for delivery', 'delivered', 'cancelled', 'return requested', 'return approved', 'refund processed']
+    if (disallowed.includes(st)) {
+      throw new Error('This order can no longer be cancelled because it has entered the shipment process.')
+    }
+
+    if (code !== '123456' && code.length !== 6) {
+      throw new Error('Invalid verification code. Please enter the 6-digit code or demo 123456.')
+    }
+
+    order.status = 'Cancelled'
+    order.delivery_status = 'Cancelled'
+    order.cancelled_at = new Date().toISOString()
+    order.cancellation_reason = reason || 'Ordered by mistake'
+    order.cancelled_by = session.shopper?.email || 'Customer'
+    order.tracking_events = [
+      ...(order.tracking_events || []),
+      { label: `Order Cancelled: ${reason || 'Customer request'}`, at: new Date().toISOString(), done: true }
+    ]
+
+    // Restore points if used
+    if (order.reward_points_used > 0 && session.shopper) {
+      session.shopper.reward_points = (session.shopper.reward_points || 1000) + order.reward_points_used
+      saveSession()
+    }
+
+    return {
+      order: clone(order),
+      message: 'Order cancelled successfully.',
+    }
+  },
+
   async placeOrder({ items, paymentMethod, address: _address, phone, paymentDetails, couponCode, discount: inputDiscount, rewardPointsUsed, rewardDiscount: inputRewardDiscount }) {
     const ptsUsed = Number(rewardPointsUsed) || 0
     const calculatedRewardDiscount = Number(inputRewardDiscount) || Math.round(ptsUsed / 10)
