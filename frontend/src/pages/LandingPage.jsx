@@ -349,8 +349,8 @@ export default function LandingPage() {
         .vlc-nav-pill-group {
           display: flex;
           align-items: center;
-          gap: 6px;
-          padding: 4px 5px;
+          gap: 12px;
+          padding: 5px 7px;
           background: rgba(22, 26, 35, 0.72);
           border: 1px solid rgba(255, 255, 255, 0.09);
           border-radius: 9999px;
@@ -753,7 +753,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Portal Cards with distinct vertical gap */}
-                <div className="flex flex-col gap-4 sm:gap-4.5 w-full">
+                <div className="flex flex-col gap-5 sm:gap-6 w-full">
                   {/* Shopper Portal Card with spring hover */}
                   <motion.div
                     initial={{ opacity: 0, x: 12 }}
