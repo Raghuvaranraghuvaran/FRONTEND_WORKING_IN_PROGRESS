@@ -7,7 +7,6 @@ import {
   Users, 
   AlertTriangle, 
   Truck, 
-  BarChart3, 
   Shield, 
   FileText, 
   Wrench, 
@@ -122,13 +121,6 @@ export default function MerchantSidebar({ onClose }) {
             icon={Truck} 
             label="Delivery Agents" 
             active={location.pathname.startsWith('/merchant/delivery-agents')} 
-            onClick={handleNav}
-          />
-          <SidebarItem 
-            to="/merchant/analytics" 
-            icon={BarChart3} 
-            label="Analytics" 
-            active={location.pathname.startsWith('/merchant/analytics')} 
             onClick={handleNav}
           />
           <SidebarItem 
