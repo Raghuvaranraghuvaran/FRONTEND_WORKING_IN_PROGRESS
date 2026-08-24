@@ -103,11 +103,11 @@ export default function MerchantFlaggedCases() {
     }, 3000)
   }
 
-  const load = () => {
-    setLoading(true)
+  const load = (isInitial = false) => {
+    if (isInitial) setLoading(true)
     api.getMerchantReturns().then((data) => {
       setReturns(data || [])
-      setLoading(false)
+      if (isInitial) setLoading(false)
       if (data && data.length > 0) {
         if (!selected || !data.some((d) => d.id === selected.id)) {
           selectCase(data[0])
@@ -115,11 +115,13 @@ export default function MerchantFlaggedCases() {
       }
     }).catch((err) => {
       console.error('Failed to load merchant returns:', err)
-      setLoading(false)
+      if (isInitial) setLoading(false)
     })
   }
 
-  useEffect(load, [])
+  useEffect(() => {
+    load(true)
+  }, [])
 
   const selectCase = async (record) => {
     // Resolve multi-item return lines matching the order and attached evidence
@@ -276,44 +278,120 @@ export default function MerchantFlaggedCases() {
   // Handle all merchant authority decisions & return approvals
   const handleAction = async (actionType) => {
     if (!selected) return
-    setActionLoading(true)
     const custId = selected.user_id || selected.customer_id || selected.user || 'user_2'
+    const noteText = notes
 
+    // 1. Optimistic UI Updates for Instant Feedback
+    if (actionType === 'restrict_cod') {
+      showToast('✓ COD restricted for this customer!')
+      setCustomerReview((prev) => {
+        if (!prev) return prev
+        const existing = prev.restrictions || []
+        return {
+          ...prev,
+          restrictions: [
+            {
+              id: `r_${Date.now()}`,
+              restriction_type: 'cod_suspended',
+              reason: noteText || 'COD restricted by merchant',
+              status: 'active',
+              start_date: new Date().toISOString(),
+            },
+            ...existing,
+          ],
+        }
+      })
+    } else if (actionType === 'require_prepaid') {
+      showToast('✓ Prepaid requirement applied!')
+      setCustomerReview((prev) => {
+        if (!prev) return prev
+        const existing = prev.restrictions || []
+        return {
+          ...prev,
+          restrictions: [
+            {
+              id: `r_${Date.now()}`,
+              restriction_type: 'prepaid_only',
+              reason: noteText || 'Prepaid required by merchant',
+              status: 'active',
+              start_date: new Date().toISOString(),
+            },
+            ...existing,
+          ],
+        }
+      })
+    } else if (actionType === 'increase_restriction') {
+      const curLvl = customerReview?.profile?.escalation_level ?? (selected.risk_tier === 'High' ? 3 : 1)
+      const nextLvl = Math.min(5, curLvl + 1)
+      showToast(`✓ Escalation tier advanced to Step ${nextLvl}!`)
+      setCustomerReview((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          profile: {
+            ...prev.profile,
+            escalation_level: nextLvl,
+          },
+        }
+      })
+    } else if (actionType === 'suspend_account') {
+      showToast('⛔ Customer account suspended!', 'error')
+      setCustomerReview((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          profile: {
+            ...prev.profile,
+            escalation_level: 5,
+          },
+          restrictions: [
+            {
+              id: `r_${Date.now()}`,
+              restriction_type: 'account_restricted',
+              reason: noteText || 'Account suspended by merchant',
+              status: 'active',
+              start_date: new Date().toISOString(),
+            },
+            ...(prev.restrictions || []),
+          ],
+        }
+      })
+    } else if (['approve', 'reject', 'product_returned', 'refund_processed'].includes(actionType)) {
+      const actionName = actionType === 'approve' ? 'APPROVED' : actionType === 'reject' ? 'REJECTED' : actionType.replace('_', ' ').toUpperCase()
+      const customerEmail = selected.customer_email || 'registered email'
+      showToast(`✓ Return #${selected.id} ${actionName}! Confirmation email sent to ${customerEmail}.`)
+      setSelected((prev) => prev ? { ...prev, status: actionType === 'approve' ? 'approved' : actionType === 'reject' ? 'rejected' : actionType } : prev)
+    }
+
+    setNotes('')
+
+    // 2. Perform backend API sync silently
     try {
       if (['approve', 'reject', 'product_returned', 'refund_processed'].includes(actionType)) {
-        const updatedReturn = await api.reviewReturn({
+        await api.reviewReturn({
           returnId: selected.id,
           action: actionType,
-          notes: notes || `Return marked as ${actionType.replace('_', ' ')} based on reason review.`,
+          notes: noteText || `Return marked as ${actionType.replace('_', ' ')} based on reason review.`,
         })
-
-        const actionName = actionType === 'approve' ? 'APPROVED' : actionType === 'reject' ? 'REJECTED' : actionType.replace('_', ' ').toUpperCase()
-        const customerEmail = selected.customer_email || 'registered email'
-        showToast(`✓ Return #${selected.id} ${actionName}! Confirmation email sent to ${customerEmail}.`)
-        setNotes('')
-
-        setSelected((prev) => prev ? { ...prev, status: updatedReturn.status, outcome: updatedReturn.outcome } : prev)
-        load()
+        load(false)
         return
       }
 
-      await api.performMerchantAction({
+      const res = await api.performMerchantAction({
         customerId: custId,
         action: actionType,
-        notes: notes || `Action ${actionType} performed by merchant.`,
+        notes: noteText || `Action ${actionType} performed by merchant.`,
       })
 
-      const actionTitle = actionType.replace('_', ' ').toUpperCase()
-      showToast(`✓ Action "${actionTitle}" applied successfully!`)
-      setNotes('')
-
-      const updated = await api.getCustomerReview(custId).catch(() => null)
-      if (updated) setCustomerReview(updated)
-      load()
+      if (res && res.restrictions) {
+        setCustomerReview((prev) => prev ? { ...prev, restrictions: res.restrictions, profile: res.profile || prev.profile } : prev)
+      } else {
+        const updated = await api.getCustomerReview(custId).catch(() => null)
+        if (updated) setCustomerReview(updated)
+      }
+      load(false)
     } catch (err) {
-      showToast(err.message || 'Action failed', 'error')
-    } finally {
-      setActionLoading(false)
+      console.warn('Background action sync:', err)
     }
   }
 

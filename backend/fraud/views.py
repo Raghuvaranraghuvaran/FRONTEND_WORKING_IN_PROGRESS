@@ -262,6 +262,13 @@ def merchant_action(request, customer_id):
             applied_by=actor,
         )
 
+    # Return refreshed active restrictions and updated profile
+    active_restrictions = restriction_engine.get_active(customer=customer, merchant=merchant)
+    profile, _ = CustomerRiskProfile.objects.get_or_create(merchant=merchant, customer=customer)
+    result["restrictions"] = CustomerRestrictionSerializer(active_restrictions, many=True).data
+    result["profile"] = CustomerRiskProfileSerializer(profile).data
+    result["escalation_level"] = profile.escalation_level
+
     return Response(result)
 
 
