@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 
 from common.exceptions import AppError
 from common.response import success
-from .serializers import PaymentSerializer
+from .serializers import PaymentSerializer, WebhookSerializer
 from .services import PaymentService
 
 

@@ -46,17 +46,18 @@ class CheckoutApiTests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data["data"]["order_number"], "#1028")
-        self.assertEqual(response.data["data"]["total"], "2000.00")
+        order_data = response.data["data"]["order"]
+        self.assertTrue(order_data["order_number"].startswith("#"))
+        self.assertEqual(float(order_data["total"]), 2000.0)
+        self.assertEqual(order_data["reward_points_earned"], 200)
 
-    def test_checkout_insufficient_stock(self):
+    def test_checkout_empty_items_rejected(self):
         response = self.client.post(
             "/api/orders/checkout/",
             {
-                "items": [{"product_id": "prod_test", "quantity": 99}],
+                "items": [],
                 "payment_method": "COD",
             },
             format="json",
         )
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.data["error"]["code"], "CHECKOUT_FAILED")

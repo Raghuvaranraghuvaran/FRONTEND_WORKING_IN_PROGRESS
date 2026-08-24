@@ -156,6 +156,64 @@ class PaymentService:
         )
         
         logger.warning(f"Payment rejected: {payment.id} - Reason: {reason}")
+
+    @transaction.atomic
+    def handle_webhook(self, payload: dict, signature: str):
+        """Process gateway signed webhook and reconcile payment status"""
+        from common.exceptions import AppError, NotFoundError
+        from .gateway import get_gateway
+        from invoices.tasks import generate_and_send_invoice
+        
+        gateway_name = payload.get("gateway", "mock")
+        try:
+            gateway = get_gateway(gateway_name)
+        except ValueError:
+            raise AppError("Gateway not supported.", code="UNKNOWN_GATEWAY")
+            
+        if not gateway.verify_signature(payload, signature):
+            raise AppError("Webhook signature verification failed.", code="PAYMENT_SIGNATURE_INVALID")
+            
+        order_id = payload.get("order_id")
+        event_id = payload.get("event_id") or payload.get("gateway_payment_id") or str(uuid.uuid4())
+        
+        # Idempotency check
+        existing_event = PaymentEvent.objects.filter(gateway_event_id=event_id).first()
+        if existing_event:
+            return existing_event.payment, existing_event, False
+            
+        payment = Payment.objects.select_related("order").filter(order_id=order_id).first()
+        if not payment:
+            payment = Payment.objects.select_related("order").filter(order__order_number=order_id).first()
+        if not payment:
+            raise NotFoundError("Payment for this order was not found.", code="PAYMENT_NOT_FOUND")
+            
+        status_val = str(payload.get("status", "")).lower()
+        changed = False
+        if status_val in ("paid", "success"):
+            if payment.status != Payment.STATUS_PAID:
+                payment.status = Payment.STATUS_PAID
+                payment.gateway_payment_id = payload.get("gateway_payment_id", "")
+                payment.transaction_id = payload.get("transaction_id", f"TXN-{uuid.uuid4().hex[:8].upper()}")
+                payment.save(update_fields=["status", "gateway_payment_id", "transaction_id"])
+                
+                order = payment.order
+                order.status = "Confirmed"
+                order.save(update_fields=["status"])
+                changed = True
+                
+                # Trigger background invoice generation
+                try:
+                    generate_and_send_invoice(order.id)
+                except Exception as e:
+                    logger.warning(f"Failed to trigger invoice for webhook order {order.id}: {e}")
+                    
+        event = PaymentEvent.objects.create(
+            payment=payment,
+            event_type=status_val or "webhook",
+            gateway_event_id=event_id,
+            payload=payload,
+        )
+        return payment, event, changed
     
     def get_payment_status(self, payment_id):
         """Get current payment status"""
