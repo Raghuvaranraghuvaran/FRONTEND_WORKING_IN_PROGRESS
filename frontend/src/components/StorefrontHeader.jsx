@@ -20,6 +20,7 @@ export default function StorefrontHeader() {
   const handleLogout = async () => {
     await api.logout('shopper')
     setShopper(null)
+  
     navigate('/')
     setMenuOpen(false)
   }
