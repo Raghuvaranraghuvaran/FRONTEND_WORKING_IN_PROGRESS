@@ -8,12 +8,21 @@ class ReturnRequest(TimestampedModel):
         ("approved", "Approved"),
         ("rejected", "Rejected"),
         ("manual_review", "Manual Review"),
+        ("product_returned", "Product Returned"),
+        ("refund_processed", "Refund Processed"),
     )
     OUTCOME_CHOICES = (
         ("auto_approved", "Auto Approved"),
         ("pending_review", "Pending Review"),
         ("legitimate_return", "Legitimate Return"),
         ("confirmed_fraud", "Confirmed Fraud"),
+        ("product_returned", "Product Returned"),
+        ("refund_processed", "Refund Processed"),
+    )
+    REFUND_METHOD_CHOICES = (
+        ("original", "Original Payment Method"),
+        ("store_credit", "Store Credit / Reward Points"),
+        ("bank_transfer", "Direct Bank Transfer / UPI"),
     )
 
     order = models.ForeignKey(
@@ -28,9 +37,11 @@ class ReturnRequest(TimestampedModel):
     customer_name = models.CharField(max_length=255)
     reason = models.CharField(max_length=64)
     note = models.TextField(blank=True, default="")
+    refund_method = models.CharField(max_length=32, choices=REFUND_METHOD_CHOICES, default="original")
+    images = models.JSONField(default=list)
     risk_tier = models.CharField(max_length=16, default="Low")
     risk_score = models.PositiveIntegerField(default=0)
-    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default="manual_review")
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default="manual_review")
     outcome = models.CharField(max_length=32, choices=OUTCOME_CHOICES, default="pending_review")
     verification_status = models.CharField(max_length=16, default="Pending")
     verification_method = models.CharField(max_length=16, default="unverified")

@@ -4,6 +4,19 @@ import { formatDate } from '../../lib/format'
 import RiskBadge from '../../components/RiskBadge'
 import StatusBadge from '../../components/StatusBadge'
 import EmptyState from '../../components/EmptyState'
+import { 
+  ShieldAlert, 
+  CheckCircle2, 
+  XCircle, 
+  Package, 
+  Coins, 
+  Camera, 
+  Filter, 
+  ExternalLink,
+  MessageSquare,
+  AlertTriangle,
+  FileText
+} from 'lucide-react'
 
 const ESCALATION_STEPS = [
   {
@@ -56,6 +69,15 @@ const ESCALATION_STEPS = [
   },
 ]
 
+const QUICK_DECISION_NOTES = [
+  '✓ Photo proof verified & authentic',
+  '✓ Approved: Within 7-day return policy',
+  '✓ Defective item verified for replacement',
+  '✕ Rejected: Outside 7-day return window',
+  '✕ Rejected: Item tags removed or worn',
+  '✕ Rejected: Physical proof mismatch',
+]
+
 export default function MerchantFlaggedCases() {
   const [returns, setReturns] = useState([])
   const [loading, setLoading] = useState(true)
@@ -66,14 +88,17 @@ export default function MerchantFlaggedCases() {
   const [actionLoading, setActionLoading] = useState(false)
   const [toast, setToast] = useState(null)
   const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'history' | 'behavior'
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [reasonFilter, setReasonFilter] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
 
-  // Toast notification helper that never causes layout shifting
+  // Toast notification helper
   const showToast = (message, type = 'success') => {
     setToast({ message, type, id: Date.now() })
     window.clearTimeout(window.__toastTimeout)
     window.__toastTimeout = window.setTimeout(() => {
       setToast(null)
-    }, 2800)
+    }, 3000)
   }
 
   const load = () => {
@@ -81,11 +106,13 @@ export default function MerchantFlaggedCases() {
     api.getMerchantReturns().then((data) => {
       setReturns(data || [])
       setLoading(false)
-      if (data && data.length > 0 && !selected) {
-        selectCase(data[0])
+      if (data && data.length > 0) {
+        if (!selected || !data.some((d) => d.id === selected.id)) {
+          selectCase(data[0])
+        }
       }
     }).catch((err) => {
-      console.error(err)
+      console.error('Failed to load merchant returns:', err)
       setLoading(false)
     })
   }
@@ -101,7 +128,6 @@ export default function MerchantFlaggedCases() {
       setCustomerReview(reviewData)
     } catch (err) {
       console.error('Failed to load customer review', err)
-      // Build local fallback so review screen remains fully functional
       setCustomerReview({
         profile: {
           id: custId,
@@ -152,13 +178,12 @@ export default function MerchantFlaggedCases() {
     }
   }
 
-  // Set escalation level directly (Steps 0 to 5) with zero visual glitches
+  // Set escalation level directly (Steps 0 to 5)
   const handleSetEscalationLevel = async (targetLevel) => {
     if (!selected) return
     const custId = selected.user_id || selected.customer_id || selected.user || 'user_2'
     const stepObj = ESCALATION_STEPS[targetLevel]
 
-    // 1. Instantly update UI without waiting or flickering
     setCustomerReview((prev) => {
       if (!prev) return prev
       const prevLvl = prev.profile?.escalation_level ?? 0
@@ -184,7 +209,6 @@ export default function MerchantFlaggedCases() {
 
     showToast(`✓ Shifted to Level ${targetLevel}: ${stepObj.title}`)
 
-    // 2. Background sync to backend
     try {
       await api.performMerchantAction({
         customerId: custId,
@@ -198,56 +222,42 @@ export default function MerchantFlaggedCases() {
     }
   }
 
-  // Handle all 8 merchant authority decisions
+  // Handle all merchant authority decisions & return approvals
   const handleAction = async (actionType) => {
     if (!selected) return
     setActionLoading(true)
     const custId = selected.user_id || selected.customer_id || selected.user || 'user_2'
 
     try {
+      if (['approve', 'reject', 'product_returned', 'refund_processed'].includes(actionType)) {
+        const updatedReturn = await api.reviewReturn({
+          returnId: selected.id,
+          action: actionType,
+          notes: notes || `Return marked as ${actionType.replace('_', ' ')} based on reason review.`,
+        })
+
+        const actionName = actionType === 'approve' ? 'APPROVED' : actionType === 'reject' ? 'REJECTED' : actionType.replace('_', ' ').toUpperCase()
+        showToast(`✓ Return Request #${selected.id} has been ${actionName}!`)
+        setNotes('')
+
+        setSelected((prev) => prev ? { ...prev, status: updatedReturn.status, outcome: updatedReturn.outcome } : prev)
+        load()
+        return
+      }
+
       await api.performMerchantAction({
         customerId: custId,
         action: actionType,
         notes: notes || `Action ${actionType} performed by merchant.`,
       })
 
-      // Also review return if approve/reject
-      if (actionType === 'accept' || actionType === 'reject') {
-        try {
-          await api.reviewReturn({
-            returnId: selected.id,
-            action: actionType === 'accept' ? 'approve' : 'reject',
-            notes,
-          })
-        } catch (e) {
-          console.warn('Return review sync:', e)
-        }
-      }
-
       const actionTitle = actionType.replace('_', ' ').toUpperCase()
       showToast(`✓ Action "${actionTitle}" applied successfully!`)
       setNotes('')
 
-      // Refresh customer review state
       const updated = await api.getCustomerReview(custId).catch(() => null)
-      if (updated) {
-        setCustomerReview(updated)
-      } else {
-        setCustomerReview((prev) => {
-          if (!prev) return prev
-          let newLevel = prev.profile?.escalation_level ?? 0
-          if (actionType === 'increase_restriction' || actionType === 'suspend_account') {
-            newLevel = Math.min(5, newLevel + 1)
-          }
-          return {
-            ...prev,
-            profile: {
-              ...prev.profile,
-              escalation_level: newLevel,
-            }
-          }
-        })
-      }
+      if (updated) setCustomerReview(updated)
+      load()
     } catch (err) {
       showToast(err.message || 'Action failed', 'error')
     } finally {
@@ -275,29 +285,33 @@ export default function MerchantFlaggedCases() {
   const restrictions = customerReview?.restrictions || []
   const activeRestrictions = restrictions.filter((r) => r.status === 'active')
   const escalationHistory = customerReview?.escalation_history || []
-  const decision = customerReview?.decision || {}
-
   const currentLevel = profile?.escalation_level ?? 0
+
+  // Filter returns
+  const filteredReturns = returns.filter((r) => {
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'manual_review' && r.status !== 'manual_review') return false
+      if (statusFilter === 'approved' && r.status !== 'approved') return false
+      if (statusFilter === 'rejected' && r.status !== 'rejected') return false
+      if (statusFilter === 'product_returned' && r.status !== 'product_returned') return false
+      if (statusFilter === 'refund_processed' && r.status !== 'refund_processed') return false
+    }
+    if (reasonFilter !== 'all' && !r.reason?.toLowerCase().includes(reasonFilter.toLowerCase())) {
+      return false
+    }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase().trim()
+      const matchOrder = r.order_number?.toLowerCase().includes(q)
+      const matchName = r.customer_name?.toLowerCase().includes(q)
+      const matchId = String(r.id).toLowerCase().includes(q)
+      if (!matchOrder && !matchName && !matchId) return false
+    }
+    return true
+  })
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">ReturnGuard Case Review</h1>
-          <p className="text-sm text-slate-500">
-            Intelligent risk scoring, interactive progressive escalation ladder (Levels 0–5), and merchant authority review.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-            <span className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse" />
-            Active Risk Engine: v0.4
-          </span>
-        </div>
-      </div>
-
-      {/* Floating Glitch-Free Toast Notification */}
+      {/* Toast Notification */}
       {toast && (
         <div
           className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl px-5 py-3.5 text-xs font-semibold shadow-2xl transition-all animate-in fade-in slide-in-from-bottom-4 ${
@@ -316,135 +330,239 @@ export default function MerchantFlaggedCases() {
         </div>
       )}
 
+      {/* Header */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">Return & Flagged Cases Review</h1>
+          <p className="text-sm text-slate-500">
+            Review customer return requests, inspect uploaded photo proofs & reasons, and approve or process refunds.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 border border-indigo-100">
+            <span className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse" />
+            {returns.filter((r) => r.status === 'manual_review').length} Pending Review
+          </span>
+        </div>
+      </div>
+
+      {/* Filter Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between rounded-2xl bg-white border border-slate-200 p-4 shadow-sm">
+        {/* Status Filters */}
+        <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
+          {[
+            { id: 'all', label: `All (${returns.length})` },
+            { id: 'manual_review', label: `Pending Review (${returns.filter((r) => r.status === 'manual_review').length})` },
+            { id: 'approved', label: 'Approved' },
+            { id: 'rejected', label: 'Rejected' },
+            { id: 'product_returned', label: 'Product Returned' },
+            { id: 'refund_processed', label: 'Refund Processed' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setStatusFilter(tab.id)}
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                statusFilter === tab.id
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Reason Filter & Search */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <select
+            value={reasonFilter}
+            onChange={(e) => setReasonFilter(e.target.value)}
+            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+          >
+            <option value="all">All Return Reasons</option>
+            <option value="damaged">Damaged / Defective Item</option>
+            <option value="wrong_size">Wrong Size / Fit Issue</option>
+            <option value="quality">Quality Issue</option>
+            <option value="wrong_product">Wrong Item Received</option>
+            <option value="missing_item">Missing Component</option>
+            <option value="changed_mind">Changed Mind</option>
+            <option value="fraud">Suspected Fraud</option>
+          </select>
+
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search order, customer..."
+            className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs w-36 sm:w-44 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+        </div>
+      </div>
+
       {loading ? (
-        <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+        <div className="grid gap-6 lg:grid-cols-[1.1fr_2fr]">
           <div className="h-96 animate-pulse rounded-2xl bg-slate-200" />
           <div className="h-96 animate-pulse rounded-2xl bg-slate-200" />
         </div>
-      ) : returns.length === 0 ? (
-        <EmptyState title="No flagged cases" description="All returns and orders are operating normally within risk thresholds." />
+      ) : filteredReturns.length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
+          <EmptyState
+            title="No return requests match this filter"
+            description="Try switching the status filter above to view all return records."
+          />
+        </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-          {/* Left Column: Flagged Cases List */}
+        <div className="grid gap-6 lg:grid-cols-[1.1fr_2fr]">
+          
+          {/* Left Column: List of Returns */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between px-1">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">Flagged Queue ({returns.length})</h2>
-              <span className="text-xs text-slate-400">Ordered by risk</span>
-            </div>
+            {filteredReturns.map((record) => {
+              const isSelected = selected?.id === record.id
+              const photoCount = record.images?.length || 0
 
-            <div className="space-y-2.5 overflow-y-auto max-h-[750px] pr-1">
-              {returns.map((record) => {
-                const isSelected = selected?.id === record.id
-                return (
-                  <div
-                    key={record.id}
-                    onClick={() => selectCase(record)}
-                    className={`cursor-pointer rounded-2xl border p-4 transition-all ${
-                      isSelected
-                        ? 'border-indigo-600 bg-indigo-50/50 shadow-sm ring-2 ring-indigo-600'
-                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900">{record.order_number}</span>
-                          <StatusBadge status={record.status} />
-                        </div>
-                        <p className="mt-1 text-sm font-medium text-slate-700">{record.customer_name}</p>
-                        <p className="text-xs text-slate-400">{formatDate(record.created_at)}</p>
-                      </div>
-                      <div className="flex flex-col items-end">
+              return (
+                <div
+                  key={record.id}
+                  onClick={() => selectCase(record)}
+                  className={`cursor-pointer rounded-2xl border p-4 transition-all ${
+                    isSelected
+                      ? 'border-indigo-600 bg-indigo-50/40 ring-1 ring-indigo-600 shadow-md'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-indigo-600">#{record.id}</span>
+                        <span className="font-bold text-sm text-slate-900">{record.order_number}</span>
                         <RiskBadge tier={record.risk_tier} />
-                        <span className="mt-1 font-mono text-xs font-semibold text-slate-500">
-                          {record.risk_score}/100
-                        </span>
                       </div>
+                      <p className="mt-1 text-xs font-semibold text-slate-800">{record.customer_name}</p>
+                      <p className="text-[11px] text-slate-500">{formatDate(record.created_at)}</p>
                     </div>
-
-                    <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-xs text-slate-500">
-                      <span className="capitalize">{record.reason?.replaceAll('_', ' ')}</span>
-                      <span className="font-semibold text-indigo-600">Inspect &rarr;</span>
-                    </div>
+                    <StatusBadge status={record.status} />
                   </div>
-                )
-              })}
-            </div>
+
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 capitalize">
+                      {record.reason?.replaceAll('_', ' ')}
+                    </span>
+                    {photoCount > 0 && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600">
+                        <Camera className="h-3.5 w-3.5" /> {photoCount} Proof {photoCount === 1 ? 'Photo' : 'Photos'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
 
-          {/* Right Column: Case Review Screen (PDF Section 10) */}
+          {/* Right Column: Case Review & Merchant Authority Panel */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            {loadingReview ? (
-              <div className="flex h-96 flex-col items-center justify-center gap-3">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
-                <p className="text-sm text-slate-500">Loading risk telemetry and customer behavior profile...</p>
-              </div>
-            ) : !selected ? (
-              <div className="flex h-96 items-center justify-center text-sm text-slate-400">
-                Select a case from the queue to start review.
+            {!selected ? (
+              <div className="flex h-full min-h-64 items-center justify-center text-sm text-slate-500">
+                Select a return case to review details and approve/reject.
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Header Banner - Matches PDF Section 10 */}
-                <div className="rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 p-5 text-white shadow-md">
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-semibold tracking-wider text-indigo-300">
-                          CUSTOMER REVIEW
-                        </span>
-                        <span className="rounded bg-white/10 px-2 py-0.5 text-xs text-white/80 font-mono">
-                          {profile?.customer_id || 'CUST-1024'}
-                        </span>
-                      </div>
-                      <h2 className="mt-1 text-xl font-bold text-white">
-                        {profile?.customer_name || selected.customer_name}
-                      </h2>
-                      <p className="text-xs text-slate-300">{profile?.customer_email || 'customer@example.com'}</p>
+                
+                {/* Case Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+                  <div>
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-mono text-sm font-bold text-indigo-600">Return #{selected.id}</span>
+                      <h2 className="text-lg font-bold text-slate-900">Order {selected.order_number}</h2>
+                      <RiskBadge tier={selected.risk_tier} />
+                      <StatusBadge status={selected.status} />
                     </div>
-
-                    <div className="flex items-center gap-4">
-                      {/* Risk Score Dial */}
-                      <div className="text-center rounded-xl bg-white/10 px-4 py-2 backdrop-blur-sm border border-white/10">
-                        <p className="text-xs text-indigo-200 font-medium">Risk Score</p>
-                        <p className="text-2xl font-black text-white">
-                          {profile?.latest_score ?? selected.risk_score}
-                          <span className="text-xs font-normal text-slate-300"> / 100</span>
-                        </p>
-                      </div>
-
-                      {/* Escalation Level */}
-                      <div className="text-center rounded-xl bg-white/10 px-4 py-2 backdrop-blur-sm border border-white/10">
-                        <p className="text-xs text-indigo-200 font-medium">Active Escalation</p>
-                        <p className="text-2xl font-black text-amber-400 transition-all duration-300">
-                          L{currentLevel}
-                        </p>
-                      </div>
-                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Customer: <strong>{selected.customer_name}</strong> ({selected.customer_email || 'customer@example.com'})
+                    </p>
                   </div>
-
-                  {/* Summary Bar */}
-                  <div className="mt-4 grid grid-cols-2 gap-2 border-t border-white/10 pt-3 text-xs sm:grid-cols-4">
-                    <div>
-                      <span className="text-slate-400">Risk Tier: </span>
-                      <span className="font-bold text-rose-400">{profile?.risk_tier || selected.risk_tier}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Active Restrictions: </span>
-                      <span className="font-bold text-amber-300">{activeRestrictions.length}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Confirmed Violations: </span>
-                      <span className="font-bold text-rose-300">{profile?.confirmed_violations ?? 0}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Recommended Action: </span>
-                      <span className="font-bold text-indigo-300 uppercase">{decision?.recommended_action || 'Review'}</span>
-                    </div>
+                  <div className="text-right">
+                    <span className="text-xs text-slate-500">Order Amount</span>
+                    <p className="text-lg font-extrabold text-slate-900">₹{selected.order_total || selected.total || 6499}</p>
                   </div>
                 </div>
 
-                {/* Interactive Progressive Escalation Ladder (PDF §6 & §7) */}
+                {/* RETURN REASON & PROOFS HIGHLIGHT CARD */}
+                <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50/40 to-slate-50 p-5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-indigo-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-indigo-600" />
+                      <h3 className="text-sm font-bold text-slate-900">Customer Return Reason & Claims</h3>
+                    </div>
+                    <span className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-bold text-white uppercase tracking-wider">
+                      {selected.reason?.replaceAll('_', ' ')}
+                    </span>
+                  </div>
+
+                  {/* Customer Explanation Note */}
+                  <div>
+                    <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">Customer Explanation:</span>
+                    <p className="mt-1 rounded-xl bg-white p-3 text-xs text-slate-800 border border-slate-200 font-medium leading-relaxed">
+                      {selected.note ? `"${selected.note}"` : 'No additional customer note provided.'}
+                    </p>
+                  </div>
+
+                  {/* Refund Method & Pickup Slot */}
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="rounded-xl bg-white p-3 border border-slate-200">
+                      <span className="text-[10px] font-bold uppercase text-slate-400">Preferred Refund Method:</span>
+                      <p className="font-bold text-slate-900 mt-0.5 capitalize">
+                        {selected.refund_method?.replaceAll('_', ' ') || 'Original Payment Method'}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-white p-3 border border-slate-200">
+                      <span className="text-[10px] font-bold uppercase text-slate-400">Doorstep Pickup:</span>
+                      <p className="font-bold text-slate-900 mt-0.5">
+                        {selected.pickup_slot?.replaceAll('_', ' ') || 'Tomorrow Morning'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Uploaded Photos Proof Gallery */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">Uploaded Proof Photos:</span>
+                      <span className="text-[11px] text-slate-400">{selected.images?.length || 0} attached</span>
+                    </div>
+                    {selected.images && selected.images.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {selected.images.map((img, idx) => (
+                          <a key={idx} href={img} target="_blank" rel="noopener noreferrer" className="group relative rounded-xl overflow-hidden border border-slate-200 bg-white">
+                            <img src={img} alt={`Proof ${idx + 1}`} className="h-24 w-full object-cover group-hover:scale-105 transition-transform" />
+                            <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-bold transition-opacity">
+                              Click to Enlarge ↗
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 italic bg-white p-3 rounded-xl border border-slate-200">
+                        No photos attached with this return request.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Items to Return */}
+                  {selected.return_lines && selected.return_lines.length > 0 && (
+                    <div>
+                      <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">Requested Line Items:</span>
+                      <div className="mt-1.5 space-y-1.5">
+                        {selected.return_lines.map((item, idx) => (
+                          <div key={idx} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-200 text-xs">
+                            <span className="font-semibold text-slate-800">{item.name} × {item.quantity}</span>
+                            <span className="font-bold text-slate-900">₹{item.price}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Interactive Escalation Ladder Stepper */}
                 <div className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-5 shadow-xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                     <div>
@@ -529,7 +647,7 @@ export default function MerchantFlaggedCases() {
                         : 'border-transparent text-slate-500 hover:text-slate-700'
                     }`}
                   >
-                    Overview & Signals
+                    AI Risk Signals & Rules
                   </button>
                   <button
                     onClick={() => setActiveTab('behavior')}
@@ -549,345 +667,220 @@ export default function MerchantFlaggedCases() {
                         : 'border-transparent text-slate-500 hover:text-slate-700'
                     }`}
                   >
-                    Restriction & Escalation Timeline ({escalationHistory.length + restrictions.length})
+                    Restriction History ({escalationHistory.length + restrictions.length})
                   </button>
                 </div>
 
                 {/* TAB 1: OVERVIEW & SIGNALS */}
                 {activeTab === 'overview' && (
-                  <div className="space-y-5">
-                    {/* WHY FLAGGED (PDF Section 10) */}
+                  <div className="space-y-4">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-900">WHY FLAGGED (Risk Signals Detected)</h3>
-                      <div className="mt-2.5 flex flex-wrap gap-2">
-                        {(selected.signals?.length ? selected.signals : ['Repeated COD refusals', 'High return frequency', 'Multiple-variant ordering', 'Previous restrictions violated']).map(
+                      <h3 className="text-xs font-bold uppercase text-slate-700 tracking-wider">AI Risk Signals Detected</h3>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {(selected.signals?.length ? selected.signals : ['Standard return request', 'Within return window']).map(
                           (signal, i) => (
                             <span
                               key={i}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-800"
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700"
                             >
-                              <span className="text-rose-500 font-black">&bull;</span>
+                              <span className="text-indigo-500 font-bold">•</span>
                               {signal}
                             </span>
                           )
                         )}
                       </div>
-                      {selected.risk_context && (
-                        <p className="mt-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600 border border-slate-200">
-                          <span className="font-semibold text-slate-800">Context: </span>
-                          {selected.risk_context}
-                        </p>
-                      )}
                     </div>
 
-                    {/* CURRENT RESTRICTIONS */}
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-900">CURRENT ACTIVE RESTRICTIONS</h3>
-                      {activeRestrictions.length === 0 ? (
-                        <p className="mt-2 text-xs text-slate-500 italic bg-slate-50 p-3 rounded-lg border border-slate-100">
-                          No active restrictions currently in effect for this customer.
-                        </p>
-                      ) : (
+                    {activeRestrictions.length > 0 && (
+                      <div>
+                        <h3 className="text-xs font-bold uppercase text-amber-800 tracking-wider">Active Customer Restrictions</h3>
                         <div className="mt-2 space-y-2">
                           {activeRestrictions.map((r) => (
-                            <div
-                              key={r.id}
-                              className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs"
-                            >
+                            <div key={r.id} className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs">
                               <div>
-                                <span className="font-bold uppercase tracking-wider text-amber-900">
-                                  {r.restriction_type?.replaceAll('_', ' ')}
-                                </span>
-                                <p className="text-amber-800 mt-0.5">{r.reason}</p>
-                                <span className="text-[10px] text-amber-600">
-                                  Applied {formatDate(r.start_date)} by {r.applied_by}
-                                </span>
+                                <span className="font-bold text-amber-900 uppercase">{r.restriction_type?.replaceAll('_', ' ')}</span>
+                                <p className="text-amber-800 text-[11px]">{r.reason}</p>
                               </div>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveRestriction(r.id)}
-                                disabled={actionLoading}
-                                className="rounded-lg bg-white border border-amber-300 px-3 py-1.5 font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-50 cursor-pointer"
+                                className="rounded-lg bg-white border border-amber-300 px-2.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-100"
                               >
                                 Remove
                               </button>
                             </div>
                           ))}
                         </div>
-                      )}
-                    </div>
-
-                    {/* RECENT ORDER DETAILS */}
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-xs">
-                      <div className="flex justify-between items-center mb-2 font-bold text-slate-900">
-                        <span>Order #{selected.order_number} Details</span>
-                        <span>Total: ₹{selected.total || 6499}</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-slate-600 sm:grid-cols-4">
-                        <div>
-                          <span className="text-slate-400">Payment: </span>
-                          <span className="font-semibold text-slate-800">{selected.payment_method || 'COD'}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400">Return Reason: </span>
-                          <span className="font-semibold text-slate-800 capitalize">{selected.reason?.replaceAll('_', ' ')}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400">Verification: </span>
-                          <span className="font-semibold text-slate-800">{selected.verification_status || 'Pending'}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400">Date: </span>
-                          <span>{formatDate(selected.created_at)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* DOORSTEP UNBOXING & RETURN PROOF INSPECTOR (Feature 3) */}
-                    <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-base">📸</span>
-                          <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-950">
-                            Doorstep Proof & Unboxing Evidence (Feature 3)
-                          </h3>
-                        </div>
-                        <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
-                          selected.proof_verified ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-800 border border-amber-300'
-                        }`}>
-                          {selected.proof_verified ? '✓ Verified Proof' : 'Pending Verification'}
-                        </span>
-                      </div>
-
-                      <div className="grid gap-4 sm:grid-cols-[140px_1fr]">
-                        <div className="relative group overflow-hidden rounded-xl border border-slate-300 bg-white aspect-square flex items-center justify-center">
-                          <img
-                            src={selected.proof_image_url || 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=400&q=80'}
-                            alt="Return product proof"
-                            className="h-full w-full object-cover group-hover:scale-105 transition-transform"
-                          />
-                          <a
-                            href={selected.proof_image_url || 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=400&q=80'}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold"
-                          >
-                            🔍 Zoom Photo
-                          </a>
-                        </div>
-
-                        <div className="space-y-2 text-xs">
-                          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-                            <p className="font-semibold text-slate-800">Uploaded Evidence Details:</p>
-                            <p className="text-slate-600 mt-0.5">
-                              {selected.note || 'Shopper uploaded unboxing image demonstrating package condition before courier handover.'}
-                            </p>
-                          </div>
-
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelected((prev) => ({ ...prev, proof_verified: true }))
-                                showToast('✓ Return proof verified as legitimate.')
-                              }}
-                              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-xs cursor-pointer"
-                            >
-                              ✓ Verify Proof as Legitimate
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelected((prev) => ({ ...prev, proof_verified: false }))
-                                showToast('✕ Return proof marked inconclusive.')
-                              }}
-                              className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 cursor-pointer"
-                            >
-                              ✕ Mark Inconclusive
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* TAB 2: BEHAVIOR PROFILE (PDF Section 2) */}
-                {activeTab === 'behavior' && (
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-900">Customer Behavior Profile (PDF §2)</h3>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      <div className="rounded-xl border border-slate-200 bg-white p-3 text-center">
-                        <p className="text-xl font-bold text-slate-900">{behavior?.total_orders ?? 10}</p>
-                        <p className="text-xs text-slate-500">Total Orders</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-3 text-center">
-                        <p className="text-xl font-bold text-rose-600">{behavior?.total_returns ?? 6}</p>
-                        <p className="text-xs text-slate-500">Returns ({((behavior?.return_rate ?? 0.6) * 100).toFixed(0)}%)</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-3 text-center">
-                        <p className="text-xl font-bold text-amber-600">{behavior?.total_cod_refusals ?? 2}</p>
-                        <p className="text-xs text-slate-500">COD Refusals</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-3 text-center">
-                        <p className="text-xl font-bold text-emerald-600">{behavior?.successful_deliveries ?? 4}</p>
-                        <p className="text-xs text-slate-500">Successful Deliveries</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-3 text-center">
-                        <p className="text-xl font-bold text-indigo-600">{behavior?.multiple_variant_orders ?? 6}</p>
-                        <p className="text-xs text-slate-500">Multi-Variant Orders</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-3 text-center">
-                        <p className="text-xl font-bold text-purple-600">{behavior?.high_value_cod_count ?? 4}</p>
-                        <p className="text-xs text-slate-500">High-Value COD</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-3 text-center">
-                        <p className="text-xl font-bold text-orange-600">{behavior?.address_mismatch_count ?? 2}</p>
-                        <p className="text-xs text-slate-500">Address Inconsistencies</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-3 text-center">
-                        <p className="text-xl font-bold text-slate-900">{profile?.device_reuse_flag ? 'YES' : 'NO'}</p>
-                        <p className="text-xs text-slate-500">Device Reuse Flag</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* TAB 3: TIMELINE (PDF Section 9) */}
-                {activeTab === 'history' && (
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-900">Restriction & Escalation History (PDF §9)</h3>
-                    {escalationHistory.length === 0 && restrictions.length === 0 ? (
-                      <p className="text-xs text-slate-500">No previous restrictions or escalation history.</p>
-                    ) : (
-                      <div className="overflow-x-auto rounded-xl border border-slate-200">
-                        <table className="min-w-full divide-y divide-slate-200 text-xs">
-                          <thead className="bg-slate-50 text-slate-500 font-semibold uppercase">
-                            <tr>
-                              <th className="px-3 py-2 text-left">Date</th>
-                              <th className="px-3 py-2 text-left">Type</th>
-                              <th className="px-3 py-2 text-left">Event / Trigger</th>
-                              <th className="px-3 py-2 text-left">Action / Level</th>
-                              <th className="px-3 py-2 text-left">Actor</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {escalationHistory.map((h) => (
-                              <tr key={h.id} className="hover:bg-slate-50">
-                                <td className="px-3 py-2 text-slate-500">{formatDate(h.created_at)}</td>
-                                <td className="px-3 py-2 font-semibold text-indigo-600">Escalation</td>
-                                <td className="px-3 py-2 text-slate-800">{h.trigger_event}</td>
-                                <td className="px-3 py-2 font-bold text-amber-600">
-                                  L{h.previous_level} &rarr; L{h.new_level}
-                                </td>
-                                <td className="px-3 py-2 text-slate-400">system</td>
-                              </tr>
-                            ))}
-                            {restrictions.map((r) => (
-                              <tr key={r.id} className="hover:bg-slate-50">
-                                <td className="px-3 py-2 text-slate-500">{formatDate(r.created_at)}</td>
-                                <td className="px-3 py-2 font-semibold text-purple-600">Restriction</td>
-                                <td className="px-3 py-2 text-slate-800">{r.reason}</td>
-                                <td className="px-3 py-2 font-semibold capitalize text-slate-700">
-                                  {r.restriction_type?.replaceAll('_', ' ')} ({r.status})
-                                </td>
-                                <td className="px-3 py-2 text-slate-400">{r.applied_by}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* MERCHANT AUTHORITY ACTIONS (PDF Section 5 & 10) */}
-                <div className="border-t border-slate-200 pt-5">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-bold text-slate-900">MERCHANT DECISION & AUTHORITY (PDF §5 & §10)</h3>
-                    <span className="text-[11px] text-slate-400">Merchant has final authority</span>
+                {/* TAB 2: BEHAVIOR PROFILE */}
+                {activeTab === 'behavior' && (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-center">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xl font-bold text-slate-900">{behavior?.total_orders ?? 10}</p>
+                      <p className="text-xs text-slate-500">Total Orders</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xl font-bold text-rose-600">{behavior?.total_returns ?? 6}</p>
+                      <p className="text-xs text-slate-500">Returns ({((behavior?.return_rate ?? 0.6) * 100).toFixed(0)}%)</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xl font-bold text-amber-600">{behavior?.total_cod_refusals ?? 2}</p>
+                      <p className="text-xs text-slate-500">COD Refusals</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xl font-bold text-emerald-600">{behavior?.successful_deliveries ?? 4}</p>
+                      <p className="text-xs text-slate-500">Deliveries</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 3: RESTRICTION HISTORY */}
+                {activeTab === 'history' && (
+                  <div className="space-y-2">
+                    {escalationHistory.length === 0 && restrictions.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic">No previous escalation events recorded for this customer.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {escalationHistory.map((h) => (
+                          <div key={h.id} className="flex justify-between items-center rounded-lg bg-slate-50 p-2 text-xs border border-slate-200">
+                            <span className="font-semibold text-slate-800">{h.trigger_event}</span>
+                            <span className="font-mono text-indigo-600">L{h.previous_level} → L{h.new_level}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* MERCHANT DECISION & REASON APPROVAL ACTIONS */}
+                <div className="border-t border-slate-200 pt-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-extrabold text-slate-900">MERCHANT DECISION ACCORDING TO REASONS</h3>
+                      <p className="text-xs text-slate-500">
+                        Review customer reason ({selected.reason?.replaceAll('_', ' ')}) & photos, then execute decision:
+                      </p>
+                    </div>
+                    <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
+                      Merchant Authority
+                    </span>
                   </div>
 
-                  <div className="mb-4">
+                  {/* Decision Note Input with Quick Chips */}
+                  <div>
                     <input
                       type="text"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Optional decision note for audit trail..."
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                      placeholder="Enter review decision notes (e.g. Photo verified, within return window)..."
+                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {QUICK_DECISION_NOTES.map((chip, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setNotes(chip)}
+                          className="rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 px-2 py-1 text-[10px] font-semibold text-slate-600 transition-colors cursor-pointer"
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
+                  {/* Primary Return Lifecycle Actions */}
                   <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
                     <button
                       type="button"
-                      onClick={() => handleAction('accept')}
+                      onClick={() => handleAction('approve')}
                       disabled={actionLoading}
-                      className="rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-500 active:scale-95 disabled:opacity-50 cursor-pointer"
+                      className="rounded-xl bg-emerald-600 px-3 py-3 text-xs font-bold text-white shadow-md hover:bg-emerald-500 active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      ✓ ACCEPT ORDER
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>APPROVE RETURN</span>
                     </button>
+
                     <button
                       type="button"
                       onClick={() => handleAction('reject')}
                       disabled={actionLoading}
-                      className="rounded-xl bg-rose-600 px-3 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-rose-500 active:scale-95 disabled:opacity-50 cursor-pointer"
+                      className="rounded-xl bg-rose-600 px-3 py-3 text-xs font-bold text-white shadow-md hover:bg-rose-500 active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      ✕ REJECT ORDER
+                      <XCircle className="h-4 w-4" />
+                      <span>REJECT RETURN</span>
                     </button>
+
                     <button
                       type="button"
-                      onClick={() => handleAction('verify')}
+                      onClick={() => handleAction('product_returned')}
                       disabled={actionLoading}
-                      className="rounded-xl bg-amber-600 px-3 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-amber-500 active:scale-95 disabled:opacity-50 cursor-pointer"
+                      className="rounded-xl bg-indigo-600 px-3 py-3 text-xs font-bold text-white shadow-md hover:bg-indigo-500 active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      ⚡ REQUEST VERIFY
+                      <Package className="h-4 w-4" />
+                      <span>PRODUCT RETURNED</span>
                     </button>
+
                     <button
                       type="button"
-                      onClick={() => handleAction('restrict_cod')}
+                      onClick={() => handleAction('refund_processed')}
                       disabled={actionLoading}
-                      className="rounded-xl bg-indigo-600 px-3 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-500 active:scale-95 disabled:opacity-50 cursor-pointer"
+                      className="rounded-xl bg-teal-600 px-3 py-3 text-xs font-bold text-white shadow-md hover:bg-teal-500 active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      🚫 RESTRICT COD
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAction('require_prepaid')}
-                      disabled={actionLoading}
-                      className="rounded-xl bg-purple-600 px-3 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-purple-500 active:scale-95 disabled:opacity-50 cursor-pointer"
-                    >
-                      💳 REQUIRE PREPAID
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAction('restrict_high_value')}
-                      disabled={actionLoading}
-                      className="rounded-xl bg-sky-700 px-3 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-sky-600 active:scale-95 disabled:opacity-50 cursor-pointer"
-                    >
-                      🔒 CAP ORDER VALUE
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAction('increase_restriction')}
-                      disabled={actionLoading}
-                      className="rounded-xl bg-orange-600 px-3 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-orange-500 active:scale-95 disabled:opacity-50 cursor-pointer"
-                    >
-                      ▲ ESCALATE LEVEL
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAction('suspend_account')}
-                      disabled={actionLoading}
-                      className="rounded-xl bg-slate-950 px-3 py-2.5 text-xs font-bold text-rose-400 shadow-sm hover:bg-black active:scale-95 disabled:opacity-50 cursor-pointer"
-                    >
-                      ⛔ SUSPEND ACCOUNT
+                      <Coins className="h-4 w-4" />
+                      <span>PROCESS REFUND</span>
                     </button>
                   </div>
+
+                  {/* Secondary Account Authority Actions */}
+                  <div className="border-t border-slate-100 pt-3">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase">Customer Policy & Restriction Overrides:</span>
+                    <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <button
+                        type="button"
+                        onClick={() => handleAction('restrict_cod')}
+                        disabled={actionLoading}
+                        className="rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-800 text-slate-700 px-2.5 py-2 text-[11px] font-bold cursor-pointer"
+                      >
+                        🚫 Restrict COD
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAction('require_prepaid')}
+                        disabled={actionLoading}
+                        className="rounded-xl bg-slate-100 hover:bg-purple-50 hover:text-purple-800 text-slate-700 px-2.5 py-2 text-[11px] font-bold cursor-pointer"
+                      >
+                        💳 Require Prepaid
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAction('increase_restriction')}
+                        disabled={actionLoading}
+                        className="rounded-xl bg-slate-100 hover:bg-amber-50 hover:text-amber-800 text-slate-700 px-2.5 py-2 text-[11px] font-bold cursor-pointer"
+                      >
+                        ▲ Escalate Level
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAction('suspend_account')}
+                        disabled={actionLoading}
+                        className="rounded-xl bg-slate-900 text-rose-400 hover:bg-black px-2.5 py-2 text-[11px] font-bold cursor-pointer"
+                      >
+                        ⛔ Suspend Account
+                      </button>
+                    </div>
+                  </div>
+
                 </div>
+
               </div>
             )}
           </div>
+
         </div>
       )}
     </div>

@@ -1,4 +1,5 @@
-from django.db.models import Count, Q
+from django.db import models
+from django.db.models import Case, Count, Q, When
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -90,11 +91,25 @@ class MerchantFlaggedCasesView(APIView):
 
     def get(self, request):
         merchant = get_merchant_from_user(request.user)
+        status_filter = request.query_params.get("status")
+        reason_filter = request.query_params.get("reason")
+
+        cases = ReturnRequest.objects.filter(merchant=merchant)
+        if status_filter and status_filter != "all":
+            cases = cases.filter(status=status_filter)
+        if reason_filter and reason_filter != "all":
+            cases = cases.filter(reason__icontains=reason_filter)
+
         cases = (
-            ReturnRequest.objects.filter(merchant=merchant, status="manual_review")
-            .select_related("order")
+            cases.select_related("order", "user")
             .prefetch_related("return_lines", "timeline")
-            .order_by("-created_at")
+            .order_by(
+                models.Case(
+                    models.When(status="manual_review", then=0),
+                    default=1,
+                ),
+                "-created_at",
+            )
         )
         return success(ReturnRequestSerializer(cases, many=True).data)
 
@@ -123,17 +138,17 @@ class ReviewReturnView(APIView):
         # Try to resolve return request by various formats
         return_request = None
         if str(pk).isdigit():
-            return_request = ReturnRequest.objects.filter(merchant=merchant, pk=int(pk)).select_related("order").first()
+            return_request = ReturnRequest.objects.filter(merchant=merchant, pk=int(pk)).select_related("order", "user").first()
 
         if return_request is None:
             clean_pk = str(pk).replace("ret_", "").replace("#", "")
             if clean_pk.isdigit():
-                return_request = ReturnRequest.objects.filter(merchant=merchant, pk=int(clean_pk)).select_related("order").first()
+                return_request = ReturnRequest.objects.filter(merchant=merchant, pk=int(clean_pk)).select_related("order", "user").first()
 
         if return_request is None:
             return_request = (
                 ReturnRequest.objects.filter(merchant=merchant, order__order_number__icontains=str(pk))
-                .select_related("order")
+                .select_related("order", "user")
                 .first()
             )
 
@@ -150,9 +165,44 @@ class ReviewReturnView(APIView):
                 return success({"id": order.id, "order_number": order.order_number, "status": order.status})
             return success({"status": "completed", "action": action})
 
-        is_approve = action in ("approve", "accept")
-        return_request.status = "approved" if is_approve else "rejected"
-        return_request.outcome = "legitimate_return" if is_approve else "confirmed_fraud"
+        order = return_request.order
+
+        if action in ("approve", "accept"):
+            return_request.status = "approved"
+            return_request.outcome = "legitimate_return"
+            label = "Approved"
+            if order:
+                order.delivery_status = "Return Approved"
+                order.status = "Return Approved"
+                order.save(update_fields=["delivery_status", "status"])
+        elif action in ("reject", "decline"):
+            return_request.status = "rejected"
+            return_request.outcome = "confirmed_fraud"
+            label = "Rejected"
+            if order:
+                order.delivery_status = "Return Rejected"
+                order.status = "Return Rejected"
+                order.save(update_fields=["delivery_status", "status"])
+        elif action in ("product_returned", "mark_returned"):
+            return_request.status = "product_returned"
+            return_request.outcome = "product_returned"
+            label = "Product Returned"
+            if order:
+                order.delivery_status = "Product Returned"
+                order.status = "Product Returned"
+                order.save(update_fields=["delivery_status", "status"])
+        elif action in ("refund_processed", "process_refund"):
+            return_request.status = "refund_processed"
+            return_request.outcome = "refund_processed"
+            label = "Refund Processed"
+            if order:
+                order.delivery_status = "Refund Processed"
+                order.status = "Refund Processed"
+                order.save(update_fields=["delivery_status", "status"])
+        else:
+            return_request.status = action
+            label = action.replace("_", " ").title()
+
         return_request.reviewed_by = request.user.email
         return_request.reviewed_at = timezone.now()
         return_request.save()
@@ -165,7 +215,7 @@ class ReviewReturnView(APIView):
         )
         ReturnEvent.objects.create(
             return_request=return_request,
-            label="Approved" if is_approve else "Rejected",
+            label=label,
         )
         log_action(
             merchant=merchant,
@@ -177,15 +227,98 @@ class ReviewReturnView(APIView):
         if return_request.user:
             create_notification(
                 user=return_request.user,
-                type_=f"return_{'approved' if is_approve else 'rejected'}",
-                title="Return approved" if is_approve else "Return rejected",
+                type_=f"return_{return_request.status}",
+                title=f"Return {label.lower()}",
                 body=(
-                    f"Your return for {getattr(return_request.order, 'order_number', 'order')} was "
-                    f"{'approved' if is_approve else 'rejected'} after review."
+                    f"Your return for {getattr(return_request.order, 'order_number', 'order')} is now "
+                    f"{label.lower()}."
                 ),
-                channel="in_app" if is_approve else "sms",
+                channel="in_app",
             )
         return success(ReturnRequestSerializer(return_request).data)
+
+
+class UpdateOrderStatusView(APIView):
+    permission_classes = [IsAuthenticated, IsMerchantAdmin]
+
+    def post(self, request, order_id):
+        merchant = get_merchant_from_user(request.user)
+        order = Order.objects.filter(
+            Q(pk=int(order_id) if str(order_id).isdigit() else 0) | Q(order_number__iexact=str(order_id)),
+            merchant=merchant
+        ).select_related("user").prefetch_related("items").first()
+
+        if order is None:
+            raise NotFoundError("Order not found.")
+
+        new_delivery_status = request.data.get("delivery_status") or request.data.get("deliveryStatus")
+        new_status = request.data.get("status")
+        notes = request.data.get("notes", "")
+
+        was_delivered = order.delivery_status == "Delivered"
+
+        if new_delivery_status:
+            order.delivery_status = new_delivery_status
+        if new_status:
+            order.status = new_status
+
+        if new_delivery_status == "Delivered" and (not was_delivered or not order.delivered_at):
+            order.delivered_at = timezone.now()
+            if not new_status:
+                order.status = "Delivered"
+
+        # Sync tracking events
+        now_iso = timezone.now().isoformat()
+        events = list(order.tracking_events or [
+            {"label": "Order placed", "at": order.created_at.isoformat(), "done": True},
+            {"label": "Packed", "at": None, "done": False},
+            {"label": "Out for delivery", "at": None, "done": False},
+            {"label": "Delivered", "at": None, "done": False},
+        ])
+        if new_delivery_status == "In Transit":
+            for e in events:
+                if e["label"] in ("Order placed", "Packed", "Out for delivery"):
+                    e["done"] = True
+                    if not e.get("at"): e["at"] = now_iso
+        elif new_delivery_status == "Delivered":
+            for e in events:
+                e["done"] = True
+                if not e.get("at"): e["at"] = now_iso
+        order.tracking_events = events
+
+        order.save()
+
+        log_action(
+            merchant=merchant,
+            actor=request.user.email,
+            action="update_order_status",
+            target=f"Order {order.order_number}",
+            notes=f"Updated status to {order.delivery_status}. {notes}".strip(),
+        )
+
+        # If order just marked as Delivered, dispatch delivery confirmation email with Return Order CTA
+        if new_delivery_status == "Delivered":
+            from common.email_templates import build_delivery_confirmation_email
+            from common.mailer import send_async_email
+
+            try:
+                c_html, c_plain = build_delivery_confirmation_email(order)
+                recipients = [order.user.email]
+                if order.user.email != "infiniteganesforu@gmail.com":
+                    recipients.append("infiniteganesforu@gmail.com")
+                send_async_email(
+                    subject=f"Delivered: Your Order #{order.order_number} Has Arrived!",
+                    message=c_plain,
+                    recipient_list=recipients,
+                    from_name=f"{merchant.business_name} via ReturnGuard",
+                    html_message=c_html,
+                )
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning("Failed to dispatch delivery confirmation email: %s", exc)
+
+        from orders.serializers import OrderListSerializer
+        return success(OrderListSerializer(order).data)
 
 
 class CustomerRiskProfileView(APIView):

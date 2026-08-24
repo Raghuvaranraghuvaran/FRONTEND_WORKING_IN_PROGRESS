@@ -16,6 +16,11 @@ class ReturnService:
 
     @transaction.atomic
     def create_return(self, *, user, merchant, data):
+        from django.utils import timezone
+        from common.exceptions import AppError
+        from common.mailer import send_async_email
+        from common.email_templates import build_merchant_return_alert_email
+
         order = (
             Order.objects.select_related("user")
             .filter(id=data["order_id"], merchant=merchant, user=user)
@@ -23,6 +28,22 @@ class ReturnService:
         )
         if order is None:
             raise ReturnNotEligible()
+
+        # 1. Verify delivery status
+        if order.delivery_status != "Delivered" and order.status != "Delivered":
+            raise AppError("This order is not eligible for return because it has not been marked as delivered.", code="RETURN_NOT_DELIVERED")
+
+        # 2. Verify return window
+        window_days = getattr(merchant, "return_window_days", 7) or 7
+        if order.delivered_at:
+            delta = timezone.now() - order.delivered_at
+            if delta.days > window_days:
+                raise AppError("This order is no longer eligible for return.", code="RETURN_WINDOW_EXPIRED")
+
+        # 3. Check for existing active return
+        existing_return = ReturnRequest.objects.filter(order=order).exclude(status="rejected").first()
+        if existing_return is not None:
+            raise AppError("A return request has already been submitted for this order.", code="RETURN_ALREADY_EXISTS")
 
         shopper = getattr(user, "shopper_profile", None)
         reason = data["reason"]
@@ -42,10 +63,12 @@ class ReturnService:
             customer_name=user.name,
             reason=reason,
             note=data.get("note", ""),
+            refund_method=data.get("refund_method", "original"),
+            images=data.get("images") or [],
             risk_tier=risk.tier,
             risk_score=risk.score,
-            status=decision["status"],
-            outcome=decision["outcome"],
+            status="manual_review",
+            outcome="pending_review",
             verification_status="Pending" if risk.tier in ("Medium", "High") else "Verified",
             verification_method="unverified" if risk.tier in ("Medium", "High") else "device_only",
             risk_context="; ".join(risk.signals) if risk.signals else "No material risk signals.",
@@ -54,6 +77,11 @@ class ReturnService:
         )
 
         self._build_lines(return_request, order, data.get("return_lines") or [])
+
+        # Update order status to reflect Return Requested
+        order.delivery_status = "Return Requested"
+        order.status = "Return Requested"
+        order.save(update_fields=["delivery_status", "status"])
 
         ReturnEvent.objects.create(return_request=return_request, label="Return requested")
         if data.get("pickup_slot"):
@@ -87,6 +115,23 @@ class ReturnService:
                 f"{'approved' if return_request.status == 'approved' else 'under review'}."
             ),
         )
+
+        # Dispatch alert email to merchant
+        try:
+            m_html, m_plain = build_merchant_return_alert_email(return_request, merchant)
+            recipients = [merchant.admin_email]
+            if merchant.admin_email != "infiniteganesforu@gmail.com":
+                recipients.append("infiniteganesforu@gmail.com")
+            send_async_email(
+                subject=f"New Return Request for Order #{order.order_number}",
+                message=m_plain,
+                recipient_list=recipients,
+                from_name="ReturnGuard Alerts",
+                html_message=m_html,
+            )
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("Failed to dispatch merchant return alert email: %s", exc)
 
         return return_request
 

@@ -32,6 +32,7 @@ class OrderListSerializer(serializers.ModelSerializer):
             "payment_method",
             "status",
             "delivery_status",
+            "delivered_at",
             "risk_tier",
             "verification_status",
             "verification_method",

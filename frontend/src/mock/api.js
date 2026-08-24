@@ -1047,12 +1047,14 @@ export const api = {
     return { order: clone(order), payment: clone(payment) }
   },
 
-  async createReturn({ orderId, reason, note, returnLines, pickupSlot }) {
+  async createReturn({ orderId, reason, note, returnLines, pickupSlot, refundMethod = 'original', images = [] }) {
     if (hasLiveApi()) {
       const payload = {
         order_id: orderId,
         reason,
         note,
+        refund_method: refundMethod,
+        images: images || [],
         return_lines: (returnLines || []).map((line) => ({
           product_id: line.product_id,
           name: line.name,
@@ -1083,6 +1085,8 @@ export const api = {
       customer_name: shopper.name,
       reason,
       note,
+      refund_method: refundMethod,
+      images: images || [],
       risk_tier: risk.tier,
       risk_score: risk.score,
       status: risk.tier === 'Low' ? 'approved' : 'manual_review',
@@ -1101,6 +1105,8 @@ export const api = {
       ],
     }
     store.returns.unshift(record)
+    order.delivery_status = 'Return Requested'
+    order.status = 'Return Requested'
     shopper.total_returns += 1
     if (record.risk_tier === 'High' && shopper.risk_tier !== 'High') shopper.risk_tier = 'High'
     else if (record.risk_tier === 'Medium' && shopper.risk_tier === 'Low') shopper.risk_tier = 'Medium'
@@ -1288,6 +1294,26 @@ export const api = {
     return clone(store.deliveryAgents)
   },
 
+  async updateOrderStatus({ orderId, deliveryStatus, status, notes = '' }) {
+    if (hasLiveApi()) {
+      return live(`/admin/orders/${orderId}/status/`, {
+        method: 'POST',
+        body: { delivery_status: deliveryStatus, status, notes },
+        role: 'merchant',
+      })
+    }
+    await delay(500)
+    const order = store.orders.find((o) => o.id === orderId || o.order_number === orderId)
+    if (!order) throw new Error('Order not found.')
+    if (deliveryStatus) order.delivery_status = deliveryStatus
+    if (status) order.status = status
+    if (deliveryStatus === 'Delivered' && !order.delivered_at) {
+      order.delivered_at = new Date().toISOString()
+      if (!status) order.status = 'Delivered'
+    }
+    return clone(order)
+  },
+
   async reviewReturn({ returnId, action, notes }) {
     if (hasLiveApi()) {
       return live(`/admin/returns/${returnId}/review/`, {
@@ -1299,13 +1325,31 @@ export const api = {
     await delay(700)
     const record = store.returns.find((r) => r.id === returnId)
     if (!record) throw new Error('Return not found.')
-    record.status = action === 'approve' ? 'approved' : 'rejected'
-    record.outcome = action === 'approve' ? 'legitimate_return' : 'confirmed_fraud'
+    
+    let label = 'Reviewed'
+    if (action === 'approve') {
+      record.status = 'approved'
+      record.outcome = 'legitimate_return'
+      label = 'Approved'
+    } else if (action === 'reject') {
+      record.status = 'rejected'
+      record.outcome = 'confirmed_fraud'
+      label = 'Rejected'
+    } else if (action === 'product_returned' || action === 'mark_returned') {
+      record.status = 'product_returned'
+      record.outcome = 'product_returned'
+      label = 'Product Returned'
+    } else if (action === 'refund_processed' || action === 'process_refund') {
+      record.status = 'refund_processed'
+      record.outcome = 'refund_processed'
+      label = 'Refund Processed'
+    }
+
     record.reviewed_by = session.merchant?.email || 'admin@returnguard.in'
     record.reviewed_at = new Date().toISOString()
     record.timeline = [
       ...(record.timeline || []),
-      { label: action === 'approve' ? 'Approved' : 'Rejected', at: new Date().toISOString() },
+      { label, at: new Date().toISOString() },
     ]
     store.auditLog.unshift({
       id: nextId('audit', store.auditLog),
@@ -1320,10 +1364,10 @@ export const api = {
     store.notifications.unshift({
       id: nextId('notif', store.notifications),
       user_id: record.user_id,
-      type: action === 'approve' ? 'return_approved' : 'return_rejected',
-      channel: action === 'approve' ? 'in_app' : 'sms',
-      title: action === 'approve' ? 'Return approved' : 'Return rejected',
-      body: `Your return for ${record.order_number} was ${action === 'approve' ? 'approved' : 'rejected'} after review.`,
+      type: `return_${record.status}`,
+      channel: 'in_app',
+      title: `Return ${label.toLowerCase()}`,
+      body: `Your return for ${record.order_number} is now ${label.toLowerCase()}.`,
       read: false,
       created_at: new Date().toISOString(),
     })

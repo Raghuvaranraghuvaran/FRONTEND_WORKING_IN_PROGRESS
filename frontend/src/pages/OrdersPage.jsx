@@ -20,7 +20,6 @@ export default function OrdersPage() {
   const handleDownloadInvoice = async (invoiceId) => {
     try {
       const result = await api.downloadInvoice(invoiceId)
-      // For mock mode, open the URL; for live mode, the API already triggers the download
       if (!result.downloaded && result.download_url) {
         window.open(result.download_url, '_blank')
       }
@@ -34,7 +33,6 @@ export default function OrdersPage() {
     setLoading(true)
     setError(null)
     
-    // Load orders and returns separately from coupons so a coupon failure doesn't break orders
     const ordersPromise = Promise.all([api.getShopperOrders(), api.getShopperReturns()])
     const couponsPromise = api.getAvailableCoupons().catch(() => [])
     
@@ -79,20 +77,20 @@ export default function OrdersPage() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Your activity</h1>
-        <p className="text-sm text-slate-500">Track orders, request returns, and check return status.</p>
+        <h1 className="text-2xl font-bold text-slate-900">Your Activity</h1>
+        <p className="text-sm text-slate-500">Track orders, initiate return requests, and monitor refunds.</p>
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
         <button
           onClick={() => setTab('orders')}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium ${tab === 'orders' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200'}`}
+          className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors cursor-pointer ${tab === 'orders' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'}`}
         >
           Orders ({orders.length})
         </button>
         <button
           onClick={() => setTab('returns')}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium ${tab === 'returns' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200'}`}
+          className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors cursor-pointer ${tab === 'returns' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'}`}
         >
           Returns ({returns.length})
         </button>
@@ -138,6 +136,7 @@ export default function OrdersPage() {
           </div>
         </div>
       )}
+
       {error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
           <p className="text-sm font-semibold text-red-800 mb-1">Error loading orders</p>
@@ -152,40 +151,48 @@ export default function OrdersPage() {
       ) : loading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-2xl bg-slate-200" />
+            <div key={i} className="h-28 animate-pulse rounded-2xl bg-slate-200" />
           ))}
         </div>
       ) : tab === 'orders' ? (
         orders.length === 0 ? (
           <EmptyState title="No orders yet" description="Your placed orders will appear here." />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {orders.map((order) => {
               const isDelivered =
                 order.delivery_status?.toLowerCase() === 'delivered' ||
                 order.status?.toLowerCase() === 'delivered'
+
               const existingReturn = returns.find(
-                (r) => r.order_id === order.id || r.order_number === order.order_number
+                (r) => String(r.order_id) === String(order.id) || r.order_number === order.order_number
               )
 
+              // Check 7 day return window
+              let isWindowExpired = false
+              if (order.delivered_at) {
+                const diffDays = (Date.now() - new Date(order.delivered_at).getTime()) / (1000 * 60 * 60 * 24)
+                if (diffDays > 7) isWindowExpired = true
+              }
+
               return (
-                <div key={order.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div key={order.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-2.5">
                         <h2 className="text-base font-bold text-slate-900">{order.order_number}</h2>
                         <RiskBadge tier={order.risk_tier} />
-                        <StatusBadge status={order.status} />
-                        <StatusBadge status={order.delivery_status} />
+                        <StatusBadge status={order.delivery_status || order.status} />
                         {order.payment_status && <StatusBadge status={order.payment_status} />}
                       </div>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {formatDate(order.created_at)} · {order.payment_method}
+                      <p className="mt-1.5 text-xs text-slate-500">
+                        Placed: {formatDate(order.created_at)} · Payment: {order.payment_method}
+                        {order.delivered_at && ` · Delivered: ${formatDate(order.delivered_at)}`}
                       </p>
                       {order.invoice && (
                         <button
                           onClick={() => handleDownloadInvoice(order.invoice.id)}
-                          className="mt-1 inline-block text-xs font-semibold text-indigo-600 hover:text-indigo-700 underline"
+                          className="mt-1.5 inline-block text-xs font-semibold text-indigo-600 hover:text-indigo-700 underline"
                         >
                           📄 Invoice {order.invoice.invoice_number}
                         </button>
@@ -213,19 +220,26 @@ export default function OrdersPage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
-                    {/* Return button: ONLY shown after delivery is completed */}
+                  <div className="mt-4 flex flex-wrap items-center gap-2.5 pt-3 border-t border-slate-100">
+                    {/* Return button logic */}
                     {existingReturn ? (
-                      <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 border border-slate-200">
-                        Return {existingReturn.status === 'manual_review' ? 'Under Review' : existingReturn.status}
+                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 border border-indigo-200">
+                        <span>↩ Return:</span>
+                        <span className="capitalize">{existingReturn.status?.replace('_', ' ')}</span>
                       </span>
                     ) : isDelivered ? (
-                      <Link
-                        to={`/orders/${order.id}/return`}
-                        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors"
-                      >
-                        Request return
-                      </Link>
+                      isWindowExpired ? (
+                        <span className="text-xs text-slate-400 font-medium py-1">
+                          Return window expired (7 days)
+                        </span>
+                      ) : (
+                        <Link
+                          to={`/orders/${order.id}/return`}
+                          className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-500 transition-colors shadow-sm"
+                        >
+                          <span>↩ Return Order</span>
+                        </Link>
+                      )
                     ) : (
                       <span className="text-xs text-slate-400 font-medium py-1">
                         Return available once delivered
@@ -235,21 +249,21 @@ export default function OrdersPage() {
                     {/* Track Order button */}
                     <button
                       onClick={() => toggleTrackOrder(order.id)}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      className={`rounded-xl border px-3.5 py-2 text-xs font-semibold transition-colors cursor-pointer ${
                         activeTrackingId === order.id
                           ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
                           : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                       }`}
                     >
-                      {activeTrackingId === order.id ? 'Hide tracking' : 'Track order'}
+                      {activeTrackingId === order.id ? 'Hide Tracking' : 'Track Order'}
                     </button>
                   </div>
 
                   {/* Order-specific Tracking Timeline */}
                   {activeTrackingId === order.id && trackingOrderMap[order.id] && (
-                    <div className="mt-4 rounded-xl bg-slate-50 p-4 border border-slate-100 animate-fade-up">
-                      <p className="text-xs font-semibold text-slate-900 mb-2">Live Shipping Progress</p>
-                      <div className="space-y-2">
+                    <div className="mt-4 rounded-xl bg-slate-50 p-4 border border-slate-100">
+                      <p className="text-xs font-bold text-slate-900 mb-2.5">Live Delivery Timeline</p>
+                      <div className="space-y-2.5">
                         {trackingOrderMap[order.id].map((event, index) => (
                           <div key={index} className="flex items-center gap-2.5 text-xs">
                             <span
@@ -257,8 +271,8 @@ export default function OrdersPage() {
                                 event.done ? 'bg-emerald-500' : 'bg-slate-300'
                               }`}
                             />
-                            <span className="font-medium text-slate-700">{event.label}</span>
-                            <span className="text-slate-400">
+                            <span className="font-semibold text-slate-700">{event.label}</span>
+                            <span className="text-slate-400 ml-auto">
                               {event.at ? formatDateTime(event.at) : 'Pending'}
                             </span>
                           </div>
@@ -272,32 +286,47 @@ export default function OrdersPage() {
           </div>
         )
       ) : returns.length === 0 ? (
-        <EmptyState title="No return requests" description="Your return requests will appear here." />
+        <EmptyState title="No return requests" description="Your submitted return requests will appear here." />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {returns.map((record) => (
-            <div key={record.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+            <div key={record.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="font-mono text-xs font-bold text-indigo-600">#{record.id}</span>
                     <h2 className="text-base font-bold text-slate-900">Return for {record.order_number}</h2>
                     <RiskBadge tier={record.risk_tier} />
                     <StatusBadge status={record.status} />
                   </div>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {formatDate(record.created_at)} · {record.reason.replaceAll('_', ' ')}
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    Requested on {formatDate(record.created_at)} · Reason: <strong className="text-slate-700">{record.reason?.replaceAll('_', ' ')}</strong>
                   </p>
+                  {record.refund_method && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Refund Mode: <span className="font-semibold text-slate-700 capitalize">{record.refund_method?.replaceAll('_', ' ')}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <div className="mt-4 rounded-xl bg-slate-50 p-4">
-                <p className="text-xs font-semibold text-slate-900">Status timeline</p>
-                <div className="mt-2 space-y-2">
+              {/* Images preview if present */}
+              {record.images && record.images.length > 0 && (
+                <div className="mt-3 flex gap-2">
+                  {record.images.map((img, i) => (
+                    <img key={i} src={img} alt="Return proof" className="h-12 w-12 rounded-lg object-cover border border-slate-200" />
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-4 rounded-xl bg-slate-50 p-4 border border-slate-100">
+                <p className="text-xs font-bold text-slate-900 mb-2">Return Status & Pickup Progress</p>
+                <div className="space-y-2">
                   {(record.timeline || []).map((event, index) => (
-                    <div key={index} className="flex items-center gap-2 text-xs">
+                    <div key={index} className="flex items-center gap-2.5 text-xs">
                       <span className="h-2 w-2 rounded-full bg-indigo-500" />
                       <span className="font-medium text-slate-700">{event.label}</span>
-                      <span className="text-slate-400">{event.at ? formatDateTime(event.at) : 'Pending'}</span>
+                      <span className="text-slate-400 ml-auto">{event.at ? formatDateTime(event.at) : 'Pending'}</span>
                     </div>
                   ))}
                 </div>

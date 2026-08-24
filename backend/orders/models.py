@@ -9,6 +9,13 @@ class Order(TimestampedModel):
         ("Active", "Active"),
         ("Review", "Review"),
         ("Confirmed", "Confirmed"),
+        ("Delivered", "Delivered"),
+        ("Return Requested", "Return Requested"),
+        ("Return Approved", "Return Approved"),
+        ("Return Rejected", "Return Rejected"),
+        ("Product Returned", "Product Returned"),
+        ("Refund Processed", "Refund Processed"),
+        ("Cancelled", "Cancelled"),
     )
     DELIVERY_CHOICES = (
         ("Processing", "Processing"),
@@ -18,6 +25,11 @@ class Order(TimestampedModel):
         ("Payment rejected", "Payment rejected"),
         ("In Transit", "In Transit"),
         ("Delivered", "Delivered"),
+        ("Return Requested", "Return Requested"),
+        ("Return Approved", "Return Approved"),
+        ("Return Rejected", "Return Rejected"),
+        ("Product Returned", "Product Returned"),
+        ("Refund Processed", "Refund Processed"),
         ("Cancelled", "Cancelled"),
     )
     PAYMENT_METHOD_CHOICES = (
@@ -46,8 +58,9 @@ class Order(TimestampedModel):
     reward_points_earned = models.PositiveIntegerField(default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2)
     payment_method = models.CharField(max_length=16, choices=PAYMENT_METHOD_CHOICES, default="COD")
-    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default="Pending")
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default="Pending")
     delivery_status = models.CharField(max_length=32, choices=DELIVERY_CHOICES, default="Processing")
+    delivered_at = models.DateTimeField(null=True, blank=True)
     risk_tier = models.CharField(max_length=16, default="Low")
     verification_status = models.CharField(max_length=16, default="Verified")
     verification_method = models.CharField(max_length=16, default="device_only")

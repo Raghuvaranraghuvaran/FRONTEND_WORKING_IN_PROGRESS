@@ -6,6 +6,7 @@ from . import views
 urlpatterns = [
     path("dashboard/", views.MerchantDashboardView.as_view(), name="admin-dashboard"),
     path("orders/", views.MerchantOrdersView.as_view(), name="admin-orders"),
+    path("orders/<str:order_id>/status/", views.UpdateOrderStatusView.as_view(), name="admin-order-status"),
     path("customers/", views.MerchantCustomersView.as_view(), name="admin-customers"),
     path("customers/<str:customer_id>/", views.CustomerRiskProfileView.as_view(), name="admin-customer-profile"),
     path("flagged-cases/", views.MerchantFlaggedCasesView.as_view(), name="admin-flagged-cases"),
