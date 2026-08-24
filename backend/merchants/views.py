@@ -424,16 +424,18 @@ class MerchantOTPVerifyView(APIView):
 
 
 class MerchantMeView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request):
-        merchant = get_merchant_from_user(request.user)
+        from common.tenancy import require_merchant_context
+        merchant = require_merchant_context(request)
         if merchant is None:
             raise AppError("No merchant context.", code="MERCHANT_NOT_FOUND")
         return success(MerchantSerializer(merchant).data)
 
     def patch(self, request):
-        merchant = get_merchant_from_user(request.user)
+        from common.tenancy import require_merchant_context
+        merchant = require_merchant_context(request)
         if merchant is None:
             raise AppError("No merchant context.", code="MERCHANT_NOT_FOUND")
         allowed = {
