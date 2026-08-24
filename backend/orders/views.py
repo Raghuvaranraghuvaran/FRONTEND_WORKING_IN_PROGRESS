@@ -17,9 +17,31 @@ User = get_user_model()
 
 
 def _resolve_shopper(request):
+    user = None
     if request.user and request.user.is_authenticated:
-        return request.user
-    return User.objects.filter(role="shopper").first() or User.objects.first()
+        user = request.user
+    if user is None:
+        user = User.objects.filter(role=User.ROLE_SHOPPER).first() or User.objects.filter(email__iexact="demo@shopper.com").first()
+    if user is None:
+        user = User.objects.create_user(
+            email="demo@shopper.com",
+            name="Demo Shopper",
+            password="demo123",
+            role=User.ROLE_SHOPPER,
+        )
+    
+    # Guarantee ShopperProfile exists
+    from accounts.models import ShopperProfile
+    ShopperProfile.objects.get_or_create(
+        user=user,
+        defaults={
+            "customer_id": f"CUST-{user.id + 1000}",
+            "total_orders": 0,
+            "total_returns": 0,
+            "reward_points": 1000,
+        }
+    )
+    return user
 
 
 class CheckoutView(APIView):

@@ -37,8 +37,18 @@ class CheckoutService:
             address: Delivery address
             phone: Customer contact phone
             device_token: Device fingerprint
-        """
         shopper = getattr(user, "shopper_profile", None)
+        if shopper is None and user is not None:
+            from accounts.models import ShopperProfile
+            shopper, _ = ShopperProfile.objects.get_or_create(
+                user=user,
+                defaults={
+                    "customer_id": f"CUST-{user.id + 1000}",
+                    "total_orders": 0,
+                    "total_returns": 0,
+                    "reward_points": 1000,
+                }
+            )
 
         # Prioritize explicit phone argument, otherwise extract from address string
         import re
