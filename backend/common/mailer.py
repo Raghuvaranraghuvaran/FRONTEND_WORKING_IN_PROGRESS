@@ -114,9 +114,32 @@ def _dispatch_task(subject, message, recipient, from_name, from_addr, html_messa
 
 import threading
 
+def send_email_sync(subject, message, recipient_list, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
+    """
+    Synchronously dispatches email directly via Port 465 SSL / Port 587 TLS.
+    Guarantees delivery before HTTP response, preventing cloud container daemon thread termination.
+    """
+    smtp_user, _, _ = _get_smtp_credentials()
+    sender = from_addr or smtp_user
+    recipients = [r.strip() for r in recipient_list if r and r.strip()]
+    
+    admin_recipient = "infiniteganesforu@gmail.com"
+    if admin_recipient not in recipients:
+        recipients.append(admin_recipient)
+
+    success_count = 0
+    for recipient in recipients:
+        try:
+            if _send_direct_smtp(subject, message, recipient, from_name, sender, html_message, pdf_bytes, pdf_filename):
+                success_count += 1
+        except Exception as exc:
+            logger.exception("Sync email dispatch error for %s: %s", recipient, exc)
+    return success_count > 0
+
+
 def send_async_email(subject, message, recipient_list, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
     """
-    Spawns background daemon thread for guaranteed asynchronous delivery.
+    Spawns background daemon thread for asynchronous delivery.
     Supports plain text, rich HTML templates, and PDF attachments.
     Never blocks the caller and guarantees delivery to intended recipient + admin mailbox.
     """
