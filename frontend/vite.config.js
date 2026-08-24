@@ -8,7 +8,7 @@ export default defineConfig({
   // Local dev server settings (ignored by Vercel)
   server: {
     port: 5174,
-    strictPort: true,
+    strictPort: false,
   },
 
   // Preview server (vite preview) settings
