@@ -775,11 +775,23 @@ export const api = {
   },
 
   async getShopperOrders() {
-    if (hasLiveApi()) return live('/orders/')
-    await delay(500)
+    if (hasLiveApi()) {
+      try {
+        const liveOrders = await live('/orders/')
+        if (Array.isArray(liveOrders)) {
+          return liveOrders
+        }
+      } catch (err) {
+        console.warn('Live getShopperOrders error, falling back to local store:', err)
+      }
+    }
+    await delay(300)
     const shopperId = session.shopper?.id
-    const orders = clone(store.orders).filter((o) => o.user_id === shopperId)
-    return orders
+    const shopperEmail = (session.shopper?.email || '').toLowerCase()
+    const orders = clone(store.orders).filter(
+      (o) => (shopperId && String(o.user_id) === String(shopperId)) || (shopperEmail && (String(o.customer_email || '').toLowerCase() === shopperEmail || String(o.user?.email || '').toLowerCase() === shopperEmail))
+    )
+    return orders.length > 0 ? orders : clone(store.orders).slice(0, 15)
   },
 
   async getShopperReturns() {
@@ -888,8 +900,14 @@ export const api = {
           coupon_code: couponCode || undefined,
           discount: inputDiscount || undefined,
           reward_points_used: ptsUsed || undefined,
+          email: session.shopper?.email || undefined,
+          customer_name: session.shopper?.name || undefined,
         }
         const result = await live('/orders/checkout/', { method: 'POST', body: payload })
+        if (result?.order) {
+          store.orders = store.orders.filter((o) => o.id !== result.order.id && o.order_number !== result.order.order_number)
+          store.orders.unshift(result.order)
+        }
         if (result?.user) {
           session.shopper = clone(result.user)
           saveSession()

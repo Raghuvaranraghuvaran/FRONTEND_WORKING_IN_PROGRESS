@@ -10,14 +10,7 @@ import {
   loadGoogleIdentityServices,
 } from '../lib/google'
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
-function IconMail() {
-  return (
-    <svg style={{ width: 15, height: 15, flexShrink: 0, color: '#6b7280' }} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-      <rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" />
-    </svg>
-  )
-}
+
 function IconLock() {
   return (
     <svg style={{ width: 15, height: 15, flexShrink: 0, color: '#6b7280' }} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
@@ -53,7 +46,8 @@ export default function LoginPage() {
   const { setShopper } = useApp()
 
   const [activeTab, setActiveTab] = useState('pw')
-  const [form, setForm] = useState({ email: 'demo@shopper.com', password: 'demo123' })
+  const [form, setForm] = useState({ email: '', password: '' })
+  const [otpEmail, setOtpEmail] = useState('')
   const [remember, setRemember] = useState(true)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -94,7 +88,9 @@ export default function LoginPage() {
   const sendOTP = async () => {
     setError(''); setSubmitting(true)
     try {
-      const r = await api.requestLoginOTP(form.email)
+      const clean = otpEmail.trim()
+      if (!clean) { setError('Please enter your email address.'); setSubmitting(false); return }
+      const r = await api.requestLoginOTP(clean)
       if (r?.challenge_id) setOtpChallengeId(r.challenge_id)
       setOtpCode('')
       setOtpSent(true)
@@ -105,14 +101,15 @@ export default function LoginPage() {
   const verifyOTP = async (e) => {
     e.preventDefault(); setError(''); setSubmitting(true)
     try {
-      const s = await api.verifyLoginOTP({ email: form.email, challengeId: otpChallengeId, code: otpCode })
+      const clean = otpEmail.trim()
+      const s = await api.verifyLoginOTP({ email: clean, challengeId: otpChallengeId, code: otpCode })
       setShopper(s); navigate('/shop')
     } catch (e) { setError(e.message) }
     finally { setSubmitting(false) }
   }
 
   const switchTab = (t) => {
-    setActiveTab(t); setError(''); setOtpSent(false); setOtpCode(''); setOtpChallengeId(null)
+    setActiveTab(t); setError(''); setOtpSent(false); setOtpCode(''); setOtpChallengeId(null); setOtpEmail('')
   }
 
   const openForgot = () => {
@@ -152,11 +149,48 @@ export default function LoginPage() {
     <>
       <style>{`
         @keyframes rg-spin { to { transform: rotate(360deg); } }
-        .rg-field:focus-within { border-color: ${A} !important; box-shadow: 0 0 0 3px ${A}22; }
-        .rg-input { border: none !important; outline: none !important; box-shadow: none !important; background: transparent !important; }
-        .rg-input:focus, .rg-input:active, .rg-input:focus-visible { border: none !important; outline: none !important; box-shadow: none !important; }
-        .rg-input::placeholder { color: #9ca3af; }
+        .rg-field {
+          width: 100% !important;
+          min-width: 100% !important;
+          max-width: 100% !important;
+          height: 46px !important;
+          padding: 0 14px !important;
+          background: #ffffff !important;
+          border: 1.5px solid rgba(0,0,0,0.14) !important;
+          border-radius: 10px !important;
+          box-sizing: border-box !important;
+          display: flex !important;
+          align-items: center !important;
+          margin-bottom: 16px !important;
+          position: relative !important;
+          overflow: hidden !important;
+          transition: border-color .15s, box-shadow .15s !important;
+        }
+        .rg-field:focus-within {
+          border-color: ${A} !important;
+          box-shadow: 0 0 0 3px ${A}22 !important;
+        }
+        .rg-input {
+          width: 100% !important;
+          min-width: 0 !important;
+          flex: 1 1 auto !important;
+          height: 100% !important;
+          border: none !important;
+          outline: none !important;
+          box-shadow: none !important;
+          background: transparent !important;
+          font-size: 14px !important;
+          font-weight: 500 !important;
+          color: #0f172a !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          box-sizing: border-box !important;
+          font-family: inherit !important;
+        }
+        .rg-input::placeholder { color: #9ca3af !important; }
         .rg-tab-btn:hover { background: rgba(111,92,240,0.12) !important; }
+        .rg-field, .rg-field * { background-image: none !important; }
+        .rg-field > *:not(input):not(button):not(svg) { display: none !important; visibility: hidden !important; }
       `}</style>
 
       {/* ── Full-screen background image ──────────────────────────────────── */}
@@ -235,7 +269,6 @@ export default function LoginPage() {
                     </p>
                     <label style={lbl}>Email Address</label>
                     <div className="rg-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 18 }}>
-                      <IconMail />
                       <input
                         className="rg-input"
                         type="email"
@@ -347,42 +380,18 @@ export default function LoginPage() {
               )}
             </AnimatePresence>
 
-            {/* Quick Demo Shopper Selector */}
-            <div style={{ background: 'rgba(111,92,240,0.06)', border: '1px solid rgba(111,92,240,0.18)', borderRadius: 12, padding: '10px 12px', marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: A, textTransform: 'uppercase', letterSpacing: '0.04em' }}>✨ Demo Shopper Pre-Filled</span>
-                <span style={{ fontSize: 10.5, color: '#6b7280', fontWeight: 600 }}>Default Ready</span>
-              </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={() => setForm({ email: 'demo@shopper.com', password: 'demo123' })}
-                  style={{ background: form.email === 'demo@shopper.com' ? A : '#fff', color: form.email === 'demo@shopper.com' ? '#fff' : '#4b5563', border: `1px solid ${form.email === 'demo@shopper.com' ? A : 'rgba(0,0,0,0.12)'}`, borderRadius: 8, padding: '4px 8px', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}
-                >
-                  👤 demo@shopper.com (demo123)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setForm({ email: 'ananya.sharma@example.com', password: 'demo123' })}
-                  style={{ background: form.email === 'ananya.sharma@example.com' ? A : '#fff', color: form.email === 'ananya.sharma@example.com' ? '#fff' : '#4b5563', border: `1px solid ${form.email === 'ananya.sharma@example.com' ? A : 'rgba(0,0,0,0.12)'}`, borderRadius: 8, padding: '4px 8px', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}
-                >
-                  🌟 ananya.sharma@example.com
-                </button>
-              </div>
-            </div>
+
 
             {/* ── Password tab ─────────────────────────────────────────── */}
             {activeTab === 'pw' && (
               <form onSubmit={submitPassword}>
                 <label style={lbl}>Email Address</label>
-                <div className="rg-field" style={{ ...field, borderColor: focusedField === 'email' ? A : 'rgba(0,0,0,0.12)' }}>
-                  <IconMail />
+                <div className="rg-field" style={{ borderColor: focusedField === 'email' ? A : 'rgba(0,0,0,0.14)', boxShadow: focusedField === 'email' ? `0 0 0 3px ${A}22` : 'none' }}>
                   <input
                     className="rg-input"
-                    type="text"
-                    inputMode="email"
+                    type="email"
                     name="auth_user_login"
-                    autoComplete="off"
+                    autoComplete="username"
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck="false"
@@ -390,6 +399,7 @@ export default function LoginPage() {
                     data-form-type="other"
                     data-1p-ignore="true"
                     data-tempmail-ignore="true"
+                    data-bwignore="true"
                     data-disable-tempmail="true"
                     required
                     placeholder="you@example.com"
@@ -397,7 +407,6 @@ export default function LoginPage() {
                     onChange={e => setForm({ ...form, email: e.target.value })}
                     onFocus={() => setFocusedField('email')}
                     onBlur={() => setFocusedField('')}
-                    style={inp}
                   />
                 </div>
 
@@ -405,7 +414,21 @@ export default function LoginPage() {
                   <label style={{ ...lbl, margin: 0 }}>Password</label>
                   <a href="#" onClick={(e) => { e.preventDefault(); openForgot() }} style={{ fontSize: 12, color: A, textDecoration: 'none', fontWeight: 500 }}>Forgot password?</a>
                 </div>
-                <div className="rg-field" style={{ ...field, borderColor: focusedField === 'pw' ? A : 'rgba(0,0,0,0.12)' }}>
+                <div className="rg-field" style={{
+                  width: '100%',
+                  height: '46px',
+                  padding: '0 14px',
+                  background: '#ffffff',
+                  border: `1.5px solid ${focusedField === 'pw' ? A : 'rgba(0,0,0,0.14)'}`,
+                  borderRadius: '10px',
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '16px',
+                  boxShadow: focusedField === 'pw' ? `0 0 0 3px ${A}22` : 'none',
+                  transition: 'border-color .15s, box-shadow .15s',
+                }}>
                   <IconLock />
                   <input
                     className="rg-input"
@@ -418,7 +441,16 @@ export default function LoginPage() {
                     onChange={e => setForm({ ...form, password: e.target.value })}
                     onFocus={() => setFocusedField('pw')}
                     onBlur={() => setFocusedField('')}
-                    style={inp}
+                    style={{
+                      border: 'none',
+                      outline: 'none',
+                      background: 'transparent',
+                      color: '#0f172a',
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      width: '100%',
+                      padding: 0,
+                    }}
                   />
                 </div>
 
@@ -442,13 +474,13 @@ export default function LoginPage() {
                   <label style={{ ...lbl, marginBottom: 0 }}>Email Address</label>
                   <span style={{ fontSize: 11.5, color: '#6b7280' }}>Passwordless login</span>
                 </div>
-                <div className="rg-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 18 }}>
-                  <IconMail />
+                <div className="rg-field" style={{ borderColor: focusedField === 'otp_email' ? A : 'rgba(0,0,0,0.14)', boxShadow: focusedField === 'otp_email' ? `0 0 0 3px ${A}22` : 'none', marginBottom: 18 }}>
                   <input
                     className="rg-input"
                     type="text"
                     inputMode="email"
-                    name="auth_otp_recipient"
+                    name="rg_clean_otp_email"
+                    id="rg_clean_otp_email"
                     autoComplete="off"
                     autoCapitalize="none"
                     autoCorrect="off"
@@ -457,17 +489,20 @@ export default function LoginPage() {
                     data-form-type="other"
                     data-1p-ignore="true"
                     data-tempmail-ignore="true"
+                    data-dashlane-ignore="true"
+                    data-bwignore="true"
                     data-disable-tempmail="true"
                     required
                     placeholder="Enter your email address"
-                    value={form.email}
-                    onChange={e => setForm({ ...form, email: e.target.value })}
-                    style={inp}
+                    value={otpEmail}
+                    onChange={e => setOtpEmail(e.target.value)}
+                    onFocus={() => setFocusedField('otp_email')}
+                    onBlur={() => setFocusedField('')}
                   />
                 </div>
-                <motion.button type="button" disabled={submitting || !form.email} onClick={sendOTP}
+                <motion.button type="button" disabled={submitting || !otpEmail.trim()} onClick={sendOTP}
                   whileHover={{ scale: submitting ? 1 : 1.02 }} whileTap={{ scale: 0.97 }}
-                  style={{ ...btn(A), opacity: (!form.email || submitting) ? 0.6 : 1, marginBottom: 0 }}>
+                  style={{ ...btn(A), opacity: (!otpEmail.trim() || submitting) ? 0.6 : 1, marginBottom: 0 }}>
                   {submitting ? <><Spinner /> Sending code…</> : 'Send one-time code'}
                 </motion.button>
               </div>
@@ -484,9 +519,21 @@ export default function LoginPage() {
                   </button>
                 </div>
                 <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 12px', margin: '0 0 16px', fontSize: 12, color: '#475569', lineHeight: 1.4 }}>
-                  ✉️ 6-digit verification code sent to <strong style={{ color: '#0f172a' }}>{form.email}</strong>.
+                  ✉️ 6-digit verification code sent to <strong style={{ color: '#0f172a' }}>{otpEmail}</strong>.
                 </div>
-                <div className="rg-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 16 }}>
+                <div className="rg-field" style={{
+                  width: '100%',
+                  height: '46px',
+                  background: '#ffffff',
+                  border: '1.5px solid rgba(0,0,0,0.14)',
+                  borderRadius: '10px',
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '16px',
+                  overflow: 'hidden',
+                }}>
                   <input
                     className="rg-input"
                     type="text"
@@ -507,7 +554,18 @@ export default function LoginPage() {
                     placeholder="• • • • • •"
                     value={otpCode}
                     onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                    style={{ ...inp, letterSpacing: '0.35em', textAlign: 'center', fontSize: 18, fontWeight: 700 }}
+                    style={{
+                      border: 'none',
+                      outline: 'none',
+                      background: 'transparent',
+                      color: '#0f172a',
+                      letterSpacing: '0.35em',
+                      textAlign: 'center',
+                      fontSize: '18px',
+                      fontWeight: 700,
+                      width: '100%',
+                      padding: 0,
+                    }}
                   />
                 </div>
                 <motion.button type="submit" disabled={submitting || otpCode.length < 6}
@@ -565,23 +623,25 @@ export default function LoginPage() {
 const lbl = { display: 'block', fontSize: 12.5, marginBottom: 6, color: '#374151', fontWeight: 500 }
 const field = {
   display: 'flex', alignItems: 'center', gap: 8,
-  background: 'rgba(255,255,255,0.75)', border: '1.5px solid rgba(0,0,0,0.12)',
-  borderRadius: 9, padding: '10px 12px', marginBottom: 14,
+  background: '#ffffff', border: '1.5px solid rgba(0,0,0,0.14)',
+  borderRadius: 10, padding: '0 14px', marginBottom: 14,
+  height: 46, boxSizing: 'border-box',
+  position: 'relative', overflow: 'hidden',
   transition: 'border-color .15s, box-shadow .15s',
 }
 const inp = {
   background: 'transparent', border: 'none', outline: 'none',
-  color: '#111827', fontSize: 13.5, width: '100%',
+  color: '#0f172a', fontSize: 14, width: '100%',
 }
 const btn = (bg) => ({
-  width: '100%', border: 'none', padding: '12px 0', borderRadius: 10,
+  width: '100%', height: 46, border: 'none', padding: '0', borderRadius: 10,
   fontSize: 14, fontWeight: 600, color: '#fff', cursor: 'pointer', background: bg,
   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-  marginBottom: 14, boxShadow: `0 4px 14px ${bg}55`,
+  marginBottom: 14, boxShadow: `0 4px 14px ${bg}55`, boxSizing: 'border-box',
 })
 const googleButton = {
-  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-  background: 'rgba(255,255,255,0.8)', border: '1.5px solid rgba(0,0,0,0.12)',
-  padding: '10px 0', borderRadius: 10, color: '#374151', fontSize: 13,
+  width: '100%', height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+  background: 'rgba(255,255,255,0.8)', border: '1.5px solid rgba(0,0,0,0.14)',
+  borderRadius: 10, color: '#374151', fontSize: 13, boxSizing: 'border-box',
   cursor: 'pointer', fontWeight: 500,
 }
