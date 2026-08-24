@@ -21,6 +21,8 @@ class ShopperSerializer(serializers.ModelSerializer):
     total_cod_refusals = serializers.SerializerMethodField()
     reward_points = serializers.SerializerMethodField()
     risk_tier = serializers.SerializerMethodField()
+    gender = serializers.SerializerMethodField()
+    profile_photo = serializers.SerializerMethodField()
     device_reuse_flag = serializers.SerializerMethodField()
     joined_at = serializers.SerializerMethodField()
 
@@ -57,6 +59,14 @@ class ShopperSerializer(serializers.ModelSerializer):
         p = self._get_profile(obj)
         return p.reward_points if p and hasattr(p, "reward_points") else 1000
 
+    def get_gender(self, obj):
+        p = self._get_profile(obj)
+        return p.gender if p and hasattr(p, "gender") and p.gender else "Male"
+
+    def get_profile_photo(self, obj):
+        p = self._get_profile(obj)
+        return p.profile_photo if p and hasattr(p, "profile_photo") else ""
+
     def get_risk_tier(self, obj):
         p = self._get_profile(obj)
         return p.risk_tier if p else "Low"
@@ -76,6 +86,8 @@ class ShopperSerializer(serializers.ModelSerializer):
             "email",
             "name",
             "phone",
+            "gender",
+            "profile_photo",
             "role",
             "addresses",
             "customer_id",

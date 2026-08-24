@@ -55,6 +55,8 @@ class ShopperProfile(models.Model):
     high_value_cod_count = models.PositiveIntegerField(default=0)
     address_mismatch_count = models.PositiveIntegerField(default=0)
     reward_points = models.PositiveIntegerField(default=1000)
+    gender = models.CharField(max_length=32, blank=True, default="Male")
+    profile_photo = models.TextField(blank=True, default="")
     risk_tier = models.CharField(max_length=16, default="Low")
     device_reuse_flag = models.BooleanField(default=False)
     joined_at = models.DateTimeField(auto_now_add=True)

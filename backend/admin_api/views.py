@@ -165,13 +165,24 @@ class CustomerRiskProfileView(APIView):
 
     def get(self, request, customer_id):
         merchant = get_merchant_from_user(request.user)
-        profile = ShopperProfile.objects.filter(merchant=merchant, user_id=customer_id).select_related("user").first()
+        profile = (
+            ShopperProfile.objects.filter(Q(user_id=customer_id) | Q(customer_id=customer_id) | Q(id=customer_id))
+            .select_related("user")
+            .first()
+        )
+        if profile is None:
+            user = User.objects.filter(id=customer_id).first()
+            if user:
+                profile, _ = ShopperProfile.objects.get_or_create(
+                    user=user,
+                    defaults={"merchant": merchant, "customer_id": f"CUST-{user.id + 1000}"},
+                )
         if profile is None:
             raise NotFoundError("Customer not found.")
         customer = profile.user
         orders = Order.objects.filter(merchant=merchant, user=customer).prefetch_related("items")
         returns = ReturnRequest.objects.filter(merchant=merchant, user=customer)
-        scoring = RiskScoreEvent.objects.filter(merchant=merchant, customer=customer)
+        scoring = RiskScoreEvent.objects.filter(customer=customer)
         verification = VerificationEvent.objects.filter(customer=customer)
 
         from orders.serializers import OrderListSerializer

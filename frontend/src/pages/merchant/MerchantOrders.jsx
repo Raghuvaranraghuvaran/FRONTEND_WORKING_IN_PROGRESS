@@ -34,7 +34,8 @@ export default function MerchantOrders() {
 
   const filtered = orders.filter((order) => {
     if (filter === 'All') return true
-    if (filter === 'COD' || filter === 'Prepaid') return order.payment_method === filter
+    if (filter === 'COD') return order.payment_method === 'COD'
+    if (filter === 'Prepaid') return order.payment_method !== 'COD'
     if (filter === 'Flagged') return order.risk_tier === 'High' || order.status === 'Review'
     return true
   })

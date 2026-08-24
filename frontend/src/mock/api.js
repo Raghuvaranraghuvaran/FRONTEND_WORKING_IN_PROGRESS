@@ -713,14 +713,27 @@ export const api = {
   },
 
   async updateProfile(patch) {
-    if (hasLiveApi()) return live('/auth/me/', { method: 'PATCH', body: patch })
+    if (hasLiveApi()) {
+      const updated = await live('/auth/me/', { method: 'PATCH', body: patch })
+      const merged = { ...session.shopper, ...updated }
+      session.shopper = clone(merged)
+      saveSession()
+      return merged
+    }
     await delay(500)
-    const shopper = findShopperByEmail(session.shopper.email)
-    if (!shopper) throw new Error('Not authenticated.')
-    Object.assign(shopper, patch)
-    session.shopper = clone(shopper)
-    saveSession()
-    return clone(shopper)
+    const shopper = findShopperByEmail(session.shopper?.email)
+    if (shopper) {
+      Object.assign(shopper, patch)
+      session.shopper = clone(shopper)
+      saveSession()
+      return clone(shopper)
+    }
+    if (session.shopper) {
+      Object.assign(session.shopper, patch)
+      saveSession()
+      return clone(session.shopper)
+    }
+    throw new Error('Not authenticated.')
   },
 
   async addAddress({ label, line }) {

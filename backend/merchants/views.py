@@ -287,6 +287,16 @@ class MerchantLoginView(APIView):
                 user.save()
 
             MerchantProfile.objects.get_or_create(user=user, defaults={"merchant": merchant})
+            
+            # Ensure demo dataset is populated if empty
+            from orders.models import Order
+            if Order.objects.filter(merchant=merchant).count() == 0:
+                from django.core.management import call_command
+                try:
+                    call_command("seed_demo")
+                except Exception:
+                    pass
+
             return success(merchant_login_payload(user))
 
         # Find user by merchant_username

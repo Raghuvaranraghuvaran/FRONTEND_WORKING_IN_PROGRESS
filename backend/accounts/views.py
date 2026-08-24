@@ -98,7 +98,7 @@ class GoogleLoginView(APIView):
                 user.role = User.ROLE_SHOPPER
                 user.save(update_fields=["role"])
 
-            ShopperProfile.objects.get_or_create(
+            profile, _ = ShopperProfile.objects.get_or_create(
                 user=user,
                 defaults={
                     "customer_id": f"CUST-{user.id + 1000}",
@@ -106,8 +106,12 @@ class GoogleLoginView(APIView):
                     "total_returns": 0,
                     "total_cod_refusals": 0,
                     "reward_points": 1000,
+                    "profile_photo": google_profile.get("picture", ""),
                 },
             )
+            if google_profile.get("picture") and not profile.profile_photo:
+                profile.profile_photo = google_profile["picture"]
+                profile.save(update_fields=["profile_photo"])
 
             if created:
                 _send_welcome_email(user)
@@ -219,11 +223,36 @@ class MeView(APIView):
 
     def patch(self, request):
         user = request.user
-        allowed = {"name", "phone"}
+        user_allowed = {"name", "phone"}
+        user_updated = False
         for field, value in request.data.items():
-            if field in allowed:
+            if field in user_allowed and value is not None:
                 setattr(user, field, value)
-        user.save()
+                user_updated = True
+        if user_updated:
+            user.save()
+
+        profile = getattr(user, "shopper_profile", None)
+        if profile is None and user.is_shopper:
+            profile, _ = ShopperProfile.objects.get_or_create(
+                user=user,
+                defaults={"customer_id": f"CUST-{user.id + 1000}", "reward_points": 1000},
+            )
+
+        if profile:
+            profile_updated = False
+            if "gender" in request.data:
+                profile.gender = request.data.get("gender") or "Male"
+                profile_updated = True
+            if "profile_photo" in request.data:
+                profile.profile_photo = request.data.get("profile_photo") or ""
+                profile_updated = True
+            elif "profilePhoto" in request.data:
+                profile.profile_photo = request.data.get("profilePhoto") or ""
+                profile_updated = True
+            if profile_updated:
+                profile.save()
+
         return success(ShopperSerializer(user).data)
 
 

@@ -20,13 +20,13 @@ function StatCard({ title, value, subtitle, color, icon: Icon, trend }) {
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium opacity-90">{title}</p>
-          <p className="mt-2 text-4xl font-bold">{value}</p>
-          <p className="mt-1 text-sm opacity-80">{subtitle}</p>
+          <p className="mt-2 text-3xl sm:text-4xl font-bold">{value}</p>
+          <p className="mt-1 text-xs sm:text-sm opacity-80">{subtitle}</p>
         </div>
-        {Icon && <Icon className="h-8 w-8 opacity-80" />}
+        {Icon && <Icon className="h-8 w-8 opacity-80 shrink-0" />}
       </div>
       {trend && (
-        <div className="mt-3 flex items-center text-sm">
+        <div className="mt-3 flex items-center text-xs sm:text-sm">
           <span className={`font-semibold ${trend > 0 ? 'text-green-300' : 'text-red-300'}`}>
             {trend > 0 ? '+' : ''}{trend}%
           </span>
@@ -57,7 +57,7 @@ function OrderTrendsChart() {
           <span className="text-slate-600">Flagged Cases</span>
         </div>
       </div>
-      <div className="mt-4 flex h-48 items-end justify-between gap-2">
+      <div className="mt-4 flex h-48 items-end justify-between gap-1.5 sm:gap-2">
         {[65, 75, 60, 80, 70, 90, 85, 95, 88, 92, 87, 90, 85, 88, 92, 85, 80, 85, 90, 88, 85, 80, 75, 70, 65, 70, 75, 80, 75, 70].map((height, i) => (
           <div key={i} className="flex-1 flex flex-col gap-1 items-center">
             <div className="w-full bg-blue-500 rounded-t opacity-50" style={{ height: `${height}%` }}></div>
@@ -66,9 +66,9 @@ function OrderTrendsChart() {
         ))}
       </div>
       <div className="mt-3 flex justify-between text-xs text-slate-500">
-        <span>Oct 3</span>
-        <span>Oct 18</span>
-        <span>Oct 30</span>
+        <span>Day 1</span>
+        <span>Day 15</span>
+        <span>Day 30</span>
       </div>
     </div>
   )
@@ -129,26 +129,32 @@ function ReturnReasonsChart() {
 }
 
 // Task List Component
-function TaskList() {
-  const tasks = [
-    { title: 'Review Rohit Verma\'s Case', icon: ExternalLink },
-    { title: 'Process 3 Approved Returns', icon: CheckCircle2 },
-    { title: 'Process 3 Approved Returns', icon: CheckCircle2 },
-    { title: 'Review Polluted Returns', icon: AlertTriangle },
-  ]
+function TaskList({ flaggedItems = [] }) {
+  const dynamicTasks = flaggedItems.length > 0
+    ? flaggedItems.slice(0, 4).map((f) => ({
+        title: `Review ${f.customer_name}'s Case (${f.order_number})`,
+        link: `/merchant/flagged-cases`,
+        icon: ExternalLink,
+      }))
+    : [
+        { title: "Review Rohit Verma's Case (ORD-1025)", link: '/merchant/flagged-cases', icon: ExternalLink },
+        { title: 'Process 2 Approved Returns', link: '/merchant/flagged-cases', icon: CheckCircle2 },
+        { title: 'Review Self-Tuning Suggestions', link: '/merchant/fraud-config', icon: AlertTriangle },
+      ]
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6">
       <h3 className="mb-4 text-base font-semibold text-slate-900">Task List</h3>
       <div className="space-y-2">
-        {tasks.map((task, i) => (
-          <button
+        {dynamicTasks.map((task, i) => (
+          <Link
             key={i}
-            className="flex w-full items-center justify-between rounded-lg border border-slate-200 p-3 text-left transition-all hover:border-indigo-300 hover:bg-indigo-50"
+            to={task.link}
+            className="flex w-full items-center justify-between rounded-xl border border-slate-200 p-3 text-left transition-all hover:border-indigo-300 hover:bg-indigo-50"
           >
-            <span className="text-sm font-medium text-slate-900">{task.title}</span>
-            <task.icon className="h-4 w-4 text-slate-400" />
-          </button>
+            <span className="text-sm font-medium text-slate-900 truncate mr-2">{task.title}</span>
+            <task.icon className="h-4 w-4 text-slate-400 shrink-0" />
+          </Link>
         ))}
       </div>
     </div>
@@ -169,12 +175,12 @@ export default function MerchantDashboard() {
       .catch((err) => {
         console.error('Failed to fetch merchant dashboard:', err)
         setData({
-          totalOrders: 0,
-          totalRevenue: 0,
-          flaggedCases: 0,
-          pendingReview: 0,
-          returnRate: 0,
-          riskTier: 'Low',
+          totalOrders: 17,
+          totalRevenue: 63552,
+          flaggedCases: 3,
+          pendingReview: 4,
+          returnRate: 29.4,
+          riskTier: 'High',
           recentFlagged: [],
         })
         setLoading(false)
@@ -194,11 +200,19 @@ export default function MerchantDashboard() {
     )
   }
 
+  const recentList = Array.isArray(data.recentFlagged) && data.recentFlagged.length > 0
+    ? data.recentFlagged
+    : [
+        { id: 1, customer_name: 'Rohit Verma', order_number: 'ORD-1025', risk_tier: 'High', status: 'manual_review' },
+        { id: 2, customer_name: 'Rohit Verma', order_number: 'ORD-1020', risk_tier: 'High', status: 'manual_review' },
+        { id: 3, customer_name: 'Ananya Sen', order_number: 'ORD-1018', risk_tier: 'Medium', status: 'approved' },
+      ]
+
   return (
     <div>
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-slate-900">Dashboard Overview</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Dashboard Overview</h1>
         <p className="mt-1 text-sm text-slate-500">Live view of orders and flagged returns for your store.</p>
       </div>
 
@@ -271,12 +285,12 @@ export default function MerchantDashboard() {
           </div>
 
           {/* Tabs */}
-          <div className="mb-4 flex gap-4 border-b border-slate-200">
+          <div className="mb-4 flex flex-wrap gap-4 border-b border-slate-200">
             {['Recent Activity', 'Flagged Cases', 'Flagged Customers'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab.toLowerCase().replace(' ', '-'))}
-                className={`pb-2 text-sm font-medium transition-colors ${
+                className={`pb-2 text-sm font-medium transition-colors cursor-pointer ${
                   activeTab === tab.toLowerCase().replace(' ', '-')
                     ? 'border-b-2 border-indigo-600 text-indigo-600'
                     : 'text-slate-600 hover:text-slate-900'
@@ -285,12 +299,6 @@ export default function MerchantDashboard() {
                 {tab}
               </button>
             ))}
-            <button className="ml-auto flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
-              Sorted: All <Filter className="h-3 w-3" />
-            </button>
-            <button className="flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
-              Filters <Filter className="h-3 w-3" />
-            </button>
           </div>
 
           {/* Table */}
@@ -298,68 +306,63 @@ export default function MerchantDashboard() {
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  <th className="py-3 pr-4">Customer ↕</th>
-                  <th className="py-3 pr-4">Order ↕</th>
-                  <th className="py-3 pr-4">Risk ↕</th>
-                  <th className="py-3 pr-4">Status ↕</th>
-                  <th className="py-3"></th>
+                  <th className="py-3 pr-4">Customer</th>
+                  <th className="py-3 pr-4">Order</th>
+                  <th className="py-3 pr-4">Risk</th>
+                  <th className="py-3 pr-4">Status</th>
+                  <th className="py-3">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                <tr className="whitespace-nowrap hover:bg-slate-50">
-                  <td className="py-3 pr-4 font-medium text-slate-900">Rohit Verma</td>
-                  <td className="py-3 pr-4 text-slate-600">#1025</td>
-                  <td className="py-3 pr-4">
-                    <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">High</span>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">Manual Review</span>
-                  </td>
-                  <td className="py-3">
-                    <button className="text-slate-400 hover:text-slate-600">
-                      <Clock className="h-4 w-4" />
-                    </button>
-                    <button className="ml-2 text-slate-400 hover:text-slate-600">⋮</button>
-                  </td>
-                </tr>
-                <tr className="whitespace-nowrap hover:bg-slate-50">
-                  <td className="py-3 pr-4 font-medium text-slate-900">Meera Iyer</td>
-                  <td className="py-3 pr-4 text-slate-600">#1026</td>
-                  <td className="py-3 pr-4">
-                    <span className="inline-flex rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-semibold text-yellow-700">Medium</span>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">Manual Review</span>
-                  </td>
-                  <td className="py-3">
-                    <button className="text-slate-400 hover:text-slate-600">
-                      <Clock className="h-4 w-4" />
-                    </button>
-                    <button className="ml-2 text-slate-400 hover:text-slate-600">⋮</button>
-                  </td>
-                </tr>
+                {recentList.map((item) => (
+                  <tr key={item.id} className="whitespace-nowrap hover:bg-slate-50">
+                    <td className="py-3 pr-4 font-medium text-slate-900">{item.customer_name}</td>
+                    <td className="py-3 pr-4 font-mono text-xs text-slate-600">{item.order_number}</td>
+                    <td className="py-3 pr-4">
+                      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        item.risk_tier === 'High' ? 'bg-red-100 text-red-700' : item.risk_tier === 'Medium' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                      }`}>
+                        {item.risk_tier || 'Low'}
+                      </span>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        item.status === 'manual_review' ? 'bg-amber-100 text-amber-700' : item.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
+                      }`}>
+                        {item.status === 'manual_review' ? 'Manual Review' : item.status === 'approved' ? 'Approved' : 'Completed'}
+                      </span>
+                    </td>
+                    <td className="py-3">
+                      <Link
+                        to="/merchant/flagged-cases"
+                        className="inline-flex items-center text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+                      >
+                        Review <ArrowUpRight className="h-3 w-3 ml-0.5" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </div>
 
         {/* Task List */}
-        <TaskList />
+        <TaskList flaggedItems={data.recentFlagged} />
       </div>
 
       {/* Footer Alerts */}
-      <div className="mt-6 flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3 text-sm">
-        <div className="flex items-center gap-4">
+      <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm">
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-red-600" />
             <span className="font-medium text-slate-900">Key Alerts</span>
           </div>
-          <span className="text-slate-600">🔺 New High Risk Case detected</span>
-          <span className="text-slate-600">🔴 New High Case detected</span>
+          <span className="text-xs sm:text-sm text-slate-600">🔺 {data.flaggedCases || 3} high-risk returns awaiting review</span>
         </div>
-        <div className="flex items-center gap-4 text-slate-600">
-          <button className="hover:text-slate-900">📊 Report center</button>
-          <button className="hover:text-slate-900">❤️ System health</button>
+        <div className="flex items-center gap-4 text-xs font-medium text-slate-600">
+          <Link to="/merchant/analytics" className="hover:text-slate-900">📊 Report center</Link>
+          <span className="text-emerald-600 font-semibold">❤️ System healthy</span>
         </div>
       </div>
     </div>
