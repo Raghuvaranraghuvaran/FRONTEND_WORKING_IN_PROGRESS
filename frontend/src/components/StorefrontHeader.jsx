@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ShoppingBag, Store, ChevronRight, ShieldCheck, X } from 'lucide-react'
+import { ShoppingBag, Store, ChevronRight, ShieldCheck, X, User } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { api } from '../mock/api'
 import NotificationBell from './NotificationBell'
@@ -102,16 +102,14 @@ export default function StorefrontHeader() {
             </div>
           )}
 
-          {/* hamburger — md and below */}
+          {/* mobile menu / login trigger — md and below */}
           {!isLandingPage && (
             <button
               onClick={() => setMenuOpen(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 md:hidden"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 md:hidden cursor-pointer"
               aria-label="Open menu"
             >
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-              </svg>
+              <User size={18} strokeWidth={2} />
             </button>
           )}
         </div>

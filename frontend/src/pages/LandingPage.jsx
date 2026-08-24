@@ -23,6 +23,7 @@ import {
   ArrowRight,
   Sparkles,
   Lock,
+  User,
 } from 'lucide-react'
 
 /* ------------------------------------------------------------------ */
@@ -664,8 +665,8 @@ export default function LandingPage() {
               <span>Merchant Login</span>
             </Link>
           </div>
-          <button className="vlc-burger" onClick={() => setNavOpen(true)} aria-label="Open menu">
-            <Menu size={19} />
+          <button className="vlc-burger" onClick={() => setNavOpen(true)} aria-label="Open login portals">
+            <User size={19} strokeWidth={2.2} />
           </button>
         </div>
       </motion.nav>
