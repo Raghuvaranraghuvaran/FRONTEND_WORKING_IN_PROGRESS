@@ -216,11 +216,13 @@ class ReviewReturnView(APIView):
         return_request.reviewed_at = timezone.now()
         return_request.save()
 
-        ReviewDecision.objects.create(
+        ReviewDecision.objects.update_or_create(
             return_request=return_request,
-            action=action,
-            reviewed_by=actor,
-            notes=notes,
+            defaults={
+                "action": action,
+                "reviewed_by": actor,
+                "notes": notes,
+            },
         )
         ReturnEvent.objects.create(
             return_request=return_request,
