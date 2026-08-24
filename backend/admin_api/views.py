@@ -139,32 +139,40 @@ class ReviewReturnView(APIView):
         # Try to resolve return request by various formats
         return_request = None
         if str(pk).isdigit():
-            return_request = ReturnRequest.objects.filter(merchant=merchant, pk=int(pk)).select_related("order", "user").first()
+            return_request = ReturnRequest.objects.filter(pk=int(pk)).select_related("order", "user").first()
 
         if return_request is None:
-            clean_pk = str(pk).replace("ret_", "").replace("#", "")
+            clean_pk = str(pk).replace("ret_", "").replace("#", "").strip()
             if clean_pk.isdigit():
-                return_request = ReturnRequest.objects.filter(merchant=merchant, pk=int(clean_pk)).select_related("order", "user").first()
+                return_request = ReturnRequest.objects.filter(pk=int(clean_pk)).select_related("order", "user").first()
 
         if return_request is None:
             return_request = (
-                ReturnRequest.objects.filter(merchant=merchant, order__order_number__icontains=str(pk))
+                ReturnRequest.objects.filter(order__order_number__icontains=str(pk).replace("#", "").strip())
                 .select_related("order", "user")
                 .first()
             )
 
         if return_request is None:
             # Check if pk refers to an Order directly
-            order = Order.objects.filter(merchant=merchant, pk=pk if str(pk).isdigit() else 0).first() or Order.objects.filter(merchant=merchant, order_number__icontains=str(pk)).first()
+            order = Order.objects.filter(pk=pk if str(pk).isdigit() else 0).first() or Order.objects.filter(order_number__icontains=str(pk).replace("#", "").strip()).first()
             if order:
                 if action in ("approve", "accept"):
-                    order.status = "Active"
-                elif action in ("reject", "cancelled"):
-                    order.status = "Cancelled"
-                order.save(update_fields=["status"])
+                    order.status = "Return Approved"
+                    order.delivery_status = "Return Approved"
+                elif action in ("reject", "cancelled", "decline"):
+                    order.status = "Return Rejected"
+                    order.delivery_status = "Return Rejected"
+                elif action in ("product_returned", "mark_returned"):
+                    order.status = "Product Returned"
+                    order.delivery_status = "Product Returned"
+                elif action in ("refund_processed", "process_refund"):
+                    order.status = "Refund Processed"
+                    order.delivery_status = "Refund Processed"
+                order.save(update_fields=["status", "delivery_status"])
                 log_action(merchant=merchant, actor=actor, action=action, target=f"Order {order.order_number}", notes=notes)
-                return success({"id": order.id, "order_number": order.order_number, "status": order.status})
-            return success({"status": "completed", "action": action})
+                return success({"id": order.id, "order_number": order.order_number, "status": order.status, "delivery_status": order.delivery_status})
+            return success({"status": "completed", "action": action, "notes": notes})
 
         order = return_request.order
 

@@ -85,6 +85,7 @@ export default function MerchantFlaggedCases() {
   const [customerReview, setCustomerReview] = useState(null)
   const [loadingReview, setLoadingReview] = useState(false)
   const [notes, setNotes] = useState('')
+  const [selectedReasonChip, setSelectedReasonChip] = useState(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [toast, setToast] = useState(null)
   const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'history' | 'behavior'
@@ -93,6 +94,16 @@ export default function MerchantFlaggedCases() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [reasonFilter, setReasonFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+
+  const handleSelectReasonChip = (chip) => {
+    if (selectedReasonChip === chip) {
+      setSelectedReasonChip(null)
+      setNotes('')
+    } else {
+      setSelectedReasonChip(chip)
+      setNotes(chip)
+    }
+  }
 
   // Toast notification helper
   const showToast = (message, type = 'success') => {
@@ -278,120 +289,58 @@ export default function MerchantFlaggedCases() {
   // Handle all merchant authority decisions & return approvals
   const handleAction = async (actionType) => {
     if (!selected) return
-    const custId = selected.user_id || selected.customer_id || selected.user || 'user_2'
-    const noteText = notes
+    setActionLoading(true)
+    const custId = selected.user_id || selected.customer_id || selected.customer_email || selected.user || 'user_2'
+    const decisionNotes = notes || selectedReasonChip || `Return decision: ${actionType.replace('_', ' ')}`
 
-    // 1. Optimistic UI Updates for Instant Feedback
+    // Optimistic UI updates
     if (actionType === 'restrict_cod') {
       showToast('✓ COD restricted for this customer!')
-      setCustomerReview((prev) => {
-        if (!prev) return prev
-        const existing = prev.restrictions || []
-        return {
-          ...prev,
-          restrictions: [
-            {
-              id: `r_${Date.now()}`,
-              restriction_type: 'cod_suspended',
-              reason: noteText || 'COD restricted by merchant',
-              status: 'active',
-              start_date: new Date().toISOString(),
-            },
-            ...existing,
-          ],
-        }
-      })
     } else if (actionType === 'require_prepaid') {
       showToast('✓ Prepaid requirement applied!')
-      setCustomerReview((prev) => {
-        if (!prev) return prev
-        const existing = prev.restrictions || []
-        return {
-          ...prev,
-          restrictions: [
-            {
-              id: `r_${Date.now()}`,
-              restriction_type: 'prepaid_only',
-              reason: noteText || 'Prepaid required by merchant',
-              status: 'active',
-              start_date: new Date().toISOString(),
-            },
-            ...existing,
-          ],
-        }
-      })
     } else if (actionType === 'increase_restriction') {
       const curLvl = customerReview?.profile?.escalation_level ?? (selected.risk_tier === 'High' ? 3 : 1)
       const nextLvl = Math.min(5, curLvl + 1)
       showToast(`✓ Escalation tier advanced to Step ${nextLvl}!`)
-      setCustomerReview((prev) => {
-        if (!prev) return prev
-        return {
-          ...prev,
-          profile: {
-            ...prev.profile,
-            escalation_level: nextLvl,
-          },
-        }
-      })
     } else if (actionType === 'suspend_account') {
       showToast('⛔ Customer account suspended!', 'error')
-      setCustomerReview((prev) => {
-        if (!prev) return prev
-        return {
-          ...prev,
-          profile: {
-            ...prev.profile,
-            escalation_level: 5,
-          },
-          restrictions: [
-            {
-              id: `r_${Date.now()}`,
-              restriction_type: 'account_restricted',
-              reason: noteText || 'Account suspended by merchant',
-              status: 'active',
-              start_date: new Date().toISOString(),
-            },
-            ...(prev.restrictions || []),
-          ],
-        }
-      })
     } else if (['approve', 'reject', 'product_returned', 'refund_processed'].includes(actionType)) {
       const actionName = actionType === 'approve' ? 'APPROVED' : actionType === 'reject' ? 'REJECTED' : actionType.replace('_', ' ').toUpperCase()
-      const customerEmail = selected.customer_email || 'registered email'
-      showToast(`✓ Return #${selected.id} ${actionName}! Confirmation email sent to ${customerEmail}.`)
-      setSelected((prev) => prev ? { ...prev, status: actionType === 'approve' ? 'approved' : actionType === 'reject' ? 'rejected' : actionType } : prev)
+      const customerEmail = selected.customer_email || selected.user?.email || 'registered customer'
+      showToast(`✓ Return #${selected.id} ${actionName}! Email sent to ${customerEmail}.`)
     }
 
     setNotes('')
+    setSelectedReasonChip(null)
 
-    // 2. Perform backend API sync silently
+    // Perform backend API sync
     try {
       if (['approve', 'reject', 'product_returned', 'refund_processed'].includes(actionType)) {
-        await api.reviewReturn({
-          returnId: selected.id,
+        const returnId = selected.id || selected.order_number
+        const updatedReturn = await api.reviewReturn({
+          returnId,
           action: actionType,
-          notes: noteText || `Return marked as ${actionType.replace('_', ' ')} based on reason review.`,
+          notes: decisionNotes,
         })
-        load(false)
+
+        setSelected((prev) => prev ? { ...prev, status: updatedReturn.status, outcome: updatedReturn.outcome } : prev)
+        load()
         return
       }
 
-      const res = await api.performMerchantAction({
+      await api.performMerchantAction({
         customerId: custId,
         action: actionType,
-        notes: noteText || `Action ${actionType} performed by merchant.`,
+        notes: decisionNotes,
       })
 
-      if (res && res.restrictions) {
-        setCustomerReview((prev) => prev ? { ...prev, restrictions: res.restrictions, profile: res.profile || prev.profile } : prev)
-      } else {
-        const updated = await api.getCustomerReview(custId).catch(() => null)
-        if (updated) setCustomerReview(updated)
-      }
-      load(false)
+      const updated = await api.getCustomerReview(custId).catch(() => null)
+      if (updated) setCustomerReview(updated)
+      load()
     } catch (err) {
-      console.warn('Background action sync:', err)
+      console.warn('Action sync notice:', err)
+    } finally {
+      setActionLoading(false)
     }
   }
 
@@ -961,26 +910,43 @@ export default function MerchantFlaggedCases() {
                     </span>
                   </div>
 
-                  {/* Decision Note Input with Quick Chips */}
+                  {/* Decision Note Input with Single Selection Quick Chips */}
                   <div>
                     <input
                       type="text"
                       value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
+                      onChange={(e) => {
+                        setNotes(e.target.value)
+                        if (selectedReasonChip && e.target.value !== selectedReasonChip) {
+                          setSelectedReasonChip(null)
+                        }
+                      }}
                       placeholder="Enter review decision notes (e.g. Photo verified, within return window)..."
-                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                     />
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {QUICK_DECISION_NOTES.map((chip, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setNotes(chip)}
-                          className="rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 px-2 py-1 text-[10px] font-semibold text-slate-600 transition-colors cursor-pointer"
-                        >
-                          {chip}
-                        </button>
-                      ))}
+                    <div className="mt-2.5 flex flex-wrap gap-2">
+                      {QUICK_DECISION_NOTES.map((chip, i) => {
+                        const isSelected = selectedReasonChip === chip || notes === chip
+                        const isApprovedReason = chip.startsWith('✓')
+
+                        return (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => handleSelectReasonChip(chip)}
+                            className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 border ${
+                              isSelected
+                                ? isApprovedReason
+                                  ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400 scale-[1.02]'
+                                  : 'bg-gradient-to-r from-rose-600 to-rose-700 text-white border-rose-600 shadow-md ring-2 ring-rose-400 scale-[1.02]'
+                                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300 shadow-2xs'
+                            }`}
+                          >
+                            <span>{chip}</span>
+                            {isSelected && <span className="ml-0.5 text-[10px] bg-white/20 rounded-full px-1.5">Selected</span>}
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
 
@@ -990,7 +956,7 @@ export default function MerchantFlaggedCases() {
                       type="button"
                       onClick={() => handleAction('approve')}
                       disabled={actionLoading}
-                      className="rounded-xl bg-emerald-600 px-3 py-3 text-xs font-bold text-white shadow-md hover:bg-emerald-500 active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+                      className="rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 px-3 py-3.5 text-xs font-extrabold text-white shadow-md shadow-emerald-600/20 hover:scale-[1.02] active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5 transition-all"
                     >
                       <CheckCircle2 className="h-4 w-4" />
                       <span>APPROVE RETURN</span>
@@ -1000,7 +966,7 @@ export default function MerchantFlaggedCases() {
                       type="button"
                       onClick={() => handleAction('reject')}
                       disabled={actionLoading}
-                      className="rounded-xl bg-rose-600 px-3 py-3 text-xs font-bold text-white shadow-md hover:bg-rose-500 active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+                      className="rounded-xl bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 px-3 py-3.5 text-xs font-extrabold text-white shadow-md shadow-rose-600/20 hover:scale-[1.02] active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5 transition-all"
                     >
                       <XCircle className="h-4 w-4" />
                       <span>REJECT RETURN</span>
@@ -1010,7 +976,7 @@ export default function MerchantFlaggedCases() {
                       type="button"
                       onClick={() => handleAction('product_returned')}
                       disabled={actionLoading}
-                      className="rounded-xl bg-indigo-600 px-3 py-3 text-xs font-bold text-white shadow-md hover:bg-indigo-500 active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+                      className="rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 px-3 py-3.5 text-xs font-extrabold text-white shadow-md shadow-indigo-600/20 hover:scale-[1.02] active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5 transition-all"
                     >
                       <Package className="h-4 w-4" />
                       <span>PRODUCT RETURNED</span>
@@ -1020,17 +986,17 @@ export default function MerchantFlaggedCases() {
                       type="button"
                       onClick={() => handleAction('refund_processed')}
                       disabled={actionLoading}
-                      className="rounded-xl bg-teal-600 px-3 py-3 text-xs font-bold text-white shadow-md hover:bg-teal-500 active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+                      className="rounded-xl bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 px-3 py-3.5 text-xs font-extrabold text-white shadow-md shadow-teal-600/20 hover:scale-[1.02] active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5 transition-all"
                     >
                       <Coins className="h-4 w-4" />
                       <span>PROCESS REFUND</span>
                     </button>
                   </div>
 
-                  {/* Secondary Account Authority Actions */}
+                  {/* Secondary Account Authority Actions (Colorful Buttons) */}
                   <div className="border-t border-slate-100 pt-4">
                     <div className="flex items-center justify-between mb-2.5">
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
                         <span>⚡</span> Customer Policy & Restriction Overrides:
                       </span>
                       <span className="text-[10px] text-slate-400 font-medium">Instant enforcement</span>
@@ -1040,36 +1006,39 @@ export default function MerchantFlaggedCases() {
                         type="button"
                         onClick={() => handleAction('restrict_cod')}
                         disabled={actionLoading}
-                        className="group flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100/80 text-rose-700 font-bold px-3 py-2.5 text-xs shadow-2xs hover:shadow-sm hover:scale-[1.02] active:scale-95 disabled:opacity-50 transition-all cursor-pointer"
+                        className="group flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold px-3 py-3 text-xs shadow-md shadow-orange-500/20 hover:shadow-lg hover:scale-[1.02] active:scale-95 disabled:opacity-50 transition-all cursor-pointer border-0"
                       >
-                        <span className="text-sm group-hover:scale-110 transition-transform">🚫</span>
+                        <span className="text-base group-hover:scale-110 transition-transform">🚫</span>
                         <span>Restrict COD</span>
                       </button>
+
                       <button
                         type="button"
                         onClick={() => handleAction('require_prepaid')}
                         disabled={actionLoading}
-                        className="group flex items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100/80 text-indigo-700 font-bold px-3 py-2.5 text-xs shadow-2xs hover:shadow-sm hover:scale-[1.02] active:scale-95 disabled:opacity-50 transition-all cursor-pointer"
+                        className="group flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-extrabold px-3 py-3 text-xs shadow-md shadow-indigo-600/20 hover:shadow-lg hover:scale-[1.02] active:scale-95 disabled:opacity-50 transition-all cursor-pointer border-0"
                       >
-                        <span className="text-sm group-hover:scale-110 transition-transform">💳</span>
+                        <span className="text-base group-hover:scale-110 transition-transform">💳</span>
                         <span>Require Prepaid</span>
                       </button>
+
                       <button
                         type="button"
                         onClick={() => handleAction('increase_restriction')}
                         disabled={actionLoading}
-                        className="group flex items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50/60 hover:bg-amber-100/80 text-amber-800 font-bold px-3 py-2.5 text-xs shadow-2xs hover:shadow-sm hover:scale-[1.02] active:scale-95 disabled:opacity-50 transition-all cursor-pointer"
+                        className="group flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-extrabold px-3 py-3 text-xs shadow-md shadow-purple-600/20 hover:shadow-lg hover:scale-[1.02] active:scale-95 disabled:opacity-50 transition-all cursor-pointer border-0"
                       >
-                        <span className="text-sm text-amber-600 group-hover:scale-110 transition-transform">▲</span>
+                        <span className="text-base group-hover:scale-110 transition-transform">▲</span>
                         <span>Escalate Level</span>
                       </button>
+
                       <button
                         type="button"
                         onClick={() => handleAction('suspend_account')}
                         disabled={actionLoading}
-                        className="group flex items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-gradient-to-r from-slate-950 to-slate-900 hover:from-black hover:to-rose-950 text-rose-300 hover:text-rose-100 font-bold px-3 py-2.5 text-xs shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-95 disabled:opacity-50 transition-all cursor-pointer"
+                        className="group flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-700 via-red-800 to-slate-950 hover:from-rose-800 hover:to-black text-white font-extrabold px-3 py-3 text-xs shadow-md shadow-red-900/30 hover:shadow-lg hover:scale-[1.02] active:scale-95 disabled:opacity-50 transition-all cursor-pointer border-0"
                       >
-                        <span className="text-sm group-hover:scale-110 transition-transform">⛔</span>
+                        <span className="text-base group-hover:scale-110 transition-transform">⛔</span>
                         <span>Suspend Account</span>
                       </button>
                     </div>
