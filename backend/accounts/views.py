@@ -145,7 +145,7 @@ class LoginOTPVerifyView(APIView):
         user = OTPVerificationService().verify_login_otp(
             email=serializer.validated_data["email"],
             role=User.ROLE_SHOPPER,
-            challenge_id=serializer.validated_data["challenge_id"],
+            challenge_id=serializer.validated_data.get("challenge_id"),
             code=serializer.validated_data["code"],
         )
         return success({"tokens": tokens_for_user(user), "user": ShopperSerializer(user).data})

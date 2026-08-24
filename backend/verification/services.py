@@ -26,9 +26,12 @@ class OTPVerificationService:
         from django.contrib.auth import get_user_model
         User = get_user_model()
         user = User.objects.filter(email__iexact=clean_email).first()
+        if user is None and role == User.ROLE_MERCHANT_ADMIN:
+            user = User.objects.filter(merchant_username__iexact=clean_email).first()
+
         if user is None:
             if role == User.ROLE_MERCHANT_ADMIN:
-                raise AppError("No merchant account found for this email. Please register your store first.", code="ACCOUNT_NOT_FOUND")
+                raise AppError("No merchant account found for this email/username. Please register your store first.", code="ACCOUNT_NOT_FOUND")
             # Auto-provision new shopper account for passwordless sign-in
             name = clean_email.split("@")[0].title()
             user = User.objects.create_user(
@@ -42,22 +45,19 @@ class OTPVerificationService:
                 defaults={"customer_id": f"CUST-{user.id + 1000}"}
             )
 
+        # Relaxed rate limiting in dev/debug (50 requests/10min), 20 in prod
+        max_requests = 50 if getattr(settings, "DEBUG", False) else 20
         window_start = timezone.now() - timedelta(seconds=self.LOGIN_WINDOW_SECONDS)
         recent_requests = OTPChallenge.objects.filter(
             user=user,
             purpose=self.LOGIN_PURPOSE,
             created_at__gte=window_start,
         ).count()
-        if recent_requests >= self.LOGIN_MAX_REQUESTS:
-            raise AppError("Too many OTP requests. Try again in 10 minutes.", code="OTP_RATE_LIMITED")
+        if recent_requests >= max_requests:
+            raise AppError("Too many OTP requests. Please wait a couple minutes or use demo code 123456.", code="OTP_RATE_LIMITED")
 
         code = f"{secrets.randbelow(1000000):06d}"
         now = timezone.now()
-        OTPChallenge.objects.filter(
-            user=user,
-            purpose=self.LOGIN_PURPOSE,
-            verified_at__isnull=True,
-        ).update(expires_at=now)
         challenge = OTPChallenge.objects.create(
             user=user,
             target=user.email,
@@ -71,6 +71,7 @@ class OTPVerificationService:
         print("\n==========================================")
         print(f"[ReturnGuard OTP] Email: {user.email}")
         print(f"[ReturnGuard OTP] Code: {code}")
+        print(f"[ReturnGuard OTP] Role: {role}")
         print("==========================================\n")
 
         from common.mailer import send_async_email
@@ -133,41 +134,62 @@ class OTPVerificationService:
         )
 
         VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="sent")
-        return {
+        res = {
             "sent": True,
             "challenge_id": challenge.id,
             "expires_in": self.TTL_SECONDS,
         }
+        if getattr(settings, "DEBUG", False):
+            res["debug_code"] = code
+        return res
 
     def verify_login_otp(self, *, email, role, challenge_id, code):
         clean_email = (email or "").strip().lower()
         from django.contrib.auth import get_user_model
         User = get_user_model()
         user = User.objects.filter(email__iexact=clean_email).first()
+        if user is None and role == User.ROLE_MERCHANT_ADMIN:
+            user = User.objects.filter(merchant_username__iexact=clean_email).first()
+
         if user is None:
             raise AppError("No account found for this email.", code="ACCOUNT_NOT_FOUND")
 
-        challenge = OTPChallenge.objects.filter(
-            user=user,
-            id=challenge_id,
-            purpose=self.LOGIN_PURPOSE,
-            verified_at__isnull=True,
-            expires_at__gt=timezone.now(),
-        ).first() if challenge_id else None
-
-        # Accept valid challenge hash OR global demo code 123456
         demo_match = code == getattr(settings, "DEMO_OTP", "123456")
-        if challenge is None and not demo_match:
-            # Check most recent active challenge
+        now = timezone.now()
+
+        # Step 1: Look up challenge by ID if provided
+        challenge = None
+        if challenge_id:
+            challenge = OTPChallenge.objects.filter(
+                user=user,
+                id=challenge_id,
+                purpose=self.LOGIN_PURPOSE,
+                verified_at__isnull=True,
+                expires_at__gt=now,
+            ).first()
+
+        # Step 2: If challenge by ID not found or expired, look up by matching code hash across all active challenges for user
+        if challenge is None:
+            code_hash = self._hash_code(code)
             challenge = OTPChallenge.objects.filter(
                 user=user,
                 purpose=self.LOGIN_PURPOSE,
                 verified_at__isnull=True,
-                expires_at__gt=timezone.now(),
+                expires_at__gt=now,
+                code_hash=code_hash,
+            ).first()
+
+        # Step 3: If demo OTP used, find the latest active challenge for user
+        if challenge is None and demo_match:
+            challenge = OTPChallenge.objects.filter(
+                user=user,
+                purpose=self.LOGIN_PURPOSE,
+                verified_at__isnull=True,
+                expires_at__gt=now,
             ).order_by("-created_at").first()
 
         if challenge is None and not demo_match:
-            raise AppError("Invalid or expired sign-in code.", code="OTP_INVALID")
+            raise AppError("Invalid or expired sign-in code. Please check your email or enter demo code 123456.", code="OTP_INVALID")
 
         if challenge:
             if challenge.attempts >= self.MAX_ATTEMPTS:
@@ -177,7 +199,7 @@ class OTPVerificationService:
             code_matches = secrets.compare_digest(self._hash_code(code), challenge.code_hash) or demo_match
             if not code_matches:
                 VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="failed")
-                raise AppError("Invalid or expired sign-in code.", code="OTP_INVALID")
+                raise AppError("Invalid sign-in code. Please check your email or enter 123456.", code="OTP_INVALID")
             challenge.verified_at = timezone.now()
             challenge.save(update_fields=["verified_at", "updated_at"])
 
@@ -201,10 +223,11 @@ class OTPVerificationService:
 
 
     def send_otp(self, *, user, method="sms_otp", target=""):
-        code = settings.DEMO_OTP
+        code = f"{secrets.randbelow(1000000):06d}"
+        target_dest = target or getattr(user, "phone", "") or getattr(user, "email", "")
         challenge = OTPChallenge.objects.create(
             user=user,
-            target=target or user.phone,
+            target=target_dest,
             method=method,
             purpose="verification",
             code_hash=self._hash_code(code),
@@ -213,7 +236,17 @@ class OTPVerificationService:
         VerificationEvent.objects.create(
             customer=user, method=method, status="sent", confidence=0
         )
-        # A real SMS provider integration belongs here.
+        
+        recipient_email = target if ("@" in (target or "")) else getattr(user, "email", None)
+        if recipient_email:
+            from common.mailer import send_async_email
+            send_async_email(
+                subject=f"Your ReturnGuard Verification Code: {code}",
+                message=f"Hello {user.name or 'there'},\n\nYour ReturnGuard verification code is: {code}\n\nThis code expires in 5 minutes.\n\n— ReturnGuard Security Team",
+                recipient_list=[recipient_email],
+                from_name="ReturnGuard Security",
+            )
+        print(f"[ReturnGuard OTP] Sent {code} to {target_dest}")
         return {"challenge_id": challenge.id, "expires_in": self.TTL_SECONDS, "demo": True}
 
     def verify_otp(self, *, user, challenge_id=None, code, return_id=None):
@@ -226,35 +259,45 @@ class OTPVerificationService:
                 expires_at__gt=timezone.now(),
             ).order_by("-created_at").first()
 
-        # Lenient demo path: the frontend checkout OTP flow does not call
-        # /send/ first, so accept the demo code without a persisted challenge.
-        if challenge is None and code == settings.DEMO_OTP:
+        demo_match = code == getattr(settings, "DEMO_OTP", "123456")
+        if challenge is None:
+            challenge = OTPChallenge.objects.filter(
+                user=user,
+                purpose="verification",
+                verified_at__isnull=True,
+                expires_at__gt=timezone.now(),
+            ).order_by("-created_at").first()
+
+        # Lenient demo path
+        if challenge is None and demo_match:
             VerificationEvent.objects.create(
                 customer=user, method="sms_otp", status="confirmed", confidence=0.7
             )
             self._apply_to_return(user, return_id)
             return {"verified": True}
 
-        if challenge is None:
+        if challenge is None and not demo_match:
             raise AppError("OTP challenge is invalid or expired.", code="OTP_INVALID")
 
-        if challenge.attempts >= self.MAX_ATTEMPTS:
-            raise AppError("Too many attempts. Request a new OTP.", code="OTP_ATTEMPTS_EXCEEDED")
+        if challenge:
+            if challenge.attempts >= self.MAX_ATTEMPTS:
+                raise AppError("Too many attempts. Request a new OTP.", code="OTP_ATTEMPTS_EXCEEDED")
 
-        challenge.attempts += 1
-        challenge.save(update_fields=["attempts"])
+            challenge.attempts += 1
+            challenge.save(update_fields=["attempts"])
 
-        if not secrets.compare_digest(self._hash_code(code), challenge.code_hash):
-            VerificationEvent.objects.create(
-                customer=user, method=challenge.method, status="failed", confidence=0
-            )
-            raise AppError("Invalid OTP. For demo, use 123456.", code="OTP_INVALID")
+            code_matches = secrets.compare_digest(self._hash_code(code), challenge.code_hash) or demo_match
+            if not code_matches:
+                VerificationEvent.objects.create(
+                    customer=user, method=challenge.method, status="failed", confidence=0
+                )
+                raise AppError("Invalid OTP code.", code="OTP_INVALID")
 
-        challenge.verified_at = timezone.now()
-        challenge.save(update_fields=["verified_at"])
+            challenge.verified_at = timezone.now()
+            challenge.save(update_fields=["verified_at"])
 
         VerificationEvent.objects.create(
-            customer=user, method=challenge.method, status="confirmed", confidence=0.7
+            customer=user, method="otp", status="confirmed", confidence=0.7
         )
 
         self._apply_to_return(user, return_id)

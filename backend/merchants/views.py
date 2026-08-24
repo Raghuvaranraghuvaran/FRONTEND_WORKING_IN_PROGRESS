@@ -306,6 +306,41 @@ class MerchantLoginView(APIView):
         return success(merchant_login_payload(user))
 
 
+class MerchantOTPRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from accounts.serializers import LoginOTPRequestSerializer
+        from verification.services import OTPVerificationService
+
+        serializer = LoginOTPRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return success(
+            OTPVerificationService().request_login_otp(
+                email=serializer.validated_data["email"],
+                role=User.ROLE_MERCHANT_ADMIN,
+            )
+        )
+
+
+class MerchantOTPVerifyView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from accounts.serializers import LoginOTPVerifySerializer
+        from verification.services import OTPVerificationService
+
+        serializer = LoginOTPVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = OTPVerificationService().verify_login_otp(
+            email=serializer.validated_data["email"],
+            role=User.ROLE_MERCHANT_ADMIN,
+            challenge_id=serializer.validated_data.get("challenge_id"),
+            code=serializer.validated_data["code"],
+        )
+        return success(merchant_login_payload(user))
+
+
 class MerchantMeView(APIView):
     permission_classes = [IsAuthenticated]
 
