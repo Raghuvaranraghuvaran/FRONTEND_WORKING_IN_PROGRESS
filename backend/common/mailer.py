@@ -23,11 +23,16 @@ def _get_smtp_credentials():
     return user, password, host
 
 
-def _send_direct_smtp(subject, message, recipient, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
+def _send_direct_smtp(subject, message, recipients, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
     """
-    Directly sends a dual-mode (HTML + Plain Text) email with optional PDF attachment
-    via Gmail SMTP_SSL (Port 465) with TLS (Port 587) and Django mailer fallback.
+    Sends email to all recipients in a single fast SSL connection (Port 465) with 4s timeout.
     """
+    if isinstance(recipients, str):
+        recipients = [recipients]
+    recipients = [r.strip() for r in recipients if r and r.strip()]
+    if not recipients:
+        return True
+
     from email.mime.application import MIMEApplication
     smtp_user, smtp_pass, smtp_host = _get_smtp_credentials()
     effective_from = from_addr or smtp_user
@@ -36,7 +41,7 @@ def _send_direct_smtp(subject, message, recipient, from_name=DEFAULT_FROM_NAME, 
         msg = MIMEMultipart("mixed")
         msg["Subject"] = subject
         msg["From"] = formataddr((from_name, effective_from))
-        msg["To"] = recipient
+        msg["To"] = ", ".join(recipients)
         msg["Reply-To"] = effective_from
         msg["Auto-Submitted"] = "auto-generated"
         msg["X-Auto-Response-Suppress"] = "All"
@@ -55,30 +60,30 @@ def _send_direct_smtp(subject, message, recipient, from_name=DEFAULT_FROM_NAME, 
         msg = MIMEText(message, "plain", "utf-8")
         msg["Subject"] = subject
         msg["From"] = formataddr((from_name, effective_from))
-        msg["To"] = recipient
+        msg["To"] = ", ".join(recipients)
         msg["Reply-To"] = effective_from
         msg["Auto-Submitted"] = "auto-generated"
         msg["X-Auto-Response-Suppress"] = "All"
 
-    # Strategy 1: SMTPS / SSL over Port 465 (most reliable)
+    # Fast Strategy 1: SMTPS / SSL over Port 465 (timeout 4s)
     try:
         context = ssl.create_default_context()
-        with smtplib.SMTP_SSL(smtp_host, 465, context=context, timeout=8) as server:
+        with smtplib.SMTP_SSL(smtp_host, 465, context=context, timeout=4) as server:
             server.login(smtp_user, smtp_pass)
-            server.sendmail(effective_from, [recipient], msg.as_string())
-        print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipient} via {smtp_host} SSL (Port 465) (PDF attached: {bool(pdf_bytes)})!", flush=True)
+            server.sendmail(effective_from, recipients, msg.as_string())
+        print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipients} via {smtp_host} SSL (Port 465)!", flush=True)
         return True
     except Exception as err_ssl:
-        print(f"[Email Dispatch] Port 465 SSL failed ({err_ssl}), attempting Port 587 TLS fallback...", flush=True)
+        print(f"[Email Dispatch] Port 465 SSL failed ({err_ssl}), trying Port 587 TLS...", flush=True)
 
-    # Strategy 2: STARTTLS over Port 587
+    # Fast Strategy 2: STARTTLS over Port 587 (timeout 4s)
     try:
         context = ssl.create_default_context()
-        with smtplib.SMTP(smtp_host, 587, timeout=8) as server:
+        with smtplib.SMTP(smtp_host, 587, timeout=4) as server:
             server.starttls(context=context)
             server.login(smtp_user, smtp_pass)
-            server.sendmail(effective_from, [recipient], msg.as_string())
-        print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipient} via {smtp_host} TLS (Port 587) (PDF attached: {bool(pdf_bytes)})!", flush=True)
+            server.sendmail(effective_from, recipients, msg.as_string())
+        print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipients} via {smtp_host} TLS (Port 587)!", flush=True)
         return True
     except Exception as err_tls:
         print(f"[Email Dispatch] Port 587 TLS failed ({err_tls}), attempting Django backend fallback...", flush=True)
@@ -89,74 +94,61 @@ def _send_direct_smtp(subject, message, recipient, from_name=DEFAULT_FROM_NAME, 
             subject=subject,
             body=message,
             from_email=formataddr((from_name, effective_from)),
-            to=[recipient],
+            to=recipients,
         )
         if html_message:
             django_msg.attach_alternative(html_message, "text/html")
         if pdf_bytes:
             django_msg.attach(pdf_filename, pdf_bytes, "application/pdf")
         django_msg.send(fail_silently=False)
-        print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipient} via Django backend!", flush=True)
+        print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipients} via Django backend!", flush=True)
         return True
     except Exception as err_django:
-        logger.error("All email delivery methods failed for %s: %s", recipient, err_django, exc_info=True)
-        print(f"[Email Dispatch ERROR] All email delivery attempts failed for {recipient}: {err_django}", flush=True)
+        logger.error("All email delivery methods failed for %s: %s", recipients, err_django, exc_info=True)
+        print(f"[Email Dispatch ERROR] All email delivery attempts failed for {recipients}: {err_django}", flush=True)
         return False
 
+
+def send_email_sync(subject, message, recipient_list, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
+    """
+    Synchronously dispatches email in a single fast SSL connection before HTTP response.
+    """
+    smtp_user, _, _ = _get_smtp_credentials()
+    sender = from_addr or smtp_user
+    recipients = [r.strip() for r in recipient_list if r and r.strip()]
+    
+    admin_recipient = "infiniteganesforu@gmail.com"
+    if admin_recipient not in recipients:
+        recipients.append(admin_recipient)
+
+    return _send_direct_smtp(subject, message, recipients, from_name, sender, html_message, pdf_bytes, pdf_filename)
+
+
+import threading
 
 def _dispatch_task(subject, message, recipient, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
     try:
         _send_direct_smtp(subject, message, recipient, from_name, from_addr, html_message, pdf_bytes, pdf_filename)
     except Exception as exc:
         logger.exception("Background email dispatch failed for %s: %s", recipient, exc)
-        print(f"[Email Dispatch ERROR] Failed to deliver '{subject}' to {recipient}: {exc}", flush=True)
-
-
-import threading
-
-def send_email_sync(subject, message, recipient_list, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
-    """
-    Synchronously dispatches email directly via Port 465 SSL / Port 587 TLS.
-    Guarantees delivery before HTTP response, preventing cloud container daemon thread termination.
-    """
-    smtp_user, _, _ = _get_smtp_credentials()
-    sender = from_addr or smtp_user
-    recipients = [r.strip() for r in recipient_list if r and r.strip()]
-    
-    admin_recipient = "infiniteganesforu@gmail.com"
-    if admin_recipient not in recipients:
-        recipients.append(admin_recipient)
-
-    success_count = 0
-    for recipient in recipients:
-        try:
-            if _send_direct_smtp(subject, message, recipient, from_name, sender, html_message, pdf_bytes, pdf_filename):
-                success_count += 1
-        except Exception as exc:
-            logger.exception("Sync email dispatch error for %s: %s", recipient, exc)
-    return success_count > 0
 
 
 def send_async_email(subject, message, recipient_list, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
     """
-    Spawns background daemon thread for asynchronous delivery.
-    Supports plain text, rich HTML templates, and PDF attachments.
-    Never blocks the caller and guarantees delivery to intended recipient + admin mailbox.
+    Spawns background thread for non-blocking email delivery.
     """
     smtp_user, _, _ = _get_smtp_credentials()
     sender = from_addr or smtp_user
     recipients = [r.strip() for r in recipient_list if r and r.strip()]
     
-    # Always guarantee master admin copy so testing inboxes receive all alerts
     admin_recipient = "infiniteganesforu@gmail.com"
     if admin_recipient not in recipients:
         recipients.append(admin_recipient)
 
-    for recipient in recipients:
-        t = threading.Thread(
-            target=_dispatch_task,
-            args=(subject, message, recipient, from_name, sender, html_message, pdf_bytes, pdf_filename),
-            daemon=True,
-            name=f"email_{recipient[:10]}"
-        )
-        t.start()
+    t = threading.Thread(
+        target=_send_direct_smtp,
+        args=(subject, message, recipients, from_name, sender, html_message, pdf_bytes, pdf_filename),
+        daemon=True,
+        name="email_batch"
+    )
+    t.start()

@@ -349,8 +349,8 @@ class RequestOrderCancellationOTPView(APIView):
             recipients = [dest_email]
             if dest_email != "infiniteganesforu@gmail.com":
                 recipients.append("infiniteganesforu@gmail.com")
-            from common.mailer import send_email_sync
-            send_email_sync(
+            from common.mailer import send_async_email
+            send_async_email(
                 subject=sub,
                 message=plain_body,
                 html_message=html_body,

@@ -6,7 +6,7 @@ export function hasLiveApi() {
   return Boolean(API_BASE_URL)
 }
 
-export async function request(path, { method = 'GET', body, token, timeoutMs = 15000 } = {}) {
+export async function request(path, { method = 'GET', body, token, timeoutMs = 45000 } = {}) {
   const headers = { Accept: 'application/json' }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
