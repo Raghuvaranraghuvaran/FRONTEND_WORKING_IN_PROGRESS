@@ -89,6 +89,7 @@ export default function MerchantFlaggedCases() {
   const [toast, setToast] = useState(null)
   const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'history' | 'behavior'
   const [selectedProofModal, setSelectedProofModal] = useState(null)
+  const [selectedItemModal, setSelectedItemModal] = useState(null)
   const [statusFilter, setStatusFilter] = useState('all')
   const [reasonFilter, setReasonFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -121,31 +122,55 @@ export default function MerchantFlaggedCases() {
   useEffect(load, [])
 
   const selectCase = async (record) => {
-    // Resolve multi-item return lines if missing
+    // Resolve multi-item return lines matching the order and attached evidence
     let enrichedLines = record.return_lines
+    let enrichedImages = record.images
+
     if (!enrichedLines || enrichedLines.length === 0) {
-      if (record.order_number?.includes('1025')) {
+      if (record.order_number?.includes('1025') || record.order_number?.includes('1023') || record.id === 'ret_2001' || record.id === 1) {
         enrichedLines = [
           { product_id: 'prod_1', name: 'Embroidered Lehenga Set', quantity: 1, price: 6499, size: 'M', color: 'Royal Red', sku: 'ETH-LHN-001', image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=400&q=80' },
-          { product_id: 'prod_12', name: 'Printed Cotton Dupatta', quantity: 1, price: 899, size: 'Free Size', color: 'Gold Border', sku: 'ETH-DUP-012', image: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=400&q=80' },
+          { product_id: 'prod_8', name: 'Smart Fitness Band', quantity: 1, price: 2749, size: 'Standard', color: 'Midnight Black', sku: 'ELEC-FIT-008', image: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?auto=format&fit=crop&w=400&q=80' },
         ]
-      } else if (record.order_number?.includes('1026')) {
+        enrichedImages = [
+          'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=400&q=80',
+          'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?auto=format&fit=crop&w=400&q=80',
+        ]
+      } else if (record.order_number?.includes('1026') || record.order_number?.includes('1018') || record.id === 'ret_2003' || record.id === 3) {
         enrichedLines = [
           { product_id: 'prod_8', name: 'Smart Fitness Band', quantity: 1, price: 2749, size: 'Standard', color: 'Midnight Black', sku: 'ELEC-FIT-008', image: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?auto=format&fit=crop&w=400&q=80' },
           { product_id: 'prod_7', name: 'Wireless Earbuds ANC', quantity: 1, price: 3999, size: 'Universal', color: 'Pearl White', sku: 'ELEC-EAR-007', image: 'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?auto=format&fit=crop&w=400&q=80' },
         ]
-      } else if (record.order_number?.includes('1024')) {
+        enrichedImages = [
+          'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?auto=format&fit=crop&w=400&q=80',
+          'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?auto=format&fit=crop&w=400&q=80',
+        ]
+      } else if (record.order_number?.includes('1024') || record.id === 'ret_2002' || record.id === 2) {
         enrichedLines = [
           { product_id: 'prod_4', name: 'Cotton Shirt', quantity: 1, price: 1299, size: 'L', color: 'White', sku: 'DL-SHT-004', image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=400&q=80' },
+          { product_id: 'prod_5', name: 'Relaxed Fit T-Shirt', quantity: 2, price: 799, size: 'M', color: 'Navy Blue', sku: 'DL-TEE-005', image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=400&q=80' },
+        ]
+        enrichedImages = [
+          'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=400&q=80',
+          'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=400&q=80',
         ]
       } else {
         enrichedLines = [
-          { product_id: 'prod_8', name: record.product_name || 'Smart Fitness Band', quantity: 1, price: record.total || 2749, size: 'Standard', color: 'Midnight Black', sku: 'ELEC-FIT-008', image: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?auto=format&fit=crop&w=400&q=80' },
+          { product_id: 'prod_1', name: 'Embroidered Lehenga Set', quantity: 1, price: 6499, size: 'M', color: 'Royal Red', sku: 'ETH-LHN-001', image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=400&q=80' },
+          { product_id: 'prod_8', name: 'Smart Fitness Band', quantity: 1, price: 2749, size: 'Standard', color: 'Midnight Black', sku: 'ELEC-FIT-008', image: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?auto=format&fit=crop&w=400&q=80' },
+        ]
+        enrichedImages = [
+          'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=400&q=80',
+          'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?auto=format&fit=crop&w=400&q=80',
         ]
       }
     }
 
-    const updatedRecord = { ...record, return_lines: enrichedLines }
+    if (!enrichedImages || enrichedImages.length === 0) {
+      enrichedImages = enrichedLines.map((it) => it.image).filter(Boolean)
+    }
+
+    const updatedRecord = { ...record, return_lines: enrichedLines, images: enrichedImages }
     setSelected(updatedRecord)
     setLoadingReview(true)
     const custId = record.user_id || record.customer_id || record.user || 'user_2'
@@ -549,52 +574,6 @@ export default function MerchantFlaggedCases() {
                     </div>
                   </div>
 
-                  {/* Uploaded Photos Proof Gallery */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">
-                        📸 Uploaded Proof & Unboxing Evidence:
-                      </span>
-                      <span className="text-[11px] font-semibold text-indigo-600">
-                        {(selected.images?.length || 2)} photos attached
-                      </span>
-                    </div>
-                    
-                    {/* Render uploaded or verified unboxing photos */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {(selected.images && selected.images.length > 0 ? selected.images : [
-                        'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=400&q=80',
-                        'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?auto=format&fit=crop&w=400&q=80',
-                      ]).map((img, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => setSelectedProofModal({
-                            img,
-                            idx,
-                            title: `Evidence Photo #${idx + 1}`,
-                            timestamp: selected.created_at,
-                            itemTitle: selected.return_lines?.[idx]?.name || selected.product_name || 'Returned Product Line',
-                          })}
-                          className="group relative rounded-2xl overflow-hidden border-2 border-slate-200 bg-white aspect-square shadow-2xs hover:border-indigo-500 hover:shadow-md transition-all text-left cursor-pointer"
-                        >
-                          <img
-                            src={img}
-                            alt={`Proof ${idx + 1}`}
-                            className="h-full w-full object-cover group-hover:scale-105 transition-transform"
-                          />
-                          <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white text-[11px] font-bold transition-opacity p-2 text-center">
-                            <span className="rounded-full bg-white/20 px-2.5 py-1 backdrop-blur-xs">📄 View Evidence Details</span>
-                            <span className="text-[10px] text-indigo-200 mt-1 font-medium">Click to inspect metadata</span>
-                          </div>
-                          <div className="absolute bottom-1.5 left-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold text-white backdrop-blur-xs">
-                            Photo #{idx + 1}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
                   {/* Requested Order Line Items with Images */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
@@ -628,18 +607,33 @@ export default function MerchantFlaggedCases() {
                         return (
                           <div
                             key={idx}
-                            className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-3.5 rounded-2xl border border-slate-200 text-xs shadow-2xs gap-3 hover:border-indigo-200 transition-colors"
+                            onClick={() => setSelectedItemModal({
+                              ...item,
+                              itemImage,
+                              lineTotal,
+                              returnReason: selected.reason,
+                              customerNote: selected.note,
+                              orderNumber: selected.order_number,
+                              customerName: selected.customer_name,
+                            })}
+                            className="group flex flex-col sm:flex-row sm:items-center justify-between bg-white p-3.5 rounded-2xl border-2 border-slate-200 text-xs shadow-2xs gap-3 hover:border-indigo-500 hover:shadow-md transition-all cursor-pointer"
                           >
                             <div className="flex items-center gap-3.5">
                               <div className="relative group overflow-hidden rounded-xl border border-slate-200 shrink-0 h-14 w-14 bg-slate-50">
                                 <img
                                   src={itemImage}
                                   alt={item.name}
-                                  className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+                                  className="h-full w-full object-cover group-hover:scale-110 transition-transform"
                                 />
+                                <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-bold transition-opacity">
+                                  🔍 View
+                                </div>
                               </div>
                               <div>
-                                <h4 className="font-bold text-slate-900 text-xs leading-snug">{item.name}</h4>
+                                <h4 className="font-bold text-slate-900 text-xs leading-snug group-hover:text-indigo-600 transition-colors flex items-center gap-1.5">
+                                  {item.name}
+                                  <span className="text-[10px] font-medium text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity">→ View Details</span>
+                                </h4>
                                 <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-slate-500">
                                   <span className="font-mono font-semibold text-slate-600">SKU: {item.sku || item.product_id || `PRD-${idx+101}`}</span>
                                   {item.size && <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] text-slate-700">Size: {item.size}</span>}
@@ -1117,6 +1111,122 @@ export default function MerchantFlaggedCases() {
                 <button
                   type="button"
                   onClick={() => setSelectedProofModal(null)}
+                  className="rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 px-4 py-2.5 cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RETURNED ITEM FULL PRODUCT SPECIFICATIONS & DETAILS MODAL */}
+      {selectedItemModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="relative flex flex-col md:flex-row w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-200">
+            {/* Left: Full Product Thumbnail Gallery */}
+            <div className="relative bg-slate-900 flex items-center justify-center md:w-1/2 p-6 overflow-hidden">
+              <img
+                src={selectedItemModal.itemImage || selectedItemModal.image}
+                alt={selectedItemModal.name}
+                className="max-h-[60vh] w-full object-contain rounded-2xl shadow-xl transition-transform hover:scale-105"
+              />
+              <div className="absolute top-4 left-4 rounded-full bg-black/60 px-3 py-1 text-xs font-bold text-white backdrop-blur-md border border-white/10">
+                SKU: {selectedItemModal.sku || selectedItemModal.product_id}
+              </div>
+              <div className="absolute bottom-4 left-4 right-4 text-center rounded-xl bg-slate-950/80 backdrop-blur-md py-1.5 px-3 text-[11px] font-bold text-emerald-400 border border-emerald-500/20">
+                ✓ Active Return Claim Item
+              </div>
+            </div>
+
+            {/* Right: Full Product Details & Financial Breakdown */}
+            <div className="flex flex-col justify-between p-6 md:w-1/2 overflow-y-auto space-y-4">
+              <div>
+                <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+                  <div>
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-indigo-600">
+                      PRODUCT ITEM SPECIFICATIONS
+                    </span>
+                    <h3 className="text-lg font-black text-slate-900 mt-0.5 leading-snug">
+                      {selectedItemModal.name}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedItemModal(null)}
+                    className="rounded-full bg-slate-100 p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-900 cursor-pointer font-bold shrink-0 ml-2"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Product Attributes Grid */}
+                <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-200">
+                    <span className="text-[10px] font-bold uppercase text-slate-400">Item SKU / ID:</span>
+                    <p className="font-bold text-slate-900 mt-0.5 font-mono">{selectedItemModal.sku || selectedItemModal.product_id}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-200">
+                    <span className="text-[10px] font-bold uppercase text-slate-400">Order Reference:</span>
+                    <p className="font-bold text-slate-900 mt-0.5">{selectedItemModal.orderNumber || selected?.order_number}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-200">
+                    <span className="text-[10px] font-bold uppercase text-slate-400">Selected Size:</span>
+                    <p className="font-bold text-slate-900 mt-0.5">{selectedItemModal.size || 'Standard / Free Size'}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-200">
+                    <span className="text-[10px] font-bold uppercase text-slate-400">Selected Color:</span>
+                    <p className="font-bold text-slate-900 mt-0.5">{selectedItemModal.color || 'Standard Variant'}</p>
+                  </div>
+                </div>
+
+                {/* Price & Refund Breakdown */}
+                <div className="mt-3 rounded-2xl bg-indigo-50/60 p-3.5 border border-indigo-100 text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600 font-medium">Unit Price:</span>
+                    <span className="font-bold text-slate-900">₹{(selectedItemModal.price || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600 font-medium">Quantity Returned:</span>
+                    <span className="font-bold text-slate-900">{selectedItemModal.quantity || 1} Unit(s)</span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-indigo-200/60 pt-2 text-sm font-extrabold text-indigo-950">
+                    <span>Total Refund Claim:</span>
+                    <span className="text-base text-indigo-900">₹{(selectedItemModal.lineTotal || (selectedItemModal.price * selectedItemModal.quantity)).toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+
+                {/* Return Reason for this item */}
+                <div className="mt-3 rounded-xl bg-slate-50 p-3 border border-slate-200 text-xs">
+                  <span className="text-[10px] font-bold uppercase text-slate-400">Claimed Reason for Item:</span>
+                  <p className="font-bold text-rose-700 mt-0.5 capitalize">
+                    {selectedItemModal.returnReason?.replaceAll('_', ' ') || selected?.reason?.replaceAll('_', ' ') || 'Return Requested'}
+                  </p>
+                  {selectedItemModal.customerNote && (
+                    <p className="text-slate-600 text-[11px] mt-1 italic">
+                      "{selectedItemModal.customerNote}"
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="border-t border-slate-100 pt-3 flex items-center justify-between gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNotes(`✓ Inspected returned product: ${selectedItemModal.name} (${selectedItemModal.sku || selectedItemModal.product_id}) - Details and condition verified.`)
+                    showToast(`✓ Product details for ${selectedItemModal.name} verified!`)
+                    setSelectedItemModal(null)
+                  }}
+                  className="rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2.5 shadow-sm cursor-pointer"
+                >
+                  ✓ Verify Product Details
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedItemModal(null)}
                   className="rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 px-4 py-2.5 cursor-pointer"
                 >
                   Close
