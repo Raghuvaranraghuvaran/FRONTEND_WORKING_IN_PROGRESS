@@ -1048,10 +1048,28 @@ export const api = {
   },
 
   async simulatePaymentResult({ orderId, outcome }) {
-    await delay(1400)
-    const order = store.orders.find((o) => o.id === orderId)
-    const payment = findOrderPayment(orderId)
-    if (!order || !payment) throw new Error('Order not found.')
+    if (hasLiveApi()) {
+      try {
+        const liveRes = await live('/payments/simulate-result/', {
+          method: 'POST',
+          body: { order_id: orderId, outcome },
+        })
+        if (liveRes?.order) {
+          return {
+            order: liveRes.order,
+            payment: liveRes.payment || {},
+            invoice: liveRes.order?.invoice || null,
+          }
+        }
+      } catch (liveErr) {
+        console.warn('Live simulate payment fallback triggered:', liveErr)
+      }
+    }
+
+    await delay(1200)
+    const order = store.orders.find((o) => o.id === orderId) || store.orders[0]
+    const payment = findOrderPayment(orderId) || { id: 'pay_simulated', order_id: orderId, amount: order?.total || 0 }
+    if (!order) throw new Error('Order not found.')
 
     payment.updated_at = new Date().toISOString()
 
