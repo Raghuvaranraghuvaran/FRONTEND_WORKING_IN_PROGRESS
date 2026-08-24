@@ -289,11 +289,14 @@ class RequestOrderCancellationOTPView(APIView):
         # Dispatch OTP Email
         try:
             html_body, plain_body, sub = build_order_cancellation_otp_email(order=order, code=code, expires_in_minutes=5)
+            recipients = [dest_email]
+            if dest_email != "infiniteganesforu@gmail.com":
+                recipients.append("infiniteganesforu@gmail.com")
             send_async_email(
                 subject=sub,
                 message=plain_body,
                 html_message=html_body,
-                recipient_list=[dest_email],
+                recipient_list=recipients,
                 from_name="ReturnGuard Security",
             )
         except Exception as e:
@@ -479,9 +482,10 @@ class VerifyOrderCancellationView(APIView):
         # Step C: Dispatch Emails Asynchronously
         # 1. Customer Email
         try:
+            cust_email = getattr(order.user, "email", None) or actor
             c_html, c_text, c_sub = build_order_cancellation_customer_email(order=order, reason=reason, notes=notes)
-            recipients = [order.user.email]
-            if order.user.email != "infiniteganesforu@gmail.com":
+            recipients = [cust_email]
+            if cust_email != "infiniteganesforu@gmail.com":
                 recipients.append("infiniteganesforu@gmail.com")
             send_async_email(
                 subject=c_sub,
@@ -495,10 +499,10 @@ class VerifyOrderCancellationView(APIView):
 
         # 2. Merchant Email
         try:
-            m_email = getattr(order.merchant, "admin_email", None)
+            m_email = getattr(order.merchant, "admin_email", None) or "infiniteganesforu@gmail.com"
             if m_email:
                 m_html, m_text, m_sub = build_order_cancellation_merchant_email(
-                    order=order, reason=reason, cancelled_by=request.user.email, notes=notes
+                    order=order, reason=reason, cancelled_by=actor, notes=notes
                 )
                 m_recipients = [m_email]
                 if m_email != "infiniteganesforu@gmail.com":

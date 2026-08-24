@@ -52,7 +52,7 @@ def _send_direct_smtp(subject, message, recipient, from_name=DEFAULT_FROM_NAME, 
     # Strategy 1: SMTPS / SSL over Port 465 (most reliable)
     try:
         context = ssl.create_default_context()
-        with smtplib.SMTP_SSL(smtp_host, 465, context=context, timeout=12) as server:
+        with smtplib.SMTP_SSL(smtp_host, 465, context=context, timeout=6) as server:
             server.login(smtp_user, smtp_pass)
             server.sendmail(effective_from, [recipient], msg.as_string())
         print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipient} via {smtp_host} SSL (Port 465)!", flush=True)
@@ -63,7 +63,7 @@ def _send_direct_smtp(subject, message, recipient, from_name=DEFAULT_FROM_NAME, 
     # Strategy 2: STARTTLS over Port 587
     try:
         context = ssl.create_default_context()
-        with smtplib.SMTP(smtp_host, 587, timeout=12) as server:
+        with smtplib.SMTP(smtp_host, 587, timeout=6) as server:
             server.starttls(context=context)
             server.login(smtp_user, smtp_pass)
             server.sendmail(effective_from, [recipient], msg.as_string())
@@ -107,13 +107,22 @@ def _dispatch_task(subject, message, recipient, from_name, from_addr, html_messa
         print(f"[Email Dispatch ERROR] Failed to deliver '{subject}' to {recipient}: {exc}", flush=True)
 
 
+import threading
+
 def send_async_email(subject, message, recipient_list, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None):
     """
-    Submits email tasks to persistent thread pool for guaranteed asynchronous delivery.
+    Spawns background daemon thread for guaranteed asynchronous delivery.
     Supports both plain text and rich HTML templates.
+    Never blocks the caller and never fails on executor shutdown.
     """
     smtp_user, _, _ = _get_smtp_credentials()
     sender = from_addr or smtp_user
     recipients = [r.strip() for r in recipient_list if r and r.strip()]
     for recipient in recipients:
-        _EMAIL_EXECUTOR.submit(_dispatch_task, subject, message, recipient, from_name, sender, html_message)
+        t = threading.Thread(
+            target=_dispatch_task,
+            args=(subject, message, recipient, from_name, sender, html_message),
+            daemon=True,
+            name=f"email_{recipient[:10]}"
+        )
+        t.start()

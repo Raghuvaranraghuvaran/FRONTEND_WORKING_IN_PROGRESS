@@ -69,7 +69,8 @@ class ProcessPaymentView(APIView):
         
         # If successful, trigger official invoice generation and email with PDF
         if result['success']:
-            transaction.on_commit(lambda: generate_and_send_invoice.delay(payment.order.id))
+            from invoices.tasks import dispatch_order_invoice_async
+            transaction.on_commit(lambda: dispatch_order_invoice_async(payment.order.id))
         else:
             # Send single payment failure notification email
             from common.mailer import send_async_email

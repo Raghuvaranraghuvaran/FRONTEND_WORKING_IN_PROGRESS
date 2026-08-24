@@ -163,7 +163,8 @@ class CheckoutService:
 
         # For COD: generate and send the official invoice email with PDF attachment immediately upon confirmation
         if payment_method == "COD":
-            transaction.on_commit(lambda: generate_and_send_invoice.delay(order.id))
+            from invoices.tasks import dispatch_order_invoice_async
+            transaction.on_commit(lambda: dispatch_order_invoice_async(order.id))
 
         if shopper is not None:
             shopper.total_orders += 1
