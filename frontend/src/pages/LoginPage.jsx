@@ -53,8 +53,8 @@ export default function LoginPage() {
   const { setShopper } = useApp()
 
   const [activeTab, setActiveTab] = useState('pw')
-  const [form, setForm] = useState({ email: '', password: '' })
-  const [remember, setRemember] = useState(false)
+  const [form, setForm] = useState({ email: 'demo@shopper.com', password: 'demo123' })
+  const [remember, setRemember] = useState(true)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [otpSent, setOtpSent] = useState(false)
@@ -346,6 +346,30 @@ export default function LoginPage() {
                 >{error}</motion.div>
               )}
             </AnimatePresence>
+
+            {/* Quick Demo Shopper Selector */}
+            <div style={{ background: 'rgba(111,92,240,0.06)', border: '1px solid rgba(111,92,240,0.18)', borderRadius: 12, padding: '10px 12px', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: A, textTransform: 'uppercase', letterSpacing: '0.04em' }}>✨ Demo Shopper Pre-Filled</span>
+                <span style={{ fontSize: 10.5, color: '#6b7280', fontWeight: 600 }}>Default Ready</span>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setForm({ email: 'demo@shopper.com', password: 'demo123' })}
+                  style={{ background: form.email === 'demo@shopper.com' ? A : '#fff', color: form.email === 'demo@shopper.com' ? '#fff' : '#4b5563', border: `1px solid ${form.email === 'demo@shopper.com' ? A : 'rgba(0,0,0,0.12)'}`, borderRadius: 8, padding: '4px 8px', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}
+                >
+                  👤 demo@shopper.com (demo123)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ email: 'ananya.sharma@example.com', password: 'demo123' })}
+                  style={{ background: form.email === 'ananya.sharma@example.com' ? A : '#fff', color: form.email === 'ananya.sharma@example.com' ? '#fff' : '#4b5563', border: `1px solid ${form.email === 'ananya.sharma@example.com' ? A : 'rgba(0,0,0,0.12)'}`, borderRadius: 8, padding: '4px 8px', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}
+                >
+                  🌟 ananya.sharma@example.com
+                </button>
+              </div>
+            </div>
 
             {/* ── Password tab ─────────────────────────────────────────── */}
             {activeTab === 'pw' && (
