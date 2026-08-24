@@ -17,9 +17,9 @@ def env_list(name, default=""):
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-dev-key-change-me")
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-dev-key-change-me-production-secret-key-returnguard-2026")
 DEBUG = env_bool("DJANGO_DEBUG", True)
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,.onrender.com")
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,.onrender.com,.railway.app,.vercel.app,*")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -146,12 +146,13 @@ CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175"
 )
 CORS_ALLOWED_ORIGIN_REGEXES = [
-    # Allow all Vercel preview and production deployments
-    r"^https://.*\.vercel\.app$",
-    # Allow all Render subdomains
-    r"^https://.*\.onrender\.com$",
+    r"^https?://.*\.vercel\.app$",
+    r"^https?://.*\.netlify\.app$",
+    r"^https?://.*\.onrender\.com$",
+    r"^https?://.*\.railway\.app$",
 ]
-CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", True)
+CORS_ALLOW_CREDENTIALS = True
 
 
 CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
