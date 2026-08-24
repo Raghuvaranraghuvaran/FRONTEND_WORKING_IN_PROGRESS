@@ -278,6 +278,7 @@ export default function StorefrontHeader() {
                       transition={{ delay: 0.18, duration: 0.35, ease: 'easeOut' }}
                       whileHover={{ scale: 1.015, y: -1.5 }}
                       whileTap={{ scale: 0.98 }}
+                      style={{ marginTop: '24px' }}
                     >
                       <Link
                         to="/merchant/login"

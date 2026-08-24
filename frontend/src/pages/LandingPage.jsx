@@ -446,6 +446,17 @@ export default function LandingPage() {
           box-shadow: 0 0 16px rgba(99, 102, 241, 0.25);
           transform: scale(1.05);
         }
+        .vlc-portal-cards-wrap {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 24px !important;
+          width: 100% !important;
+          margin-top: 12px !important;
+          margin-bottom: 12px !important;
+        }
+        .vlc-portal-cards-wrap > * + * {
+          margin-top: 24px !important;
+        }
         @media (max-width: 860px) {
           .vlc-nav-links { display: none; }
           .vlc-burger { display: flex; }
@@ -754,14 +765,14 @@ export default function LandingPage() {
 
                 {/* Portal Cards with distinct vertical gap */}
                 <div
-                  className="flex flex-col w-full"
+                  className="vlc-portal-cards-wrap"
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '24px',
                     width: '100%',
-                    marginTop: '8px',
-                    marginBottom: '8px',
+                    marginTop: '12px',
+                    marginBottom: '12px',
                   }}
                 >
                   {/* Shopper Portal Card with spring hover */}
@@ -823,6 +834,7 @@ export default function LandingPage() {
                     transition={{ delay: 0.18, duration: 0.35, ease: 'easeOut' }}
                     whileHover={{ scale: 1.015, y: -1.5 }}
                     whileTap={{ scale: 0.98 }}
+                    style={{ marginTop: '24px' }}
                   >
                     <Link
                       to="/merchant/login"
