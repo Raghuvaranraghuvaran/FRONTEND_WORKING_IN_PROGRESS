@@ -263,7 +263,7 @@ export default function LandingPage() {
   return (
     <div className="vlc-root">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
 
         .vlc-root {
           --bg: #0D0F12;
@@ -317,9 +317,11 @@ export default function LandingPage() {
         .vlc-nav {
           position: fixed; top: 0; left: 0; right: 0; z-index: 50;
           display: flex; align-items: center; justify-content: space-between;
-          padding: 22px 8vw;
-          backdrop-filter: blur(14px);
+          padding: 18px 8vw;
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
           border-bottom: 1px solid transparent;
+          transition: all .3s ease;
         }
         .vlc-logo { display: flex; align-items: center; gap: 10px; font-family:'Bebas Neue',sans-serif; font-size: 26px; letter-spacing: 0.06em; }
         .vlc-logo span { color: var(--accent); }
@@ -337,27 +339,110 @@ export default function LandingPage() {
           transition: color .25s ease; position: relative;
         }
         .vlc-nav-links a:hover { color: var(--text); }
-        .vlc-nav-right { display: flex; align-items: center; gap: 14px; }
+        .vlc-nav-right { display: flex; align-items: center; gap: 10px; }
+
+        /* TOP RIGHT MENU DOCK & BUTTONS */
+        .vlc-nav-pill-group {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 5px;
+          background: rgba(22, 26, 35, 0.72);
+          border: 1px solid rgba(255, 255, 255, 0.09);
+          border-radius: 9999px;
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
         .vlc-login-btn {
-          display:flex; align-items:center; gap:6px; background: transparent;
-          border: 1px solid var(--border); color: var(--muted); border-radius: 999px;
-          padding: 9px 18px; cursor: pointer; font-size: 13px; font-weight: 600;
-          transition: background .25s ease, color .25s ease, border-color .25s ease; text-decoration: none;
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          color: #E2E8F0;
+          border-radius: 9999px;
+          padding: 8px 16px;
+          cursor: pointer;
+          font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+          font-size: 13px;
+          font-weight: 600;
+          letter-spacing: 0.01em;
+          transition: all .25s cubic-bezier(0.16, 1, 0.3, 1);
+          text-decoration: none;
         }
-        .vlc-login-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .vlc-login-btn .btn-icon {
+          color: #94A3B8;
+          transition: transform .25s ease, color .25s ease;
+        }
+        .vlc-login-btn:hover {
+          background: rgba(255, 255, 255, 0.12);
+          color: #FFFFFF;
+          border-color: rgba(99, 102, 241, 0.35);
+          box-shadow: 0 2px 14px rgba(99, 102, 241, 0.15);
+          transform: translateY(-1px);
+        }
+        .vlc-login-btn:hover .btn-icon {
+          color: #818CF8;
+          transform: scale(1.1);
+        }
         .vlc-merchant-btn {
-          display:flex; align-items:center; gap:6px; background: transparent;
-          border: 1px solid var(--border); color: var(--muted); border-radius: 999px;
-          padding: 9px 18px; cursor: pointer; font-size: 13px; font-weight: 600;
-          transition: background .25s ease, color .25s ease, border-color .25s ease; text-decoration: none;
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          background: linear-gradient(135deg, #4F46E5 0%, #6366F1 50%, #7C3AED 100%);
+          border: 1px solid rgba(255, 255, 255, 0.22);
+          color: #FFFFFF;
+          border-radius: 9999px;
+          padding: 8px 18px;
+          cursor: pointer;
+          font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.01em;
+          box-shadow: 0 3px 14px rgba(99, 102, 241, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+          transition: all .25s cubic-bezier(0.16, 1, 0.3, 1);
+          text-decoration: none;
         }
-        .vlc-merchant-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
-        .vlc-burger { display:none; background:none; border:none; color:var(--text); cursor:pointer; }
+        .vlc-merchant-btn .btn-icon {
+          color: #E0E7FF;
+          transition: transform .25s ease;
+        }
+        .vlc-merchant-btn:hover {
+          background: linear-gradient(135deg, #4338CA 0%, #4F46E5 50%, #6D28D9 100%);
+          box-shadow: 0 5px 22px rgba(99, 102, 241, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+          border-color: rgba(255, 255, 255, 0.35);
+          transform: translateY(-1px) scale(1.02);
+        }
+        .vlc-merchant-btn:hover .btn-icon {
+          transform: scale(1.1) rotate(-4deg);
+        }
+        .vlc-burger {
+          display: none;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: rgba(22, 26, 35, 0.85);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          color: var(--text);
+          cursor: pointer;
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          transition: all .2s ease;
+        }
+        .vlc-burger:hover {
+          background: rgba(255, 255, 255, 0.12);
+          color: #fff;
+          border-color: rgba(99, 102, 241, 0.4);
+          box-shadow: 0 0 16px rgba(99, 102, 241, 0.25);
+          transform: scale(1.05);
+        }
         @media (max-width: 860px) {
-          .vlc-nav-links { display:none; }
-          .vlc-burger { display:block; }
-          .vlc-nav-right .vlc-login-btn,
-          .vlc-nav-right .vlc-merchant-btn { display: none; }
+          .vlc-nav-links { display: none; }
+          .vlc-burger { display: flex; }
+          .vlc-nav-right .vlc-nav-pill-group { display: none; }
         }
         .vlc-mobile-menu {
           position: fixed; inset: 0; background: var(--bg); z-index: 60;
@@ -566,9 +651,19 @@ export default function LandingPage() {
         </Link>
 
         <div className="vlc-nav-right">
-          <Link to="/login" className="vlc-login-btn">Shopper Login</Link>
-          <Link to="/merchant/login" className="vlc-merchant-btn">Merchant Login</Link>
-          <button className="vlc-burger" onClick={() => setNavOpen(true)} aria-label="Open menu"><Menu size={22} /></button>
+          <div className="vlc-nav-pill-group">
+            <Link to="/login" className="vlc-login-btn">
+              <ShoppingBag size={14} className="btn-icon" />
+              <span>Shopper Login</span>
+            </Link>
+            <Link to="/merchant/login" className="vlc-merchant-btn">
+              <Store size={14} className="btn-icon" />
+              <span>Merchant Login</span>
+            </Link>
+          </div>
+          <button className="vlc-burger" onClick={() => setNavOpen(true)} aria-label="Open menu">
+            <Menu size={19} />
+          </button>
         </div>
       </motion.nav>
 
