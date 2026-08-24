@@ -6,25 +6,41 @@ export function hasLiveApi() {
   return Boolean(API_BASE_URL)
 }
 
-export async function request(path, { method = 'GET', body, token } = {}) {
+export async function request(path, { method = 'GET', body, token, timeoutMs = 5000 } = {}) {
   const headers = { Accept: 'application/json' }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok) {
-    const error = data?.error
-    const message = error?.message || data?.detail || data?.message || `Request failed (${response.status})`
-    const err = new Error(message)
-    err.status = response.status
-    err.data = data
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
+
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      const error = data?.error
+      const message = error?.message || data?.detail || data?.message || `Request failed (${response.status})`
+      const err = new Error(message)
+      err.status = response.status
+      err.data = data
+      throw err
+    }
+    return data
+  } catch (err) {
+    clearTimeout(timeoutId)
+    if (err.name === 'AbortError') {
+      const timeoutErr = new Error(`Request to ${path} timed out after ${timeoutMs}ms`)
+      timeoutErr.status = 408
+      throw timeoutErr
+    }
     throw err
   }
-  return data
 }
