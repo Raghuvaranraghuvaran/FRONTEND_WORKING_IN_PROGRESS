@@ -348,3 +348,288 @@ def build_merchant_return_alert_email(return_request, merchant):
     """
 
     return html_content, plain_text
+
+
+def build_return_status_update_email(return_request, action, merchant, notes=""):
+    """
+    Renders a responsive, aesthetic HTML email notifying the customer
+    whenever their return request is Approved, Declined/Rejected,
+    Product Returned, or Refund Processed.
+    """
+    frontend_url = get_frontend_url()
+    orders_url = f"{frontend_url}/orders"
+
+    order = return_request.order
+    order_number = html.escape(str(getattr(order, "order_number", f"#{return_request.order_id}")))
+    return_id = return_request.id
+    customer_name = html.escape(str(return_request.customer_name or getattr(return_request.user, "name", "Valued Customer")))
+    merchant_name = html.escape(str(getattr(merchant, "business_name", "Our Store")))
+    reason_label = html.escape(str(return_request.reason).replace("_", " ").title())
+    refund_method_label = html.escape(str(getattr(return_request, "refund_method", "original")).replace("_", " ").title())
+    order_total = f"₹{getattr(order, 'total', 0):,.2f}" if order else "N/A"
+    decision_notes = html.escape(str(notes).strip()) if notes else ""
+
+    action_norm = action.lower()
+
+    if action_norm in ("approve", "approved"):
+        badge_text = "✓ Return Request Approved"
+        badge_bg = "rgba(16, 185, 129, 0.2)"
+        banner_gradient = "linear-gradient(135deg, #059669 0%, #10b981 100%)"
+        headline = "Your Return Has Been Approved!"
+        subheadline = f"Order {order_number} has been approved for return by {merchant_name}."
+        status_color = "#059669"
+        status_title = "Return Approved — Pickup Scheduled"
+        instructions_title = "Next Steps for Pickup:"
+        instructions_text = """
+        <ul style="margin: 8px 0 0 0; padding-left: 20px; color: #475569; font-size: 13px; line-height: 1.6;">
+            <li>Keep the item(s) packed in their original box with price tags intact.</li>
+            <li>Our courier partner will arrive for doorstep pickup within <strong>24–48 hours</strong>.</li>
+            <li>Once inspected, your refund will be disbursed via <strong>{refund_method_label}</strong>.</li>
+        </ul>
+        """.replace("{refund_method_label}", refund_method_label)
+        cta_text = "📦 Track Return Status"
+        subject = f"Return Approved: Order #{order_number} — Pickup Scheduled"
+
+    elif action_norm in ("reject", "rejected"):
+        badge_text = "✕ Return Request Declined"
+        badge_bg = "rgba(239, 68, 68, 0.2)"
+        banner_gradient = "linear-gradient(135deg, #dc2626 0%, #e11d48 100%)"
+        headline = "Update on Your Return Request"
+        subheadline = f"Your return request for Order {order_number} could not be approved."
+        status_color = "#dc2626"
+        status_title = "Return Request Declined"
+        instructions_title = "Reason for Decision:"
+        default_reject_note = "Your return request was evaluated against our return policy criteria and cannot be processed at this time."
+        instructions_text = f"""
+        <p style="margin: 8px 0 0 0; color: #475569; font-size: 13px; line-height: 1.6;">
+            {decision_notes or default_reject_note}
+        </p>
+        <p style="margin: 12px 0 0 0; color: #64748b; font-size: 12px;">
+            If you believe this was an error or have additional photos/evidence to share, please reply directly to this email or contact {merchant_name} support.
+        </p>
+        """
+        cta_text = "🔍 View Order Details"
+        subject = f"Update on Your Return Request: Order #{order_number}"
+
+    elif action_norm == "product_returned":
+        badge_text = "📦 Package Received"
+        badge_bg = "rgba(79, 70, 229, 0.2)"
+        banner_gradient = "linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)"
+        headline = "We Received Your Returned Package"
+        subheadline = f"Your returned items for Order {order_number} have arrived at our warehouse."
+        status_color = "#4f46e5"
+        status_title = "Package Received — Quality Verification"
+        instructions_title = "What happens next?"
+        instructions_text = """
+        <p style="margin: 8px 0 0 0; color: #475569; font-size: 13px; line-height: 1.6;">
+            Our team is performing a quick quality verification. Your refund will be initiated immediately upon completion.
+        </p>
+        """
+        cta_text = "📋 View Return Status"
+        subject = f"Package Received: Return #{return_id} (Order #{order_number})"
+
+    else:  # refund_processed
+        badge_text = "💰 Refund Processed"
+        badge_bg = "rgba(13, 148, 136, 0.2)"
+        banner_gradient = "linear-gradient(135deg, #0d9488 0%, #14b8a6 100%)"
+        headline = "Your Refund Has Been Processed!"
+        subheadline = f"Refund of {order_total} for Order {order_number} has been completed."
+        status_color = "#0d9488"
+        status_title = "Refund Successfully Transferred"
+        instructions_title = "Refund Details:"
+        instructions_text = f"""
+        <p style="margin: 8px 0 0 0; color: #475569; font-size: 13px; line-height: 1.6;">
+            The amount of <strong>{order_total}</strong> has been refunded via <strong>{refund_method_label}</strong>.
+        </p>
+        <p style="margin: 8px 0 0 0; color: #64748b; font-size: 12px;">
+            Depending on your bank/payment provider, it may take 2–4 business days to reflect on your statement. Store credit / reward points are available instantly in your account.
+        </p>
+        """
+        cta_text = "🛍️ Continue Shopping"
+        subject = f"Refund Processed: {order_total} for Order #{order_number}"
+
+    # Build line items
+    items_rows = ""
+    lines = return_request.return_lines.all()
+    if lines.exists():
+        for line in lines:
+            items_rows += f"""
+            <tr>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #1e293b; font-size: 13px; font-weight: 500;">
+                    {html.escape(line.name)}
+                </td>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; text-align: center; color: #64748b; font-size: 13px;">
+                    × {line.quantity}
+                </td>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; text-align: right; font-weight: 600; color: #0f172a; font-size: 13px;">
+                    ₹{line.price:,.2f}
+                </td>
+            </tr>
+            """
+    elif order and order.items.exists():
+        for item in order.items.all():
+            items_rows += f"""
+            <tr>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #1e293b; font-size: 13px; font-weight: 500;">
+                    {html.escape(item.name)}
+                </td>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; text-align: center; color: #64748b; font-size: 13px;">
+                    × {item.quantity}
+                </td>
+                <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; text-align: right; font-weight: 600; color: #0f172a; font-size: 13px;">
+                    ₹{item.price:,.2f}
+                </td>
+            </tr>
+            """
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{subject}</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; padding: 30px 15px;">
+            <tr>
+                <td align="center">
+                    <table width="100%" max-width="600" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                        
+                        <!-- Header Banner -->
+                        <tr>
+                            <td style="background: {banner_gradient}; padding: 32px 30px; text-align: center;">
+                                <div style="display: inline-block; background: {badge_bg}; padding: 8px 16px; border-radius: 50px; color: #ffffff; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 12px;">
+                                    {badge_text}
+                                </div>
+                                <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 800; letter-spacing: -0.02em;">
+                                    {headline}
+                                </h1>
+                                <p style="margin: 8px 0 0 0; color: rgba(255, 255, 255, 0.9); font-size: 14px;">
+                                    {subheadline}
+                                </p>
+                            </td>
+                        </tr>
+
+                        <!-- Body Content -->
+                        <tr>
+                            <td style="padding: 32px 30px;">
+                                <p style="margin: 0 0 16px 0; font-size: 15px; color: #334155; line-height: 1.5;">
+                                    Hi <strong>{customer_name}</strong>,
+                                </p>
+
+                                <!-- Status Summary Box -->
+                                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+                                    <tr>
+                                        <td style="padding-bottom: 8px;">
+                                            <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">
+                                                Return Request ID
+                                            </span>
+                                            <div style="font-size: 15px; font-weight: 700; color: #0f172a; font-family: monospace;">
+                                                #{return_id} (Order {order_number})
+                                            </div>
+                                        </td>
+                                        <td style="padding-bottom: 8px; text-align: right;">
+                                            <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">
+                                                Status
+                                            </span>
+                                            <div style="font-size: 13px; font-weight: 700; color: {status_color};">
+                                                {status_title}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding-top: 8px; border-top: 1px solid #e2e8f0;">
+                                            <span style="font-size: 11px; color: #64748b;">Reason:</span>
+                                            <span style="font-size: 12px; font-weight: 600; color: #334155;">{reason_label}</span>
+                                        </td>
+                                        <td style="padding-top: 8px; border-top: 1px solid #e2e8f0; text-align: right;">
+                                            <span style="font-size: 11px; color: #64748b;">Refund Mode:</span>
+                                            <span style="font-size: 12px; font-weight: 600; color: #334155;">{refund_method_label}</span>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <!-- Next Steps / Decision Notes Box -->
+                                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; border: 1px solid #e2e8f0;">
+                                    <tr>
+                                        <td>
+                                            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.04em;">
+                                                {instructions_title}
+                                            </h4>
+                                            {instructions_text}
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <!-- Line Items Table (if any) -->
+                                {f'''
+                                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
+                                    <tr>
+                                        <td colspan="3" style="padding-bottom: 8px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">
+                                            Return Items
+                                        </td>
+                                    </tr>
+                                    {items_rows}
+                                </table>
+                                ''' if items_rows else ''}
+
+                                <!-- CTA Button -->
+                                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="text-align: center; margin-top: 8px;">
+                                    <tr>
+                                        <td>
+                                            <a href="{orders_url}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; padding: 14px 32px; border-radius: 12px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);">
+                                                {cta_text}
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                            </td>
+                        </tr>
+
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 30px; text-align: center;">
+                                <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #64748b;">
+                                    {merchant_name}
+                                </p>
+                                <p style="margin: 0; font-size: 11px; color: #94a3b8;">
+                                    Powered by ReturnGuard · Intelligent Return Protection
+                                </p>
+                            </td>
+                        </tr>
+
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+    plain_text = f"""
+    {headline}
+
+    Hi {customer_name},
+
+    {subheadline}
+
+    Return Request ID: #{return_id}
+    Order Number: {order_number}
+    Status: {status_title}
+    Reason: {reason_label}
+    Refund Mode: {refund_method_label}
+    Amount: {order_total}
+
+    {instructions_title}
+    {decision_notes or 'Please check your account portal for latest updates.'}
+
+    View your return status at:
+    {orders_url}
+
+    — {merchant_name} via ReturnGuard
+    """
+
+    return html_content, plain_text, subject
+

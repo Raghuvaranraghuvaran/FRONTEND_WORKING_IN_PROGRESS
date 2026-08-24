@@ -237,7 +237,8 @@ export default function MerchantFlaggedCases() {
         })
 
         const actionName = actionType === 'approve' ? 'APPROVED' : actionType === 'reject' ? 'REJECTED' : actionType.replace('_', ' ').toUpperCase()
-        showToast(`✓ Return Request #${selected.id} has been ${actionName}!`)
+        const customerEmail = selected.customer_email || 'registered email'
+        showToast(`✓ Return #${selected.id} ${actionName}! Confirmation email sent to ${customerEmail}.`)
         setNotes('')
 
         setSelected((prev) => prev ? { ...prev, status: updatedReturn.status, outcome: updatedReturn.outcome } : prev)

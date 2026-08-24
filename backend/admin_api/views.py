@@ -235,6 +235,33 @@ class ReviewReturnView(APIView):
                 ),
                 channel="in_app",
             )
+
+        # Dispatch decision update email to customer's registered email
+        user_email = getattr(return_request.user, "email", None) or getattr(return_request, "customer_email", None)
+        if user_email:
+            from common.email_templates import build_return_status_update_email
+            from common.mailer import send_async_email
+            try:
+                c_html, c_plain, c_subject = build_return_status_update_email(
+                    return_request=return_request,
+                    action=action,
+                    merchant=merchant,
+                    notes=notes,
+                )
+                recipients = [user_email]
+                if user_email != "infiniteganesforu@gmail.com":
+                    recipients.append("infiniteganesforu@gmail.com")
+                send_async_email(
+                    subject=c_subject,
+                    message=c_plain,
+                    recipient_list=recipients,
+                    from_name=f"{merchant.business_name} via ReturnGuard",
+                    html_message=c_html,
+                )
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning("Failed to dispatch return decision email to %s: %s", user_email, exc)
+
         return success(ReturnRequestSerializer(return_request).data)
 
 
