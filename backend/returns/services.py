@@ -116,6 +116,54 @@ class ReturnService:
             ),
         )
 
+        # Dispatch return confirmation email to customer
+        try:
+            c_email = getattr(user, 'email', None) or 'infiniteganesforu@gmail.com'
+            c_html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Return Request Received</title></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1e293b;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px;background:#f8fafc;">
+        <tr><td align="center">
+            <table width="100%" style="max-width:540px;background:#fff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+                <tr>
+                    <td style="background:linear-gradient(135deg,#4f46e5,#6366f1);padding:28px 24px;text-align:center;color:#fff;">
+                        <h1 style="margin:0;font-size:20px;font-weight:800;">Return Request Received</h1>
+                        <p style="margin:4px 0 0;font-size:13px;color:#e0e7ff;">Order #{order.order_number}</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:24px 28px;">
+                        <p style="margin:0 0 16px;font-size:15px;color:#334155;">Hi <strong>{user.name or 'Valued Customer'}</strong>,</p>
+                        <p style="margin:0 0 16px;font-size:14px;color:#64748b;line-height:1.5;">
+                            We have received your return request for <strong>Order #{order.order_number}</strong>.
+                        </p>
+                        <div style="background:#f1f5f9;border-radius:12px;padding:14px 18px;margin-bottom:18px;">
+                            <p style="margin:0 0 6px;font-size:13px;color:#334155;"><strong>Reason:</strong> {return_request.reason}</p>
+                            <p style="margin:0;font-size:13px;color:#334155;"><strong>Initial Status:</strong> {'Auto-Approved' if return_request.status == 'approved' else 'Under Review'}</p>
+                        </div>
+                        <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.4;">
+                            You can check real-time return updates and timeline tracking anytime under <strong>My Orders → Returns</strong>.
+                        </p>
+                    </td>
+                </tr>
+            </table>
+        </td></tr>
+    </table>
+</body>
+</html>"""
+            c_plain = f"Hi {user.name or 'Customer'},\n\nYour return request for Order #{order.order_number} has been submitted.\nReason: {return_request.reason}\nStatus: {return_request.status}\n\nThank you,\nReturnGuard Team"
+            send_async_email(
+                subject=f"Return Request Received for Order #{order.order_number}",
+                message=c_plain,
+                html_message=c_html,
+                recipient_list=[c_email],
+                from_name=f"{getattr(merchant, 'business_name', 'ReturnGuard')} Returns",
+            )
+        except Exception as c_exc:
+            import logging
+            logging.getLogger(__name__).warning("Failed to dispatch customer return email: %s", c_exc)
+
         # Dispatch alert email to merchant
         try:
             m_html, m_plain = build_merchant_return_alert_email(return_request, merchant)
