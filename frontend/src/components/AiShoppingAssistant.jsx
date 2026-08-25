@@ -285,7 +285,9 @@ export default function AiShoppingAssistant() {
     e?.stopPropagation()
     const pId = product.id || product.product_id
     if (pId) {
+      setIsOpen(false)
       navigate(`/products/${pId}`)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
