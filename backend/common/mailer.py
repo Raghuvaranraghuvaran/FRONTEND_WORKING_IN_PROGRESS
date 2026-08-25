@@ -103,17 +103,6 @@ def _send_via_resend_http(subject, message, recipients, from_name=DEFAULT_FROM_N
     except urllib.error.HTTPError as http_err:
         err_body = http_err.read().decode("utf-8", errors="ignore")
         print(f"[Email Dispatch] Resend API HTTP error {http_err.code}: {err_body}", flush=True)
-        
-        # If Resend free sandbox restricted to account owner (e.g. raghuvaranraghuvaran65@gmail.com)
-        if http_err.code == 403 and "only send testing emails to your own email address" in err_body:
-            import re
-            match = re.search(r"\(([^)]+@resend\.dev|[^)]+@gmail\.com|[^)]+@[^)]+)\)", err_body)
-            owner_email = match.group(1).strip() if match else "raghuvaranraghuvaran65@gmail.com"
-            print(f"[Email Dispatch] Resend sandbox fallback: Delivering clean email directly to account owner ({owner_email})...", flush=True)
-            try:
-                return _do_resend_post([owner_email])
-            except Exception as owner_err:
-                print(f"[Email Dispatch] Resend owner delivery fallback failed: {owner_err}", flush=True)
     except Exception as exc:
         print(f"[Email Dispatch] Resend API request error: {exc}", flush=True)
 
