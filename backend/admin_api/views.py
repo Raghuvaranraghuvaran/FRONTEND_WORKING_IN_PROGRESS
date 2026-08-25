@@ -1,6 +1,7 @@
 from django.db import models
 from django.db.models import Case, Count, Q, When
 from django.utils import timezone
+from django.utils.text import slugify
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView

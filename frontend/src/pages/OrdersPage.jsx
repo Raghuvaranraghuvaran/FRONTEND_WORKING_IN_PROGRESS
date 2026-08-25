@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { api } from '../mock/api'
 import { formatDate, formatDateTime, INR } from '../lib/format'
 import {
@@ -411,26 +412,38 @@ export default function OrdersPage() {
       </div>
 
       {/* ── Activity Tabs (Orders vs Returns) ──────────────────────────────── */}
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="mb-6 flex p-1 rounded-2xl bg-slate-100/90 border border-slate-200/80 w-fit">
         <button
+          type="button"
           onClick={() => handleTabChange('orders')}
-          className={`rounded-full px-5 py-2 text-xs font-bold transition-all cursor-pointer ${
-            tab === 'orders'
-              ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-600/20'
-              : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
+          className={`relative z-10 rounded-xl px-5 py-2 text-xs font-bold transition-colors cursor-pointer ${
+            tab === 'orders' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          Orders ({orders.length})
+          {tab === 'orders' && (
+            <motion.div
+              layoutId="activeOrderTabPill"
+              className="absolute inset-0 rounded-xl bg-indigo-600 shadow-sm"
+              transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+            />
+          )}
+          <span className="relative z-10">Orders ({orders.length})</span>
         </button>
         <button
+          type="button"
           onClick={() => handleTabChange('returns')}
-          className={`rounded-full px-5 py-2 text-xs font-bold transition-all cursor-pointer ${
-            tab === 'returns'
-              ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-600/20'
-              : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
+          className={`relative z-10 rounded-xl px-5 py-2 text-xs font-bold transition-colors cursor-pointer ${
+            tab === 'returns' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          Returns ({returns.length})
+          {tab === 'returns' && (
+            <motion.div
+              layoutId="activeOrderTabPill"
+              className="absolute inset-0 rounded-xl bg-indigo-600 shadow-sm"
+              transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+            />
+          )}
+          <span className="relative z-10">Returns ({returns.length})</span>
         </button>
       </div>
 
@@ -594,7 +607,16 @@ export default function OrdersPage() {
             </div>
           ))}
         </div>
-      ) : tab === 'orders' ? (
+      ) : (
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, x: tab === 'orders' ? -14 : 14, scale: 0.985 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: tab === 'orders' ? 14 : -14, scale: 0.985 }}
+            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {tab === 'orders' ? (
         filteredOrders.length === 0 ? (
           /* Empty State Component */
           <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-xs">
@@ -965,8 +987,10 @@ export default function OrdersPage() {
               </div>
             ))}
           </div>
-        )
-      )}
+        ))}
+      </motion.div>
+    </AnimatePresence>
+  )}
 
       {/* ── Live Tracking Modal ─────────────────────────────────────────────── */}
       {trackingModalOrder && (

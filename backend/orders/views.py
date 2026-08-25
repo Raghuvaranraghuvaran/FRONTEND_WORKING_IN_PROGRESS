@@ -25,7 +25,10 @@ def _resolve_shopper(request):
         # Check if email is passed in request body, query parameters, or headers
         email = None
         if hasattr(request, "data") and isinstance(request.data, dict):
-            email = request.data.get("email") or request.data.get("customer_email") or (request.data.get("user") or {}).get("email") if isinstance(request.data.get("user"), dict) else None
+            email = request.data.get("email") or request.data.get("customer_email")
+            user_obj = request.data.get("user")
+            if not email and isinstance(user_obj, dict):
+                email = user_obj.get("email")
         if not email and hasattr(request, "query_params"):
             email = request.query_params.get("email")
         if not email and hasattr(request, "headers"):
@@ -234,13 +237,6 @@ class ReportDoorstepRefusalView(APIView):
             "message": "Doorstep refusal logged and progressive escalation updated.",
         })
 
-        return success({
-            "order_number": order.order_number,
-            "status": order.delivery_status,
-            "is_cod_refused": order.is_cod_refused,
-            "message": "Doorstep refusal logged and progressive escalation updated.",
-        })
-
 
 class UpdateOrderStatusView(APIView):
     """Update order delivery status (e.g. Processing, In Transit, Delivered, etc.)."""
@@ -253,11 +249,11 @@ class UpdateOrderStatusView(APIView):
         merchant = require_merchant_context(request)
         order = Order.objects.filter(pk=pk if str(pk).isdigit() else 0).first() or Order.objects.filter(order_number__icontains=str(pk)).first()
         if not order:
-            return AppError("Order not found.", code="NOT_FOUND")
+            raise AppError("Order not found.", code="NOT_FOUND")
 
         new_status = request.data.get("deliveryStatus") or request.data.get("delivery_status") or request.data.get("status")
         if not new_status:
-            return AppError("deliveryStatus is required.", code="VALIDATION_ERROR")
+            raise AppError("deliveryStatus is required.", code="VALIDATION_ERROR")
 
         order.delivery_status = new_status
         update_fields = ["delivery_status"]

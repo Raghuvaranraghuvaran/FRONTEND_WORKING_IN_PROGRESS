@@ -2356,7 +2356,7 @@ export const api = {
         formData.append('images', file)
       }
       const resp = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/admin/products/upload-image/`,
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/admin/products/upload-image/`,
         {
           method: 'POST',
           headers: {
