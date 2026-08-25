@@ -2057,17 +2057,175 @@ export const api = {
     return clone(suggestion)
   },
 
-  async getDeliveryAgents() {
+  async getDeliveryAgents(params = {}) {
     if (hasLiveApi()) {
       try {
-        const data = await live('/admin/delivery-agents/', { role: 'merchant' })
-        if (Array.isArray(data) && data.length > 0) return data
+        const searchParams = new URLSearchParams()
+        if (params.ordering) searchParams.set('ordering', params.ordering)
+        if (params.risk) searchParams.set('risk', params.risk)
+        if (params.range) searchParams.set('range', params.range)
+        const qs = searchParams.toString() ? `?${searchParams.toString()}` : ''
+        
+        const data = await live(`/admin/delivery-agents/${qs}`, { role: 'merchant' })
+        if (data) {
+          if (Array.isArray(data)) return data
+          if (data.agents && Array.isArray(data.agents)) return data.agents
+        }
       } catch (err) {
         console.warn('Live getDeliveryAgents error, falling back:', err)
       }
     }
     await delay(300)
-    return clone(store.deliveryAgents || [])
+    let list = clone(store.deliveryAgents || [])
+    if (params.risk && params.risk !== 'all' && params.risk !== 'ert all') {
+      const r = params.risk.toUpperCase()
+      list = list.filter((a) => (a.current_risk_level || a.risk_flag || '').toUpperCase().includes(r))
+    }
+    if (params.ordering === '-anomaly_gap' || params.ordering === 'risk') {
+      list.sort((a, b) => ((b.return_rate - b.expected_return_rate) - (a.return_rate - a.expected_return_rate)))
+    } else if (params.ordering === '-deliveries') {
+      list.sort((a, b) => b.total_deliveries - a.total_deliveries)
+    }
+    return list
+  },
+
+  async getDeliveryAgentRiskOverview(params = {}) {
+    if (hasLiveApi()) {
+      try {
+        const searchParams = new URLSearchParams()
+        if (params.ordering) searchParams.set('ordering', params.ordering)
+        if (params.risk) searchParams.set('risk', params.risk)
+        if (params.range) searchParams.set('range', params.range)
+        const qs = searchParams.toString() ? `?${searchParams.toString()}` : ''
+
+        const data = await live(`/admin/delivery-agents/risk-overview/${qs}`, { role: 'merchant' })
+        if (data && data.agents) return data
+      } catch (err) {
+        console.warn('Live getDeliveryAgentRiskOverview error, falling back:', err)
+      }
+    }
+    await delay(300)
+    const agents = await this.getDeliveryAgents(params)
+    const recent_anomalies = clone(store.agentActivityLogs || [
+      { id: 1, agent_name: 'Suresh Kumar', message: 'Suresh Kumar issued', time_ago: '2 minutes ago', event_type: 'ANOMALY_DETECTED' },
+      { id: 2, agent_name: 'Imran Khan', message: 'Imran Khan Delivery-agent flagged', time_ago: '2 hours ago', event_type: 'FLAGGED' },
+      { id: 3, agent_name: 'Suresh Kumar', message: 'Suresh Kumar issued', time_ago: '3 minutes ago', event_type: 'BASELINE_UPDATED' },
+      { id: 4, agent_name: 'Pooja Nair', message: 'Pooja Nair route baseline verified', time_ago: '5 hours ago', event_type: 'HUMAN_SIGN_OFF' },
+    ])
+    return {
+      agents,
+      recent_anomalies,
+      summary: {
+        total_agents: agents.length,
+        high_risk_count: agents.filter((a) => a.current_risk_level === 'HIGH' || a.risk_flag === 'Review').length,
+        medium_risk_count: agents.filter((a) => a.current_risk_level === 'MEDIUM' || a.risk_flag === 'Monitor').length,
+        under_investigation_count: agents.filter((a) => a.is_under_investigation).length,
+      },
+    }
+  },
+
+  async investigateDeliveryAgent(id, { notes = '' } = {}) {
+    if (hasLiveApi()) {
+      try {
+        const numId = String(id).replace('agent_', '')
+        const res = await live(`/admin/delivery-agents/${numId}/investigate/`, {
+          method: 'POST',
+          body: { notes },
+          role: 'merchant',
+        })
+        if (res) return res
+      } catch (err) {
+        console.warn('Live investigateDeliveryAgent error, falling back:', err)
+      }
+    }
+    await delay(300)
+    const agent = (store.deliveryAgents || []).find((a) => a.id === id || String(a.id) === String(id))
+    if (agent) {
+      agent.is_under_investigation = true
+      store.agentActivityLogs = store.agentActivityLogs || []
+      store.agentActivityLogs.unshift({
+        id: Date.now(),
+        agent_id: agent.id,
+        agent_name: agent.name,
+        message: notes || `Investigation started for ${agent.name}`,
+        time_ago: 'Just now',
+        event_type: 'INVESTIGATION_STARTED',
+        created_at: new Date().toISOString(),
+      })
+      return { agent: clone(agent), message: `Investigation started for ${agent.name}` }
+    }
+    return { success: true, id }
+  },
+
+  async signOffDeliveryAgent(id, { notes = '', risk_level = 'LOW' } = {}) {
+    if (hasLiveApi()) {
+      try {
+        const numId = String(id).replace('agent_', '')
+        const res = await live(`/admin/delivery-agents/${numId}/sign-off/`, {
+          method: 'POST',
+          body: { notes, risk_level },
+          role: 'merchant',
+        })
+        if (res) return res
+      } catch (err) {
+        console.warn('Live signOffDeliveryAgent error, falling back:', err)
+      }
+    }
+    await delay(300)
+    const agent = (store.deliveryAgents || []).find((a) => a.id === id || String(a.id) === String(id))
+    if (agent) {
+      agent.is_under_investigation = false
+      agent.current_risk_level = risk_level.toUpperCase()
+      agent.risk_flag = risk_level.toUpperCase() === 'HIGH' ? 'Review' : risk_level.toUpperCase() === 'MEDIUM' ? 'Monitor' : 'Normal'
+      store.agentActivityLogs = store.agentActivityLogs || []
+      store.agentActivityLogs.unshift({
+        id: Date.now(),
+        agent_id: agent.id,
+        agent_name: agent.name,
+        message: notes || `Human sign-off completed. Risk set to ${agent.current_risk_level}`,
+        time_ago: 'Just now',
+        event_type: 'HUMAN_SIGN_OFF',
+        created_at: new Date().toISOString(),
+      })
+      return { agent: clone(agent), message: `Review and sign-off recorded for ${agent.name}` }
+    }
+    return { success: true, id }
+  },
+
+  async getDeliveryAgentDetails(id) {
+    if (hasLiveApi()) {
+      try {
+        const numId = String(id).replace('agent_', '')
+        const res = await live(`/admin/delivery-agents/${numId}/details/`, { role: 'merchant' })
+        if (res && res.agent) return res
+      } catch (err) {
+        console.warn('Live getDeliveryAgentDetails error, falling back:', err)
+      }
+    }
+    await delay(300)
+    const agent = (store.deliveryAgents || []).find((a) => a.id === id || String(a.id) === String(id)) || store.deliveryAgents[0]
+    return {
+      agent: clone(agent),
+      telemetry: [
+        { day: 'Mon', actual_rate: Number((agent.return_rate * 0.9).toFixed(1)), baseline_rate: agent.expected_return_rate },
+        { day: 'Tue', actual_rate: Number((agent.return_rate * 1.05).toFixed(1)), baseline_rate: agent.expected_return_rate },
+        { day: 'Wed', actual_rate: Number((agent.return_rate * 0.95).toFixed(1)), baseline_rate: agent.expected_return_rate },
+        { day: 'Thu', actual_rate: Number((agent.return_rate * 1.1).toFixed(1)), baseline_rate: agent.expected_return_rate },
+        { day: 'Fri', actual_rate: Number((agent.return_rate * 1.02).toFixed(1)), baseline_rate: agent.expected_return_rate },
+        { day: 'Sat', actual_rate: Number(agent.return_rate.toFixed(1)), baseline_rate: agent.expected_return_rate },
+        { day: 'Sun', actual_rate: Number((agent.return_rate * 0.88).toFixed(1)), baseline_rate: agent.expected_return_rate },
+      ],
+      recent_shipments: [
+        { id: `ORD-501${agent.id}1`, order_number: `ORD-2026-5011`, type: 'Return', customer: 'Rohan Gupta', status: 'Flagged', date: 'Today, 2:15 PM', reason: 'Empty box claim' },
+        { id: `ORD-501${agent.id}2`, order_number: `ORD-2026-5012`, type: 'Delivery', customer: 'Neha Sharma', status: 'Delivered', date: 'Today, 11:30 AM', reason: 'Standard delivery' },
+        { id: `ORD-501${agent.id}3`, order_number: `ORD-2026-5013`, type: 'Return', customer: 'Vikram Seth', status: 'Verified', date: 'Yesterday', reason: 'Size mismatch' },
+        { id: `ORD-501${agent.id}4`, order_number: `ORD-2026-5014`, type: 'Delivery', customer: 'Ananya Roy', status: 'Delivered', date: 'Yesterday', reason: 'Prepaid delivery' },
+      ],
+      activity_logs: (store.agentActivityLogs || []).filter((l) => l.agent_id === agent.id || l.agent_name === agent.name),
+      snapshots: [
+        { id: 'snap_1', reviewed_at: new Date(Date.now() - 86400000).toISOString(), status_note: 'Route baseline confirmed by merchant admin.', reviewed_by_email: 'admin@returnguard.in' },
+      ],
+    }
   },
 
   async updateOrderStatus({ orderId, deliveryStatus, status, notes = '' }) {

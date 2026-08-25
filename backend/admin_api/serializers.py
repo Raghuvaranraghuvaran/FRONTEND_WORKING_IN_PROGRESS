@@ -4,6 +4,7 @@ from accounts.models import ShopperProfile
 from catalog.models import Category, Product
 from fraud.models import FraudConfiguration
 from returns.models import ReturnRequest
+from .models import DeliveryAgent, AgentRiskSnapshot, AgentActivityLog
 
 
 class ShopperProfileSerializer(serializers.ModelSerializer):
@@ -99,4 +100,69 @@ class AdminProductWriteSerializer(serializers.ModelSerializer):
             if not Category.objects.filter(id=value).exists():
                 raise serializers.ValidationError("Category does not exist.")
         return value
+
+
+class AgentActivityLogSerializer(serializers.ModelSerializer):
+    agent_name = serializers.CharField(source="agent.name", read_only=True)
+
+    class Meta:
+        model = AgentActivityLog
+        fields = ("id", "agent_id", "agent_name", "event_type", "message", "created_at")
+
+
+class AgentRiskSnapshotSerializer(serializers.ModelSerializer):
+    reviewed_by_email = serializers.CharField(source="reviewed_by.email", read_only=True, default=None)
+
+    class Meta:
+        model = AgentRiskSnapshot
+        fields = (
+            "id",
+            "agent_id",
+            "total_deliveries",
+            "total_returns",
+            "flagged_count",
+            "actual_return_rate",
+            "expected_baseline_rate",
+            "anomaly_gap",
+            "status_note",
+            "reviewed_by_email",
+            "reviewed_at",
+            "created_at",
+        )
+
+
+class DeliveryAgentSerializer(serializers.ModelSerializer):
+    anomaly_gap = serializers.FloatField(read_only=True)
+
+    class Meta:
+        model = DeliveryAgent
+        fields = (
+            "id",
+            "merchant_id",
+            "name",
+            "avatar_url",
+            "route",
+            "location_name",
+            "pincode",
+            "total_deliveries",
+            "total_returns_handled",
+            "return_rate",
+            "expected_return_rate",
+            "flagged_return_count",
+            "risk_flag",
+            "current_risk_level",
+            "is_under_investigation",
+            "anomaly_gap",
+            "created_at",
+            "updated_at",
+        )
+
+
+class AgentInvestigateSerializer(serializers.Serializer):
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class AgentSignOffSerializer(serializers.Serializer):
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    risk_level = serializers.ChoiceField(choices=["LOW", "MEDIUM", "HIGH", "Normal", "Monitor", "Review"], required=False, default="LOW")
 
