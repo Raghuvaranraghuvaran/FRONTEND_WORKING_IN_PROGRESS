@@ -50,7 +50,7 @@ export default function MerchantLoginPage() {
     try {
       setSubmitting(true)
       const res = await api.merchantLogin({ username: cleanUser, password, recaptchaToken })
-      setMerchant(res.admin)
+      setMerchant(res.merchant || res.admin)
       navigate('/merchant')
     } catch (err) {
       setError(err.message || 'Invalid username or password.')

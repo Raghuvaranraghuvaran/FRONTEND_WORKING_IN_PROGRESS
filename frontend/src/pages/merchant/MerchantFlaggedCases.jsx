@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { api } from '../../mock/api'
 import { formatDate } from '../../lib/format'
 import RiskBadge from '../../components/RiskBadge'
@@ -585,6 +586,38 @@ export default function MerchantFlaggedCases() {
                     </p>
                   </div>
 
+                  {/* Uploaded Proof Gallery */}
+                  {(selected.images?.length > 0) && (
+                    <div>
+                      <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">
+                        Customer Uploaded Proof Photos ({selected.images.length})
+                      </span>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {selected.images.map((img, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() =>
+                              setSelectedProofModal({
+                                img,
+                                idx,
+                                title: `Proof Photo #${idx + 1}`,
+                                itemTitle: selected.return_lines?.[0]?.name || selected.product_name || 'Returned Item',
+                              })
+                            }
+                            className="group relative h-20 w-20 overflow-hidden rounded-xl border-2 border-slate-200 bg-slate-50 shadow-xs transition-all hover:border-indigo-500 hover:shadow-md cursor-pointer"
+                            title="Click to inspect proof"
+                          >
+                            <img src={img} alt={`Proof ${idx + 1}`} className="h-full w-full object-cover group-hover:scale-110 transition-transform" />
+                            <span className="absolute bottom-1 right-1 rounded-md bg-slate-950/70 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                              #{idx + 1}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Refund Method & Pickup Slot */}
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div className="rounded-xl bg-white p-3 border border-slate-200">
@@ -779,40 +812,47 @@ export default function MerchantFlaggedCases() {
 
                 {/* Tabs */}
                 <div className="flex border-b border-slate-200 text-sm font-semibold">
-                  <button
-                    onClick={() => setActiveTab('overview')}
-                    className={`border-b-2 px-4 py-2.5 transition-colors cursor-pointer ${
-                      activeTab === 'overview'
-                        ? 'border-indigo-600 text-indigo-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    AI Risk Signals & Rules
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('behavior')}
-                    className={`border-b-2 px-4 py-2.5 transition-colors cursor-pointer ${
-                      activeTab === 'behavior'
-                        ? 'border-indigo-600 text-indigo-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    Customer Behavior Profile
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('history')}
-                    className={`border-b-2 px-4 py-2.5 transition-colors cursor-pointer ${
-                      activeTab === 'history'
-                        ? 'border-indigo-600 text-indigo-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    Restriction History ({escalationHistory.length + restrictions.length})
-                  </button>
+                  {[
+                    { id: 'overview', label: 'AI Risk Signals & Rules' },
+                    { id: 'behavior', label: 'Customer Behavior Profile' },
+                    { id: 'history', label: `Restriction History (${escalationHistory.length + restrictions.length})` },
+                  ].map((t) => {
+                    const isActive = activeTab === t.id
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setActiveTab(t.id)}
+                        className={`relative px-4 py-2.5 transition-colors cursor-pointer ${
+                          isActive
+                            ? 'text-indigo-600'
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        <span>{t.label}</span>
+                        {isActive && (
+                          <motion.div
+                            layoutId="flaggedTabLine"
+                            className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full"
+                            transition={{ type: 'spring', stiffness: 500, damping: 34 }}
+                          />
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
 
-                {/* TAB 1: OVERVIEW & SIGNALS */}
-                {activeTab === 'overview' && (
+                {/* Animated Tab Content Container */}
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={activeTab}
+                    initial={{ opacity: 0, y: 8, scale: 0.992 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.992 }}
+                    transition={{ duration: 0.17, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    {/* TAB 1: OVERVIEW & SIGNALS */}
+                    {activeTab === 'overview' && (
                   <div className="space-y-4">
                     <div>
                       <h3 className="text-xs font-bold uppercase text-slate-700 tracking-wider">AI Risk Signals Detected</h3>
@@ -895,6 +935,8 @@ export default function MerchantFlaggedCases() {
                     )}
                   </div>
                 )}
+                  </motion.div>
+                </AnimatePresence>
 
                 {/* MERCHANT DECISION & REASON APPROVAL ACTIONS */}
                 <div className="border-t border-slate-200 pt-5 space-y-4">

@@ -140,7 +140,7 @@ export default function DashboardPage() {
                 {orders.map((order, idx) => (
                   <tr key={order.id} style={{ borderTop: idx > 0 ? '1px solid #f1f5f9' : 'none' }}>
                     <td style={{ padding: '16px 20px', fontSize: 14, fontWeight: 600, color: '#6366f1' }}>
-                      #{order.order_number}
+                      {String(order.order_number || '').startsWith('#') ? order.order_number : `#${order.order_number}`}
                     </td>
                     <td style={{ padding: '16px 20px', fontSize: 14, color: '#64748b' }}>
                       {new Date(order.created_at).toLocaleDateString()}
@@ -155,7 +155,7 @@ export default function DashboardPage() {
                       </span>
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'right', fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
-                      {INR.format(order.total_amount)}
+                      {INR.format(order.total ?? order.total_amount)}
                     </td>
                   </tr>
                 ))}
