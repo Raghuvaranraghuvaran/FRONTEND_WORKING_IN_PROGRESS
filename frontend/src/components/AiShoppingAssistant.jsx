@@ -89,8 +89,16 @@ export default function AiShoppingAssistant() {
     }
   }, [])
 
-  // Don't show assistant on merchant or admin pages
-  if (location.pathname.startsWith('/merchant') || location.pathname.startsWith('/admin')) {
+  // Don't show assistant on landing page, auth pages, merchant or admin pages
+  if (
+    location.pathname === '/' ||
+    location.pathname === '/login' ||
+    location.pathname === '/register' ||
+    location.pathname === '/merchant-login' ||
+    location.pathname === '/merchant-register' ||
+    location.pathname.startsWith('/merchant') ||
+    location.pathname.startsWith('/admin')
+  ) {
     return null
   }
 
@@ -159,7 +167,10 @@ export default function AiShoppingAssistant() {
         console.warn('Speech recognition error:', event.error)
         setIsListening(false)
         if (event.error === 'not-allowed') {
-          setMicError('Microphone permission denied. Allow microphone in your browser settings to speak.')
+          setMicError('Microphone permission denied. Click the lock icon in the address bar to allow mic access.')
+        } else if (event.error === 'network') {
+          // Occurs in Brave Browser when Google Speech service is shielded
+          setMicError('Brave browser blocks Google speech cloud. Enable "Google services for speech" in brave://settings/privacy or choose a quick voice search below.')
         } else if (event.error === 'no-speech') {
           // No speech detected, ignore or reset
         } else {
@@ -657,19 +668,43 @@ export default function AiShoppingAssistant() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-amber-950/90 border-t border-amber-500/40 px-4 py-2 flex items-center justify-between text-xs text-amber-200"
+                  className="bg-slate-800 border-t border-indigo-500/40 px-4 py-2.5 text-xs text-slate-200"
                 >
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
-                    <p className="text-[11px] leading-tight">{micError}</p>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-1.5 text-amber-300 font-semibold">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      <span className="text-[11px]">{micError}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMicError(null)}
+                      className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setMicError(null)}
-                    className="text-amber-400 hover:text-amber-200 p-1 cursor-pointer"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {[
+                      'Suggest me dresses',
+                      'I need a pillow',
+                      'Sneakers under ₹2500',
+                      'Ethnic wear',
+                      'Handbag',
+                      'Wireless earbuds',
+                    ].map((sample, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setMicError(null)
+                          handleSendMessage(sample)
+                        }}
+                        className="rounded-lg bg-indigo-900/60 border border-indigo-500/30 px-2 py-0.5 text-[10px] font-medium text-indigo-200 hover:bg-indigo-600 hover:text-white transition cursor-pointer"
+                      >
+                        🗣️ {sample}
+                      </button>
+                    ))}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
