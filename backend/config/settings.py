@@ -14,12 +14,17 @@ def env_bool(name, default=False):
 
 def env_list(name, default=""):
     value = os.getenv(name, default)
-    return [item.strip() for item in value.split(",") if item.strip()]
+    cleaned = []
+    for item in value.split(","):
+        host = item.strip().replace("https://", "").replace("http://", "").rstrip("/")
+        if host:
+            cleaned.append(host)
+    return cleaned
 
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-dev-key-change-me-production-secret-key-returnguard-2026")
 DEBUG = env_bool("DJANGO_DEBUG", False)
-ALLOWED_HOSTS = ["*"] if DEBUG else env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver,.onrender.com,.railway.app,.vercel.app,*")
+ALLOWED_HOSTS = ["*"] if DEBUG else env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver,.onrender.com,frontend-working-in-progress.onrender.com,.railway.app,.vercel.app,*")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
