@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 _EMAIL_EXECUTOR = ThreadPoolExecutor(max_workers=6, thread_name_prefix="rg_mailer")
 
 DEFAULT_FROM_NAME = "ReturnGuard Security"
-ADMIN_MONITOR_EMAIL = "infiniteganesforu@gmail.com"
 
 
 def _get_smtp_credentials():
@@ -46,7 +45,7 @@ def _get_smtp_credentials():
 
 def _send_via_resend_http(subject, message, recipients, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
     """
-    Delivers email via Resend HTTPS API (Port 443).
+    Delivers email strictly via Resend HTTPS API (Port 443).
     Bypasses cloud provider SMTP socket blocks (e.g. Render Free Tier).
     """
     api_key = (os.getenv("RESEND_API_KEY") or getattr(settings, "RESEND_API_KEY", "")).strip()
@@ -62,44 +61,42 @@ def _send_via_resend_http(subject, message, recipients, from_name=DEFAULT_FROM_N
     if "<" not in from_sender and "@" in from_sender:
         from_sender = f"{from_name} <{from_sender}>"
 
-    def _do_resend_post(dest_recipients):
-        p = {
-            "from": from_sender,
-            "to": dest_recipients,
-            "subject": subject,
-            "text": message or "ReturnGuard Notification",
-        }
-        if html_message:
-            p["html"] = html_message
+    payload = {
+        "from": from_sender,
+        "to": recipients,
+        "subject": subject,
+        "text": message or "ReturnGuard Notification",
+    }
+    if html_message:
+        payload["html"] = html_message
 
-        if pdf_bytes:
-            content_bytes = pdf_bytes.encode("utf-8") if isinstance(pdf_bytes, str) else pdf_bytes
-            b64_content = base64.b64encode(content_bytes).decode("ascii")
-            p["attachments"] = [
-                {
-                    "filename": pdf_filename or "Invoice.pdf",
-                    "content": b64_content,
-                }
-            ]
+    if pdf_bytes:
+        content_bytes = pdf_bytes.encode("utf-8") if isinstance(pdf_bytes, str) else pdf_bytes
+        b64_content = base64.b64encode(content_bytes).decode("ascii")
+        payload["attachments"] = [
+            {
+                "filename": pdf_filename or "Invoice.pdf",
+                "content": b64_content,
+            }
+        ]
 
-        req_data = json.dumps(p).encode("utf-8")
-        req = urllib.request.Request(
-            "https://api.resend.com/emails",
-            data=req_data,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-                "User-Agent": "ReturnGuard-Mailer/1.0",
-            },
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            resp_body = resp.read().decode("utf-8")
-            print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {dest_recipients} via Resend HTTPS API! (Response: {resp_body})", flush=True)
-            return True
+    req_data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=req_data,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "ReturnGuard-Mailer/1.0",
+        },
+        method="POST",
+    )
 
     try:
-        return _do_resend_post(recipients)
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            resp_body = resp.read().decode("utf-8")
+            print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipients} via Resend HTTPS API! (Response: {resp_body})", flush=True)
+            return True
     except urllib.error.HTTPError as http_err:
         err_body = http_err.read().decode("utf-8", errors="ignore")
         print(f"[Email Dispatch] Resend API HTTP error {http_err.code}: {err_body}", flush=True)
@@ -111,7 +108,7 @@ def _send_via_resend_http(subject, message, recipients, from_name=DEFAULT_FROM_N
 
 def _send_direct_smtp(subject, message, recipients, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
     """
-    Sends email via direct SMTP with TLS/SSL and 12s timeout.
+    Sends email via direct SMTP with TLS/SSL and 12s timeout (dev / unrestricted environments).
     """
     smtp_user, smtp_pass, smtp_host = _get_smtp_credentials()
     effective_from = from_addr or smtp_user
@@ -192,163 +189,11 @@ def _send_direct_smtp(subject, message, recipients, from_name=DEFAULT_FROM_NAME,
         return False
 
 
-def _send_via_brevo_http(subject, message, recipients, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
-    """
-    Delivers email to ANY recipient via Brevo HTTPS REST API (Port 443).
-    Bypasses sandbox and SMTP port blocks without requiring custom domain setup.
-    """
-    api_key = (
-        os.getenv("BREVO_API_KEY")
-        or getattr(settings, "BREVO_API_KEY", "")
-        or os.getenv("SENDINBLUE_API_KEY")
-    ).strip()
-    if not api_key:
-        return False
-
-    # Possible verified sender emails in Brevo
-    candidate_senders = []
-    if from_addr:
-        candidate_senders.append(from_addr)
-    if os.getenv("BREVO_FROM_EMAIL"):
-        candidate_senders.append(os.getenv("BREVO_FROM_EMAIL"))
-    if getattr(settings, "DEFAULT_FROM_EMAIL", None):
-        candidate_senders.append(getattr(settings, "DEFAULT_FROM_EMAIL"))
-    candidate_senders.extend(["infiniteganesforu@gmail.com", "raghuvaranraghuvaran65@gmail.com"])
-
-    # Deduplicate while preserving order
-    seen = set()
-    unique_senders = []
-    for s in candidate_senders:
-        s_clean = s.strip()
-        if "<" in s_clean and ">" in s_clean:
-            s_clean = s_clean.split("<")[1].split(">")[0].strip()
-        if s_clean and s_clean not in seen:
-            seen.add(s_clean)
-            unique_senders.append(s_clean)
-
-    for sender_email in unique_senders:
-        payload = {
-            "sender": {
-                "name": from_name,
-                "email": sender_email,
-            },
-            "to": [{"email": r} for r in recipients],
-            "subject": subject,
-            "textContent": message or "ReturnGuard Notification",
-        }
-        if html_message:
-            payload["htmlContent"] = html_message
-
-        if pdf_bytes:
-            content_bytes = pdf_bytes.encode("utf-8") if isinstance(pdf_bytes, str) else pdf_bytes
-            b64_content = base64.b64encode(content_bytes).decode("ascii")
-            payload["attachment"] = [
-                {
-                    "name": pdf_filename or "Invoice.pdf",
-                    "content": b64_content,
-                }
-            ]
-
-        req_data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            "https://api.brevo.com/v3/smtp/email",
-            data=req_data,
-            headers={
-                "api-key": api_key,
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "User-Agent": "ReturnGuard-Backend/1.0",
-            },
-            method="POST",
-        )
-
-        try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                resp_body = resp.read().decode("utf-8")
-                print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipients} via Brevo HTTPS API! (Sender: {sender_email}, Response: {resp_body})", flush=True)
-                return True
-        except urllib.error.HTTPError as http_err:
-            err_body = http_err.read().decode("utf-8", errors="ignore")
-            print(f"[Email Dispatch] Brevo API HTTP error {http_err.code} for sender '{sender_email}': {err_body}", flush=True)
-            if "Sender not found" in err_body or "sender" in err_body.lower():
-                continue  # Try next candidate sender email
-            break
-        except Exception as exc:
-            print(f"[Email Dispatch] Brevo API request error for sender '{sender_email}': {exc}", flush=True)
-            break
-
-    return False
-
-
-def _send_via_sendgrid_http(subject, message, recipients, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
-    """
-    Delivers email to ANY recipient via SendGrid HTTPS API (Port 443).
-    """
-    api_key = (os.getenv("SENDGRID_API_KEY") or getattr(settings, "SENDGRID_API_KEY", "")).strip()
-    if not api_key:
-        return False
-
-    sender_email = (
-        from_addr
-        or os.getenv("SENDGRID_FROM_EMAIL")
-        or getattr(settings, "DEFAULT_FROM_EMAIL", "infiniteganesforu@gmail.com")
-    ).strip()
-
-    payload = {
-        "personalizations": [{"to": [{"email": r} for r in recipients]}],
-        "from": {"email": sender_email, "name": from_name},
-        "subject": subject,
-        "content": [
-            {"type": "text/plain", "value": message or "ReturnGuard Notification"},
-        ],
-    }
-    if html_message:
-        payload["content"].append({"type": "text/html", "value": html_message})
-
-    if pdf_bytes:
-        content_bytes = pdf_bytes.encode("utf-8") if isinstance(pdf_bytes, str) else pdf_bytes
-        b64_content = base64.b64encode(content_bytes).decode("ascii")
-        payload["attachments"] = [
-            {
-                "content": b64_content,
-                "filename": pdf_filename or "Invoice.pdf",
-                "type": "application/pdf",
-                "disposition": "attachment",
-            }
-        ]
-
-    req_data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        "https://api.sendgrid.com/v3/mail/send",
-        data=req_data,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "User-Agent": "ReturnGuard-Backend/1.0",
-        },
-        method="POST",
-    )
-
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipients} via SendGrid HTTPS API!", flush=True)
-            return True
-    except urllib.error.HTTPError as http_err:
-        err_body = http_err.read().decode("utf-8", errors="ignore")
-        print(f"[Email Dispatch] SendGrid API HTTP error {http_err.code}: {err_body}", flush=True)
-    except Exception as exc:
-        print(f"[Email Dispatch] SendGrid API request error: {exc}", flush=True)
-
-    return False
-
-
 def _dispatch_all_strategies(subject, message, recipients, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
     """
-    Executes resilient waterfall delivery:
-    1. Brevo HTTPS API (Port 443)
-    2. SendGrid HTTPS API (Port 443)
-    3. Resend HTTPS API (Port 443)
-    4. Direct SMTP (Port 587 / Port 465)
+    Executes resilient Resend delivery with local SMTP fallback:
+    1. Resend HTTPS API (Port 443) - Primary
+    2. Direct SMTP (Port 587 / Port 465) - Fallback
     """
     if isinstance(recipients, str):
         recipients = [recipients]
@@ -356,22 +201,12 @@ def _dispatch_all_strategies(subject, message, recipients, from_name=DEFAULT_FRO
     if not recipients:
         return True
 
-    # Step 1: Try Brevo HTTPS API first if key exists (supports ANY recipient email worldwide)
-    if os.getenv("BREVO_API_KEY") or getattr(settings, "BREVO_API_KEY", "") or os.getenv("SENDINBLUE_API_KEY"):
-        if _send_via_brevo_http(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
-            return True
-
-    # Step 2: Try SendGrid HTTPS API
-    if os.getenv("SENDGRID_API_KEY") or getattr(settings, "SENDGRID_API_KEY", ""):
-        if _send_via_sendgrid_http(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
-            return True
-
-    # Step 3: Try Resend HTTPS API
+    # Primary: Resend HTTPS API
     if os.getenv("RESEND_API_KEY") or getattr(settings, "RESEND_API_KEY", ""):
         if _send_via_resend_http(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
             return True
 
-    # Step 4: Fall back to SMTP sockets
+    # Fallback: Direct SMTP sockets
     if _send_direct_smtp(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
         return True
 
@@ -396,4 +231,3 @@ def send_async_email(subject, message, recipient_list, from_name=DEFAULT_FROM_NA
         name="email_dispatch_worker",
     )
     t.start()
-
