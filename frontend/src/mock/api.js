@@ -1765,8 +1765,15 @@ export const api = {
 
   // ---- Merchant ----
   async getMerchantDashboard() {
-    if (hasLiveApi()) return live('/admin/dashboard/', { role: 'merchant' })
-    await delay(500)
+    if (hasLiveApi()) {
+      try {
+        const data = await live('/admin/dashboard/', { role: 'merchant' })
+        if (data && typeof data === 'object') return data
+      } catch (err) {
+        console.warn('Live getMerchantDashboard error, falling back:', err)
+      }
+    }
+    await delay(300)
     const flagged = store.returns.filter((r) => r.status === 'manual_review').length
     const pendingReview = store.orders.filter((o) => o.status === 'Review').length + flagged
     return {
@@ -2006,8 +2013,15 @@ export const api = {
   },
 
   async getAnalytics() {
-    if (hasLiveApi()) return live('/analytics/', { role: 'merchant' })
-    await delay(600)
+    if (hasLiveApi()) {
+      try {
+        const data = await live('/analytics/', { role: 'merchant' })
+        if (data && typeof data === 'object') return data
+      } catch (err) {
+        console.warn('Live getAnalytics error, falling back:', err)
+      }
+    }
+    await delay(300)
     return {
       weeklyTrend: clone(store.weeklyTrend),
       topFlaggedCustomers: clone(store.topFlaggedCustomers),
@@ -2018,7 +2032,11 @@ export const api = {
 
   async applySelfTuningSuggestion(suggestionId) {
     if (hasLiveApi()) {
-      return live(`/admin/self-tuning/${suggestionId}/apply/`, { method: 'POST', role: 'merchant' })
+      try {
+        return await live(`/admin/self-tuning/${suggestionId}/apply/`, { method: 'POST', role: 'merchant' })
+      } catch (err) {
+        console.warn('Live applySelfTuningSuggestion error, falling back:', err)
+      }
     }
     await delay(600)
     const suggestion = store.selfTuningSuggestions.find((s) => s.id === suggestionId)
@@ -2040,9 +2058,16 @@ export const api = {
   },
 
   async getDeliveryAgents() {
-    if (hasLiveApi()) return live('/admin/delivery-agents/', { role: 'merchant' })
-    await delay(500)
-    return clone(store.deliveryAgents)
+    if (hasLiveApi()) {
+      try {
+        const data = await live('/admin/delivery-agents/', { role: 'merchant' })
+        if (Array.isArray(data) && data.length > 0) return data
+      } catch (err) {
+        console.warn('Live getDeliveryAgents error, falling back:', err)
+      }
+    }
+    await delay(300)
+    return clone(store.deliveryAgents || [])
   },
 
   async updateOrderStatus({ orderId, deliveryStatus, status, notes = '' }) {
