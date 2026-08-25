@@ -133,7 +133,26 @@ export default function MerchantRegisterPage() {
   return (
     <>
       <style>{`
-        .mr-card-input:focus { border-color:#0d9488 !important; box-shadow:0 0 0 3px rgba(13,148,136,0.15) !important; }
+        .mr-input, .mr-textarea {
+          width: 100% !important;
+          box-sizing: border-box !important;
+          background: rgba(15, 23, 42, 0.75) !important;
+          border: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+          border-radius: 12px !important;
+          font-size: 13.5px !important;
+          font-weight: 500 !important;
+          color: #ffffff !important;
+          outline: none !important;
+          transition: border-color .15s, box-shadow .15s, background .15s !important;
+        }
+        .mr-input:focus, .mr-textarea:focus {
+          border-color: #14b8a6 !important;
+          background: rgba(15, 23, 42, 0.95) !important;
+          box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.25) !important;
+        }
+        .mr-input::placeholder, .mr-textarea::placeholder {
+          color: #94a3b8 !important;
+        }
       `}</style>
       {/* Background */}
       <div style={{ position:'fixed', inset:0, zIndex:0, background:'linear-gradient(135deg, #0f172a 0%, #134e4a 40%, #0f172a 100%)' }} />
@@ -181,8 +200,9 @@ export default function MerchantRegisterPage() {
                 <div style={{ position:'relative' }}>
                   <User style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569' }} />
                   <input
+                    className="mr-input"
                     type="text" required value={form.name} onChange={update('name')}
-                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
+                    style={{ paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11 }}
                     placeholder="e.g. Sai Kumar"
                   />
                 </div>
@@ -193,8 +213,9 @@ export default function MerchantRegisterPage() {
                 <div style={{ position:'relative' }}>
                   <Mail style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569' }} />
                   <input
+                    className="mr-input"
                     type="email" required value={form.email} onChange={update('email')}
-                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
+                    style={{ paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11 }}
                     placeholder="merchant@gmail.com"
                   />
                 </div>
@@ -205,8 +226,9 @@ export default function MerchantRegisterPage() {
                 <div style={{ position:'relative' }}>
                   <Lock style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569' }} />
                   <input
+                    className="mr-input"
                     type={showPassword ? 'text' : 'password'} required minLength={6} value={form.password} onChange={update('password')}
-                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:42, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
+                    style={{ paddingLeft:38, paddingRight:42, paddingTop:11, paddingBottom:11 }}
                     placeholder="Minimum 6 characters"
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -228,8 +250,9 @@ export default function MerchantRegisterPage() {
                 <div style={{ position:'relative' }}>
                   <Store style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569' }} />
                   <input
+                    className="mr-input"
                     type="text" required value={form.businessName} onChange={update('businessName')}
-                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
+                    style={{ paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11 }}
                     placeholder="e.g. Aria Fashion House"
                   />
                 </div>
@@ -240,8 +263,9 @@ export default function MerchantRegisterPage() {
                 <div style={{ position:'relative' }}>
                   <Tag style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569' }} />
                   <input
+                    className="mr-input"
                     type="text" required value={form.storeSlug} onChange={update('storeSlug')}
-                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', fontFamily:'monospace', outline:'none', transition:'border-color .15s' }}
+                    style={{ paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11, fontFamily:'monospace' }}
                     placeholder="aria-fashion-house"
                   />
                 </div>
@@ -259,8 +283,9 @@ export default function MerchantRegisterPage() {
                 <div style={{ position:'relative' }}>
                   <MapPin style={{ position:'absolute', left:13, top:13, width:15, height:15, color:'#475569' }} />
                   <textarea
+                    className="mr-textarea"
                     rows={2} required value={form.address} onChange={update('address')}
-                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:14, paddingTop:10, paddingBottom:10, fontSize:13, color:'#f1f5f9', outline:'none', resize:'none', transition:'border-color .15s' }}
+                    style={{ paddingLeft:38, paddingRight:14, paddingTop:10, paddingBottom:10, resize:'none' }}
                     placeholder="e.g. 42 MG Road, Indiranagar, 2nd Floor"
                   />
                 </div>
@@ -270,16 +295,18 @@ export default function MerchantRegisterPage() {
                 <div>
                   <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>City *</label>
                   <input
+                    className="mr-input"
                     type="text" required value={form.city} onChange={update('city')}
-                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:14, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
+                    style={{ paddingLeft:14, paddingRight:14, paddingTop:11, paddingBottom:11 }}
                     placeholder="e.g. Bengaluru"
                   />
                 </div>
                 <div>
                   <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>State</label>
                   <input
+                    className="mr-input"
                     type="text" value={form.state} onChange={update('state')}
-                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:14, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
+                    style={{ paddingLeft:14, paddingRight:14, paddingTop:11, paddingBottom:11 }}
                     placeholder="e.g. Karnataka"
                   />
                 </div>
@@ -289,8 +316,9 @@ export default function MerchantRegisterPage() {
                 <div>
                   <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>PIN Code (6 Digits) *</label>
                   <input
+                    className="mr-input"
                     type="text" required maxLength={6} value={form.pincode} onChange={update('pincode')}
-                    style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:14, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
+                    style={{ paddingLeft:14, paddingRight:14, paddingTop:11, paddingBottom:11 }}
                     placeholder="e.g. 560038"
                   />
                 </div>
@@ -299,8 +327,9 @@ export default function MerchantRegisterPage() {
                   <div style={{ position:'relative' }}>
                     <Phone style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569' }} />
                     <input
+                      className="mr-input"
                       type="tel" required maxLength={10} value={form.phone} onChange={update('phone')}
-                      style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.07)', border:'1.5px solid rgba(255,255,255,0.13)', borderRadius:12, paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11, fontSize:13, color:'#f1f5f9', outline:'none', transition:'border-color .15s' }}
+                      style={{ paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11 }}
                       placeholder="e.g. 9876543210"
                     />
                   </div>
