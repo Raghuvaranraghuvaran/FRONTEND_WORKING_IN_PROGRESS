@@ -18,7 +18,7 @@ def env_list(name, default=""):
 
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-dev-key-change-me-production-secret-key-returnguard-2026")
-DEBUG = env_bool("DJANGO_DEBUG", True)
+DEBUG = env_bool("DJANGO_DEBUG", False)
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,.onrender.com,.railway.app,.vercel.app,*")
 
 INSTALLED_APPS = [
@@ -161,6 +161,7 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TASK_ALWAYS_EAGER = env_bool("CELERY_TASK_ALWAYS_EAGER", True)
+CELERY_TASK_EAGER_PROPAGATES = True
 
 PAYMENT_GATEWAY_SECRET = os.getenv("PAYMENT_GATEWAY_SECRET", "dev-gateway-secret")
 DEMO_OTP = os.getenv("DEMO_OTP", "123456")
