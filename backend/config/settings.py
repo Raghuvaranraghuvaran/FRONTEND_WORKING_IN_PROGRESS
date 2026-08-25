@@ -148,15 +148,27 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
+def env_origins(name, default=""):
+    value = os.getenv(name, default)
+    cleaned = []
+    for item in value.split(","):
+        item = item.strip().rstrip("/")
+        if item:
+            if not item.startswith("http://") and not item.startswith("https://"):
+                item = f"http://{item}"
+            cleaned.append(item)
+    return cleaned
+
+
 cors_allowed_raw = os.getenv("CORS_ALLOWED_ORIGINS", "").strip()
 if cors_allowed_raw.lower() in {"1", "true", "yes", "all", "*"}:
     CORS_ALLOW_ALL_ORIGINS = True
     CORS_ALLOWED_ORIGINS = []
 else:
-    CORS_ALLOWED_ORIGINS = env_list(
+    CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", True)
+    CORS_ALLOWED_ORIGINS = env_origins(
         "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175"
     )
-    CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", True)
 
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https?://.*\.vercel\.app$",
