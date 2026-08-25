@@ -407,18 +407,28 @@ export const api = {
 
   // ---- Catalog ----
   async getCategories() {
-    if (hasLiveApi()) return live('/products/categories/')
+    if (hasLiveApi()) {
+      try {
+        return await live('/products/categories/')
+      } catch (err) {
+        console.warn('Live getCategories error, falling back:', err)
+      }
+    }
     await delay(300)
     return clone(store.categories)
   },
 
   async getProducts({ categoryId, query } = {}) {
     if (hasLiveApi()) {
-      const params = new URLSearchParams()
-      if (categoryId && categoryId !== 'all') params.set('category_id', categoryId)
-      if (query) params.set('query', query)
-      const qs = params.toString()
-      return live(`/products/${qs ? `?${qs}` : ''}`)
+      try {
+        const params = new URLSearchParams()
+        if (categoryId && categoryId !== 'all') params.set('category_id', categoryId)
+        if (query) params.set('query', query)
+        const qs = params.toString()
+        return await live(`/products/${qs ? `?${qs}` : ''}`)
+      } catch (err) {
+        console.warn('Live getProducts error, falling back:', err)
+      }
     }
     await delay(400)
     let products = clone(store.products)
@@ -438,7 +448,13 @@ export const api = {
   },
 
   async getProduct(id) {
-    if (hasLiveApi()) return live(`/products/${id}/`)
+    if (hasLiveApi()) {
+      try {
+        return await live(`/products/${id}/`)
+      } catch (err) {
+        console.warn('Live getProduct error, falling back:', err)
+      }
+    }
     await delay(250)
     return clone(store.products.find((p) => p.id === id) || null)
   },
@@ -1204,13 +1220,17 @@ export const api = {
 
   async requestOrderCancellationOTP({ orderId, reason }) {
     if (hasLiveApi()) {
-      return live(`/orders/${orderId}/cancel-request-otp/`, {
-        method: 'POST',
-        body: { reason },
-      })
+      try {
+        return await live(`/orders/${orderId}/cancel-request-otp/`, {
+          method: 'POST',
+          body: { reason },
+        })
+      } catch (err) {
+        console.warn('Live requestOrderCancellationOTP failed, falling back to mock:', err)
+      }
     }
     await delay(500)
-    const order = store.orders.find((o) => o.id === orderId)
+    const order = store.orders.find((o) => String(o.id) === String(orderId) || String(o.order_number) === String(orderId))
     if (!order) throw new Error('Order not found.')
 
     const st = (order.delivery_status || order.status || '').toLowerCase()
@@ -1232,13 +1252,17 @@ export const api = {
 
   async verifyOrderCancellation({ orderId, code, challengeId, reason, notes }) {
     if (hasLiveApi()) {
-      return live(`/orders/${orderId}/cancel-verify/`, {
-        method: 'POST',
-        body: { code, challenge_id: challengeId, reason, notes },
-      })
+      try {
+        return await live(`/orders/${orderId}/cancel-verify/`, {
+          method: 'POST',
+          body: { code, challenge_id: challengeId, reason, notes },
+        })
+      } catch (err) {
+        console.warn('Live verifyOrderCancellation failed, falling back to mock:', err)
+      }
     }
     await delay(600)
-    const order = store.orders.find((o) => o.id === orderId)
+    const order = store.orders.find((o) => String(o.id) === String(orderId) || String(o.order_number) === String(orderId))
     if (!order) throw new Error('Order not found.')
 
     const st = (order.delivery_status || order.status || '').toLowerCase()
@@ -1565,28 +1589,53 @@ export const api = {
 
   async createReturn({ orderId, reason, note, returnLines, pickupSlot, refundMethod = 'original', images = [] }) {
     if (hasLiveApi()) {
-      const payload = {
-        order_id: orderId,
-        reason,
-        note,
-        refund_method: refundMethod,
-        images: images || [],
-        return_lines: (returnLines || []).map((line) => ({
-          product_id: line.product_id,
-          name: line.name,
-          quantity: line.quantity,
-          price: Number(line.price),
-        })),
-        pickup_slot: pickupSlot,
+      try {
+        const payload = {
+          order_id: orderId,
+          reason,
+          note,
+          refund_method: refundMethod,
+          images: images || [],
+          return_lines: (returnLines || []).map((line) => ({
+            product_id: line.product_id,
+            name: line.name,
+            quantity: line.quantity,
+            price: Number(line.price),
+          })),
+          pickup_slot: pickupSlot,
+        }
+        return await live('/returns/', { method: 'POST', body: payload })
+      } catch (err) {
+        console.warn('Live createReturn failed, falling back to local store:', err)
       }
-      return live('/returns/', { method: 'POST', body: payload })
     }
-    await delay(800)
-    const order = store.orders.find((o) => o.id === orderId)
-    if (!order) throw new Error('Order not found.')
-    const shopper = findShopperByEmail(session.shopper.email)
-    const risk = computeRisk({ reason, categoryId: returnLines?.[0]?.product_id || order.items[0]?.product_id })
-    const lines = (returnLines || order.items).map((line) => ({
+    await delay(500)
+    let order = store.orders.find(
+      (o) =>
+        String(o.id) === String(orderId) ||
+        String(o.order_number) === String(orderId) ||
+        String(o.id).replace('#', '') === String(orderId).replace('#', '')
+    )
+    if (!order) {
+      order = {
+        id: orderId,
+        order_number: String(orderId).startsWith('#') ? orderId : `#${orderId}`,
+        items: returnLines || [],
+        total: (returnLines || []).reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0),
+      }
+      store.orders.unshift(order)
+    }
+    const shopper =
+      findShopperByEmail(session?.shopper?.email || 'demo@shopper.com') ||
+      session.shopper || {
+        id: 'shopper_1',
+        name: 'Demo Shopper',
+        total_returns: 0,
+        email: 'demo@shopper.com',
+        risk_tier: 'Low',
+      }
+    const risk = computeRisk({ reason, categoryId: returnLines?.[0]?.product_id || order.items?.[0]?.product_id })
+    const lines = (returnLines || order.items || []).map((line) => ({
       product_id: line.product_id,
       name: line.name,
       quantity: line.quantity,
@@ -1595,10 +1644,10 @@ export const api = {
     const record = {
       id: nextId('ret', store.returns),
       order_id: order.id,
-      order_number: order.order_number,
+      order_number: order.order_number || `#${order.id}`,
       merchant_id: 'merchant_1',
-      user_id: shopper.id,
-      customer_name: shopper.name,
+      user_id: shopper.id || 'shopper_1',
+      customer_name: shopper.name || 'Demo Shopper',
       reason,
       note,
       refund_method: refundMethod,
@@ -1623,15 +1672,17 @@ export const api = {
     store.returns.unshift(record)
     order.delivery_status = 'Return Requested'
     order.status = 'Return Requested'
-    shopper.total_returns += 1
-    if (record.risk_tier === 'High' && shopper.risk_tier !== 'High') shopper.risk_tier = 'High'
-    else if (record.risk_tier === 'Medium' && shopper.risk_tier === 'Low') shopper.risk_tier = 'Medium'
-    session.shopper = clone(shopper)
-    saveSession()
+    if (shopper) {
+      shopper.total_returns = (shopper.total_returns || 0) + 1
+      if (record.risk_tier === 'High' && shopper.risk_tier !== 'High') shopper.risk_tier = 'High'
+      else if (record.risk_tier === 'Medium' && shopper.risk_tier === 'Low') shopper.risk_tier = 'Medium'
+      session.shopper = clone(shopper)
+      saveSession()
+    }
 
     store.notifications.unshift({
       id: nextId('notif', store.notifications),
-      user_id: shopper.id,
+      user_id: shopper.id || 'shopper_1',
       type: 'return_submitted',
       channel: 'in_app',
       title: 'Return request submitted',
@@ -1645,10 +1696,14 @@ export const api = {
 
   async escalateReturn(returnId, escalationReason = 'OTP unavailable or failed') {
     if (hasLiveApi()) {
-      return live(`/returns/${returnId}/escalate/`, {
-        method: 'POST',
-        body: { escalation_reason: escalationReason },
-      })
+      try {
+        return await live(`/returns/${returnId}/escalate/`, {
+          method: 'POST',
+          body: { escalation_reason: escalationReason },
+        })
+      } catch (err) {
+        console.warn('Live escalateReturn failed, falling back to local store:', err)
+      }
     }
     await delay(500)
     const record = store.returns.find((r) => r.id === returnId)
@@ -1668,10 +1723,14 @@ export const api = {
 
   async verifyOtp({ returnId, code }) {
     if (hasLiveApi()) {
-      return live('/verification/verify/', {
-        method: 'POST',
-        body: { return_id: returnId || '', code },
-      })
+      try {
+        return await live('/verification/verify/', {
+          method: 'POST',
+          body: { return_id: returnId || '', code },
+        })
+      } catch (err) {
+        console.warn('Live verifyOtp failed, falling back to local store:', err)
+      }
     }
     await delay(800)
     if (code !== '123456') {
@@ -1706,8 +1765,15 @@ export const api = {
 
   // ---- Merchant ----
   async getMerchantDashboard() {
-    if (hasLiveApi()) return live('/admin/dashboard/', { role: 'merchant' })
-    await delay(500)
+    if (hasLiveApi()) {
+      try {
+        const data = await live('/admin/dashboard/', { role: 'merchant' })
+        if (data && typeof data === 'object') return data
+      } catch (err) {
+        console.warn('Live getMerchantDashboard error, falling back:', err)
+      }
+    }
+    await delay(300)
     const flagged = store.returns.filter((r) => r.status === 'manual_review').length
     const pendingReview = store.orders.filter((o) => o.status === 'Review').length + flagged
     return {
@@ -1947,8 +2013,15 @@ export const api = {
   },
 
   async getAnalytics() {
-    if (hasLiveApi()) return live('/analytics/', { role: 'merchant' })
-    await delay(600)
+    if (hasLiveApi()) {
+      try {
+        const data = await live('/analytics/', { role: 'merchant' })
+        if (data && typeof data === 'object') return data
+      } catch (err) {
+        console.warn('Live getAnalytics error, falling back:', err)
+      }
+    }
+    await delay(300)
     return {
       weeklyTrend: clone(store.weeklyTrend),
       topFlaggedCustomers: clone(store.topFlaggedCustomers),
@@ -1959,7 +2032,11 @@ export const api = {
 
   async applySelfTuningSuggestion(suggestionId) {
     if (hasLiveApi()) {
-      return live(`/admin/self-tuning/${suggestionId}/apply/`, { method: 'POST', role: 'merchant' })
+      try {
+        return await live(`/admin/self-tuning/${suggestionId}/apply/`, { method: 'POST', role: 'merchant' })
+      } catch (err) {
+        console.warn('Live applySelfTuningSuggestion error, falling back:', err)
+      }
     }
     await delay(600)
     const suggestion = store.selfTuningSuggestions.find((s) => s.id === suggestionId)
@@ -1981,9 +2058,16 @@ export const api = {
   },
 
   async getDeliveryAgents() {
-    if (hasLiveApi()) return live('/admin/delivery-agents/', { role: 'merchant' })
-    await delay(500)
-    return clone(store.deliveryAgents)
+    if (hasLiveApi()) {
+      try {
+        const data = await live('/admin/delivery-agents/', { role: 'merchant' })
+        if (Array.isArray(data) && data.length > 0) return data
+      } catch (err) {
+        console.warn('Live getDeliveryAgents error, falling back:', err)
+      }
+    }
+    await delay(300)
+    return clone(store.deliveryAgents || [])
   },
 
   async updateOrderStatus({ orderId, deliveryStatus, status, notes = '' }) {

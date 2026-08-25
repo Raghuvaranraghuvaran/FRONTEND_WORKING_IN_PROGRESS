@@ -13,10 +13,18 @@ export default function MerchantDeliveryAgents() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.getDeliveryAgents().then((data) => {
-      setAgents(data)
-      setLoading(false)
-    })
+    api
+      .getDeliveryAgents()
+      .then((data) => {
+        setAgents(Array.isArray(data) ? data : [])
+      })
+      .catch((err) => {
+        console.error('Failed to load delivery agents:', err)
+        setAgents([])
+      })
+      .finally(() => {
+        setLoading(false)
+      })
   }, [])
 
   return (
@@ -28,6 +36,11 @@ export default function MerchantDeliveryAgents() {
 
       {loading ? (
         <div className="mt-6 h-64 animate-pulse rounded-2xl bg-slate-200" />
+      ) : agents.length === 0 ? (
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-xs">
+          <p className="text-base font-bold text-slate-900">No Delivery Agents Recorded</p>
+          <p className="text-xs text-slate-500 mt-1">Delivery agent logs and route anomaly baselines will appear here once returns are processed.</p>
+        </div>
       ) : (
         <div className="mt-6 grid gap-5 lg:grid-cols-2">
           {agents.map((agent) => {

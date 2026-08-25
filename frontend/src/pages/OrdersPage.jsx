@@ -65,11 +65,7 @@ function resolveItemImage(item) {
 }
 
 function formatPrice(val) {
-  const num = Number(val) || 0
-  if (num < 100) {
-    return `$${num.toFixed(2)}`
-  }
-  return INR.format(num)
+  return INR.format(Number(val) || 0)
 }
 
 /**
@@ -222,7 +218,7 @@ export default function OrdersPage() {
       const rawOrders = Array.isArray(orderRes) ? orderRes : orderRes?.results || []
       const rawReturns = Array.isArray(returnRes) ? returnRes : returnRes?.results || []
 
-      const mappedOrders = rawOrders.map((o) => mapToOrderSchema(o, rawReturns))
+      const mappedOrders = rawOrders.map((o) => mapToOrderSchema(o, rawReturns)).filter(Boolean)
       setOrders(mappedOrders)
       setReturns(rawReturns)
       setCoupons(Array.isArray(couponRes) ? couponRes : [])
@@ -233,6 +229,11 @@ export default function OrdersPage() {
       setIsLoading(false)
     }
   }
+
+  // Load orders on initial mount
+  useEffect(() => {
+    fetchOrders()
+  }, [])
 
   useEffect(() => {
     if (location.pathname.includes('/returns') || location.pathname.includes('/track-return')) {
@@ -641,9 +642,19 @@ export default function OrdersPage() {
                     key={order.id}
                     className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow duration-200"
                   >
-                    {/* Top: Order ID & Status */}
+                    {/* Top: Order ID, Date & Total Price Badge */}
                     <div>
-                      <h2 className="text-base font-bold text-slate-900 tracking-tight">Order {order.id}</h2>
+                      <div className="flex items-start justify-between gap-2 pb-2">
+                        <div>
+                          <h2 className="text-base font-bold text-slate-900 tracking-tight">Order {order.id}</h2>
+                          <p className="text-[11px] text-slate-500">{formatDate(order.placedAt)}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-block rounded-xl bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs font-extrabold text-indigo-700">
+                            {formatPrice(order.totalAmount)}
+                          </span>
+                        </div>
+                      </div>
 
                       {/* Status indicator line */}
                       <div className="mt-2 mb-4">
@@ -701,14 +712,29 @@ export default function OrdersPage() {
                               </div>
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-slate-900 truncate">{item.title}</p>
-                                <p className="text-[11px] text-slate-500 truncate">{item.variant}</p>
+                                <p className="text-[11px] text-slate-500 truncate">
+                                  {item.quantity > 1 ? `Qty: ${item.quantity} · ${item.variant}` : item.variant}
+                                </p>
                               </div>
                             </div>
-                            <span className="text-xs font-bold text-slate-900 shrink-0">
-                              {formatPrice(item.price)}
-                            </span>
+                            <div className="text-right shrink-0">
+                              <span className="text-xs font-bold text-slate-900">
+                                {formatPrice(item.price * (item.quantity || 1))}
+                              </span>
+                              {item.quantity > 1 && (
+                                <p className="text-[10px] text-slate-400">
+                                  ({formatPrice(item.price)} each)
+                                </p>
+                              )}
+                            </div>
                           </div>
                         ))}
+                      </div>
+
+                      {/* Total Amount Summary Row */}
+                      <div className="mt-3 pt-2 flex items-center justify-between text-xs">
+                        <span className="font-semibold text-slate-500">Total Order Amount</span>
+                        <span className="text-sm font-extrabold text-slate-900">{formatPrice(order.totalAmount)}</span>
                       </div>
 
                       {/* Return Tracking Vertical Steps (for Return Processing card) */}
@@ -1071,10 +1097,17 @@ export default function OrdersPage() {
                         />
                         <div>
                           <p className="font-bold text-slate-900">{item.title}</p>
-                          <p className="text-[11px] text-slate-500">{item.variant}</p>
+                          <p className="text-[11px] text-slate-500">
+                            {item.quantity > 1 ? `Qty: ${item.quantity} · ${item.variant}` : item.variant}
+                          </p>
                         </div>
                       </div>
-                      <span className="font-bold text-slate-900">{formatPrice(item.price)}</span>
+                      <div className="text-right">
+                        <span className="font-bold text-slate-900">{formatPrice(item.price * (item.quantity || 1))}</span>
+                        {item.quantity > 1 && (
+                          <p className="text-[10px] text-slate-400">({formatPrice(item.price)} each)</p>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
