@@ -303,13 +303,17 @@ def _dispatch_all_strategies(subject, message, recipients, from_name=DEFAULT_FRO
     if not recipients:
         return True
 
+    resend_k = os.getenv("RESEND_API_KEY") or getattr(settings, "RESEND_API_KEY", "")
+    brevo_k = os.getenv("BREVO_API_KEY") or getattr(settings, "BREVO_API_KEY", "") or os.getenv("SENDINBLUE_API_KEY")
+    print(f"\n[Email Dispatch INIT] '{subject}' -> {recipients} | ResendKey={'SET' if resend_k else 'NONE'}, BrevoKey={'SET' if brevo_k else 'NONE'}", flush=True)
+
     # Step 1: Try Brevo HTTPS API first if key exists
-    if os.getenv("BREVO_API_KEY") or getattr(settings, "BREVO_API_KEY", "") or os.getenv("SENDINBLUE_API_KEY"):
+    if brevo_k:
         if _send_via_brevo_http(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
             return True
 
     # Step 2: Try Resend HTTPS API
-    if os.getenv("RESEND_API_KEY") or getattr(settings, "RESEND_API_KEY", ""):
+    if resend_k:
         if _send_via_resend_http(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
             return True
 
@@ -317,6 +321,7 @@ def _dispatch_all_strategies(subject, message, recipients, from_name=DEFAULT_FRO
     if _send_direct_smtp(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
         return True
 
+    print(f"[Email Dispatch FAILED] All methods failed to deliver '{subject}' to {recipients}", flush=True)
     return False
 
 
