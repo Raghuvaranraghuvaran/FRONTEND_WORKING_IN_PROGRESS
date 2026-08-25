@@ -6,24 +6,24 @@ export const CATEGORIES = [
 ]
 
 export const PRODUCTS = [
-  { id: 'prod_1', merchant_id: 'merchant_1', category_id: 'cat_ethnic', name: 'Embroidered Lehenga Set', price: 6499, stock: 12, image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=600&q=80', description: 'Festive three-piece lehenga set with mirror work.' },
-  { id: 'prod_2', merchant_id: 'merchant_1', category_id: 'cat_ethnic', name: 'Silk Banarasi Saree', price: 8999, stock: 8, image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80', description: 'Handwoven Banarasi silk saree for weddings.' },
-  { id: 'prod_3', merchant_id: 'merchant_1', category_id: 'cat_ethnic', name: 'Designer Kurta Set', price: 2499, stock: 20, image: 'https://images.unsplash.com/photo-1597983073493-88cd35cf93b0?auto=format&fit=crop&w=600&q=80', description: 'Comfortable festive kurta with matching bottoms.' },
-  { id: 'prod_4', merchant_id: 'merchant_1', category_id: 'cat_daily', name: 'Cotton Shirt', price: 1299, stock: 40, image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=600&q=80', description: 'Breathable everyday cotton shirt.' },
-  { id: 'prod_5', merchant_id: 'merchant_1', category_id: 'cat_daily', name: 'Relaxed Fit T-Shirt', price: 799, stock: 60, image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=600&q=80', description: 'Soft relaxed-fit tee for daily wear.' },
-  { id: 'prod_6', merchant_id: 'merchant_1', category_id: 'cat_daily', name: 'Linen Trouser', price: 1999, stock: 25, image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?auto=format&fit=crop&w=600&q=80', description: 'Tailored linen trousers for work or casual looks.' },
-  { id: 'prod_7', merchant_id: 'merchant_1', category_id: 'cat_electronics', name: 'Wireless Earbuds', price: 3999, stock: 15, image: 'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?auto=format&fit=crop&w=600&q=80', description: 'Compact earbuds with active noise cancellation.' },
-  { id: 'prod_8', merchant_id: 'merchant_1', category_id: 'cat_electronics', name: 'Smart Fitness Band', price: 2799, stock: 30, image: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?auto=format&fit=crop&w=600&q=80', description: 'Tracks activity, sleep and heart rate.' },
-  { id: 'prod_9', merchant_id: 'merchant_1', category_id: 'cat_home', name: 'Ceramic Dinner Set', price: 3499, stock: 18, image: 'https://images.unsplash.com/photo-1603199506016-b9a594b593c0?auto=format&fit=crop&w=600&q=80', description: 'Twelve-piece ceramic dinnerware set.' },
-  { id: 'prod_10', merchant_id: 'merchant_1', category_id: 'cat_home', name: 'Decorative Table Lamp', price: 1899, stock: 22, image: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=600&q=80', description: 'Warm ambient lamp for living spaces.' },
-  { id: 'prod_11', merchant_id: 'merchant_1', category_id: 'cat_ethnic', name: 'Chanderi Anarkali Dress', price: 3299, stock: 14, image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&w=600&q=80', description: 'Lightweight Chanderi Anarkali with delicate gold detailing.' },
-  { id: 'prod_12', merchant_id: 'merchant_1', category_id: 'cat_ethnic', name: 'Printed Cotton Dupatta', price: 899, stock: 28, image: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=600&q=80', description: 'Hand-block inspired cotton dupatta for everyday festive styling.' },
-  { id: 'prod_13', merchant_id: 'merchant_1', category_id: 'cat_daily', name: 'Oversized Linen Shirt', price: 1799, stock: 24, image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=600&q=80', description: 'Relaxed linen shirt designed for warm-weather comfort.' },
-  { id: 'prod_14', merchant_id: 'merchant_1', category_id: 'cat_daily', name: 'Everyday Canvas Sneakers', price: 2199, stock: 32, image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80', description: 'Cushioned low-top sneakers for daily commutes and weekends.' },
-  { id: 'prod_15', merchant_id: 'merchant_1', category_id: 'cat_electronics', name: 'Portable Bluetooth Speaker', price: 2499, stock: 19, image: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&w=600&q=80', description: 'Compact wireless speaker with rich sound for indoor and outdoor use.' },
-  { id: 'prod_16', merchant_id: 'merchant_1', category_id: 'cat_electronics', name: 'Fast Charge Power Bank', price: 1599, stock: 26, image: 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=600&q=80', description: 'High-capacity power bank with USB-C fast charging.' },
-  { id: 'prod_17', merchant_id: 'merchant_1', category_id: 'cat_home', name: 'Woven Storage Basket', price: 1299, stock: 21, image: 'https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=600&q=80', description: 'Textured woven basket for throws, toys, and everyday storage.' },
-  { id: 'prod_18', merchant_id: 'merchant_1', category_id: 'cat_home', name: 'Cotton Cushion Cover Set', price: 749, stock: 35, image: 'https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?auto=format&fit=crop&w=600&q=80', description: 'Set of two soft cotton cushion covers with modern patterns.' },
+  { id: 'prod_1', merchant_id: 'merchant_1', category_id: 'cat_ethnic', name: 'Embroidered Lehenga Set', price: 6499, original_price: 8999, stock: 12, rating: 4.8, review_count: 124, is_returnable: true, return_window_days: 30, image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=600&q=80', description: 'Festive three-piece lehenga set with mirror work.' },
+  { id: 'prod_2', merchant_id: 'merchant_1', category_id: 'cat_ethnic', name: 'Silk Banarasi Saree', price: 8999, original_price: 11999, stock: 8, rating: 4.9, review_count: 86, is_returnable: true, return_window_days: 30, image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80', description: 'Handwoven Banarasi silk saree for weddings.' },
+  { id: 'prod_3', merchant_id: 'merchant_1', category_id: 'cat_ethnic', name: 'Designer Kurta Set', price: 2499, original_price: 3499, stock: 20, rating: 4.6, review_count: 210, is_returnable: true, return_window_days: 30, image: 'https://images.unsplash.com/photo-1597983073493-88cd35cf93b0?auto=format&fit=crop&w=600&q=80', description: 'Comfortable festive kurta with matching bottoms.' },
+  { id: 'prod_4', merchant_id: 'merchant_1', category_id: 'cat_daily', name: 'Cotton Shirt', price: 1299, original_price: 1899, stock: 40, rating: 4.5, review_count: 340, is_returnable: true, return_window_days: 30, image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=600&q=80', description: 'Breathable everyday cotton shirt.' },
+  { id: 'prod_5', merchant_id: 'merchant_1', category_id: 'cat_daily', name: 'Relaxed Fit T-Shirt', price: 799, original_price: 1199, stock: 60, rating: 4.7, review_count: 512, is_returnable: true, return_window_days: 30, image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=600&q=80', description: 'Soft relaxed-fit tee for daily wear.' },
+  { id: 'prod_6', merchant_id: 'merchant_1', category_id: 'cat_daily', name: 'Linen Trouser', price: 1999, original_price: 2799, stock: 25, rating: 4.4, review_count: 98, is_returnable: true, return_window_days: 30, image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?auto=format&fit=crop&w=600&q=80', description: 'Tailored linen trousers for work or casual looks.' },
+  { id: 'prod_7', merchant_id: 'merchant_1', category_id: 'cat_electronics', name: 'Wireless Earbuds', price: 3999, original_price: 5999, stock: 15, rating: 4.7, review_count: 670, is_returnable: true, return_window_days: 14, image: 'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?auto=format&fit=crop&w=600&q=80', description: 'Compact earbuds with active noise cancellation.' },
+  { id: 'prod_8', merchant_id: 'merchant_1', category_id: 'cat_electronics', name: 'Smart Fitness Band', price: 2799, original_price: 3999, stock: 30, rating: 4.6, review_count: 420, is_returnable: true, return_window_days: 14, image: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?auto=format&fit=crop&w=600&q=80', description: 'Tracks activity, sleep and heart rate.' },
+  { id: 'prod_9', merchant_id: 'merchant_1', category_id: 'cat_home', name: 'Ceramic Dinner Set', price: 3499, original_price: 4999, stock: 18, rating: 4.8, review_count: 145, is_returnable: true, return_window_days: 30, image: 'https://images.unsplash.com/photo-1603199506016-b9a594b593c0?auto=format&fit=crop&w=600&q=80', description: 'Twelve-piece ceramic dinnerware set.' },
+  { id: 'prod_10', merchant_id: 'merchant_1', category_id: 'cat_home', name: 'Decorative Table Lamp', price: 1899, original_price: 2499, stock: 22, rating: 4.5, review_count: 88, is_returnable: true, return_window_days: 30, image: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=600&q=80', description: 'Warm ambient lamp for living spaces.' },
+  { id: 'prod_11', merchant_id: 'merchant_1', category_id: 'cat_ethnic', name: 'Chanderi Anarkali Dress', price: 3299, original_price: 4599, stock: 14, rating: 4.7, review_count: 76, is_returnable: true, return_window_days: 30, image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&w=600&q=80', description: 'Lightweight Chanderi Anarkali with delicate gold detailing.' },
+  { id: 'prod_12', merchant_id: 'merchant_1', category_id: 'cat_ethnic', name: 'Printed Cotton Dupatta', price: 899, original_price: 1299, stock: 28, rating: 4.3, review_count: 54, is_returnable: true, return_window_days: 30, image: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=600&q=80', description: 'Hand-block inspired cotton dupatta for everyday festive styling.' },
+  { id: 'prod_13', merchant_id: 'merchant_1', category_id: 'cat_daily', name: 'Oversized Linen Shirt', price: 1799, original_price: 2499, stock: 24, rating: 4.6, review_count: 130, is_returnable: true, return_window_days: 30, image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=600&q=80', description: 'Relaxed linen shirt designed for warm-weather comfort.' },
+  { id: 'prod_14', merchant_id: 'merchant_1', category_id: 'cat_daily', name: 'Everyday Canvas Sneakers', price: 2199, original_price: 2999, stock: 32, rating: 4.8, review_count: 310, is_returnable: true, return_window_days: 30, image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80', description: 'Cushioned low-top sneakers for daily commutes and weekends.' },
+  { id: 'prod_15', merchant_id: 'merchant_1', category_id: 'cat_electronics', name: 'Portable Bluetooth Speaker', price: 2499, original_price: 3499, stock: 19, rating: 4.5, review_count: 180, is_returnable: true, return_window_days: 14, image: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&w=600&q=80', description: 'Compact wireless speaker with rich sound for indoor and outdoor use.' },
+  { id: 'prod_16', merchant_id: 'merchant_1', category_id: 'cat_electronics', name: 'Fast Charge Power Bank', price: 1599, original_price: 2199, stock: 26, rating: 4.6, review_count: 240, is_returnable: true, return_window_days: 14, image: 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=600&q=80', description: 'High-capacity power bank with USB-C fast charging.' },
+  { id: 'prod_17', merchant_id: 'merchant_1', category_id: 'cat_home', name: 'Woven Storage Basket', price: 1299, original_price: 1799, stock: 21, rating: 4.4, review_count: 62, is_returnable: true, return_window_days: 30, image: 'https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=600&q=80', description: 'Textured woven basket for throws, toys, and everyday storage.' },
+  { id: 'prod_18', merchant_id: 'merchant_1', category_id: 'cat_home', name: 'Cotton Cushion Cover Set', price: 749, original_price: 999, stock: 35, rating: 4.5, review_count: 90, is_returnable: true, return_window_days: 30, image: 'https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?auto=format&fit=crop&w=600&q=80', description: 'Set of two soft cotton cushion covers with modern patterns.' },
 ]
 
 export const SHOPPERS = [
@@ -986,4 +986,46 @@ export const LOSS_PREVENTION_ROI = {
   confirmed_abuse_cases: 4,
   cod_refusal_reduction_pct: 34.8,
 }
+
+export const PRODUCT_VARIANTS = [
+  // prod_1: Embroidered Lehenga Set
+  { id: 'var_1_xs', product_id: 'prod_1', sku: 'LEH-MIR-XS', size: 'XS', color: 'Maroon', stock: 2, extra_price_delta: 0 },
+  { id: 'var_1_s', product_id: 'prod_1', sku: 'LEH-MIR-S', size: 'S', color: 'Maroon', stock: 5, extra_price_delta: 0 },
+  { id: 'var_1_m', product_id: 'prod_1', sku: 'LEH-MIR-M', size: 'M', color: 'Maroon', stock: 3, extra_price_delta: 0 },
+  { id: 'var_1_l', product_id: 'prod_1', sku: 'LEH-MIR-L', size: 'L', color: 'Maroon', stock: 2, extra_price_delta: 0 },
+  { id: 'var_1_xl', product_id: 'prod_1', sku: 'LEH-MIR-XL', size: 'XL', color: 'Maroon', stock: 0, extra_price_delta: 500 },
+
+  // prod_4: Cotton Shirt
+  { id: 'var_4_s', product_id: 'prod_4', sku: 'SHIRT-COT-S', size: 'S', color: 'Sky Blue', stock: 8, extra_price_delta: 0 },
+  { id: 'var_4_m', product_id: 'prod_4', sku: 'SHIRT-COT-M', size: 'M', color: 'Sky Blue', stock: 15, extra_price_delta: 0 },
+  { id: 'var_4_l', product_id: 'prod_4', sku: 'SHIRT-COT-L', size: 'L', color: 'Sky Blue', stock: 12, extra_price_delta: 0 },
+  { id: 'var_4_xl', product_id: 'prod_4', sku: 'SHIRT-COT-XL', size: 'XL', color: 'Sky Blue', stock: 5, extra_price_delta: 0 },
+
+  // prod_5: Relaxed Fit T-Shirt
+  { id: 'var_5_s', product_id: 'prod_5', sku: 'TEE-RLX-S', size: 'S', color: 'Black', stock: 15, extra_price_delta: 0 },
+  { id: 'var_5_m', product_id: 'prod_5', sku: 'TEE-RLX-M', size: 'M', color: 'Black', stock: 20, extra_price_delta: 0 },
+  { id: 'var_5_l', product_id: 'prod_5', sku: 'TEE-RLX-L', size: 'L', color: 'Black', stock: 18, extra_price_delta: 0 },
+  { id: 'var_5_xl', product_id: 'prod_5', sku: 'TEE-RLX-XL', size: 'XL', color: 'Black', stock: 7, extra_price_delta: 0 },
+
+  // prod_6: Linen Trouser
+  { id: 'var_6_30', product_id: 'prod_6', sku: 'TROUSER-LIN-30', size: '30', color: 'Beige', stock: 4, extra_price_delta: 0 },
+  { id: 'var_6_32', product_id: 'prod_6', sku: 'TROUSER-LIN-32', size: '32', color: 'Beige', stock: 10, extra_price_delta: 0 },
+  { id: 'var_6_34', product_id: 'prod_6', sku: 'TROUSER-LIN-34', size: '34', color: 'Beige', stock: 8, extra_price_delta: 0 },
+  { id: 'var_6_36', product_id: 'prod_6', sku: 'TROUSER-LIN-36', size: '36', color: 'Beige', stock: 3, extra_price_delta: 0 },
+
+  // prod_14: Everyday Canvas Sneakers
+  { id: 'var_14_7', product_id: 'prod_14', sku: 'SNEAK-CAN-7', size: '7', color: 'White', stock: 6, extra_price_delta: 0 },
+  { id: 'var_14_8', product_id: 'prod_14', sku: 'SNEAK-CAN-8', size: '8', color: 'White', stock: 12, extra_price_delta: 0 },
+  { id: 'var_14_9', product_id: 'prod_14', sku: 'SNEAK-CAN-9', size: '9', color: 'White', stock: 9, extra_price_delta: 0 },
+  { id: 'var_14_10', product_id: 'prod_14', sku: 'SNEAK-CAN-10', size: '10', color: 'White', stock: 5, extra_price_delta: 0 },
+]
+
+export const USER_PREFERENCES = {
+  preferred_categories: ['cat_daily', 'cat_ethnic'],
+  preferred_brands: ['Nike', 'Zara', 'H&M'],
+  default_size: 'M',
+  fit_preference: 'Regular',
+  budget_max: 5000,
+}
+
 

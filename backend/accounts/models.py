@@ -75,3 +75,54 @@ class Address(TimestampedModel):
 
     def __str__(self):
         return f"{self.label}: {self.line[:40]}"
+
+
+class UserPreference(models.Model):
+    FIT_CHOICES = (
+        ("Tight", "Tight"),
+        ("Regular", "Regular"),
+        ("Relaxed", "Relaxed"),
+    )
+
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="preference"
+    )
+    preferred_categories = models.JSONField(default=list, blank=True)
+    preferred_brands = models.JSONField(default=list, blank=True)
+    default_size = models.CharField(max_length=16, blank=True, default="")
+    fit_preference = models.CharField(
+        max_length=16, choices=FIT_CHOICES, default="Regular"
+    )
+    budget_max = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
+
+    def __str__(self):
+        return f"{self.user.email} preferences"
+
+
+class Wishlist(models.Model):
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="wishlist"
+    )
+    products = models.ManyToManyField(
+        "catalog.Product", blank=True, related_name="wishlisted_by"
+    )
+    target_prices = models.JSONField(
+        default=dict, blank=True,
+        help_text="Map of product_id → target_price for price-watch alerts",
+    )
+
+    def __str__(self):
+        return f"{self.user.email} wishlist"
+
+
+class RewardWallet(models.Model):
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="reward_wallet"
+    )
+    points = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.user.email} wallet ({self.points} pts)"
+

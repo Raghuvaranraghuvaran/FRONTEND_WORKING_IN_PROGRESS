@@ -18,23 +18,25 @@ export default function MerchantOnboarding() {
     api
       .getMerchantOnboarding()
       .then((m) => {
-        setExisting(m)
-        const email = m?.admin_email || merchantUser?.email || ''
-        const defaultName = m?.business_name || (merchantUser?.name ? `${merchantUser.name}'s Store` : '')
-        const defaultSlug = m?.store_slug || (email ? email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-') : '')
-        
+        const isDefaultSeed = m?.business_name === 'Aria Fashion House' && m?.store_slug === 'aria-fashion-house'
+        if (m && !isDefaultSeed) {
+          setExisting(m)
+        } else {
+          setExisting(null)
+        }
         setForm({
-          businessName: defaultName,
-          storeSlug: defaultSlug,
-          adminEmail: email,
+          businessName: '',
+          storeSlug: '',
+          adminEmail: '',
         })
         setLoading(false)
       })
       .catch(() => {
+        setExisting(null)
         setForm({
-          businessName: merchantUser?.name ? `${merchantUser.name}'s Store` : '',
-          storeSlug: merchantUser?.email ? merchantUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-') : '',
-          adminEmail: merchantUser?.email || '',
+          businessName: '',
+          storeSlug: '',
+          adminEmail: '',
         })
         setLoading(false)
       })
@@ -109,6 +111,7 @@ export default function MerchantOnboarding() {
               <input
                 value={form.businessName}
                 onChange={(e) => setForm({ ...form, businessName: e.target.value })}
+                placeholder="e.g. Acme Fashion"
                 required
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
               />
@@ -118,6 +121,7 @@ export default function MerchantOnboarding() {
               <input
                 value={form.storeSlug}
                 onChange={(e) => setForm({ ...form, storeSlug: e.target.value })}
+                placeholder="e.g. acme-fashion"
                 required
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
               />
@@ -128,6 +132,7 @@ export default function MerchantOnboarding() {
                 type="email"
                 value={form.adminEmail}
                 onChange={(e) => setForm({ ...form, adminEmail: e.target.value })}
+                placeholder="e.g. admin@acmefashion.com"
                 required
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
               />

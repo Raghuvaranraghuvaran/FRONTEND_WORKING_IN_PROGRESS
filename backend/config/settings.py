@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "audit",
     "admin_api",
     "analytics",
+    "shopper",
 ]
 
 MIDDLEWARE = [

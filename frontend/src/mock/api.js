@@ -13,12 +13,14 @@ import {
   NOTIFICATIONS,
   ORDERS,
   PRODUCTS,
+  PRODUCT_VARIANTS,
   RESTRICTIONS,
   RETURNS,
   RISK_SCORING_EVENTS,
   SELF_TUNING_SUGGESTIONS,
   SHOPPERS,
   TOP_FLAGGED_CUSTOMERS,
+  USER_PREFERENCES,
   VERIFICATION_ATTEMPTS,
   WEEKLY_TREND,
 } from './seed'
@@ -195,6 +197,9 @@ let store = {
   restrictions: clone(RESTRICTIONS),
   escalationHistory: clone(ESCALATION_HISTORY),
   listRules: clone(LIST_RULES),
+  productVariants: clone(PRODUCT_VARIANTS),
+  userPreferences: clone(USER_PREFERENCES),
+  priceAlerts: [],
 }
 
 const MERCHANTS_LIST_KEY = 'returnguard_merchants_list'
@@ -3095,6 +3100,330 @@ export const api = {
       ret.proof_verified = false
     }
     return { id: returnId, proof_image_url: imageUrl, proof_verified: false }
+  },
+
+  // ── Shopper Experience API Extensions ──────────────────────────────────────────
+
+  async getProductVariants(productId) {
+    if (hasLiveApi()) {
+      try {
+        const prod = await live(`/shopper/products/${productId}/`)
+        if (prod?.variants) return prod.variants
+      } catch {}
+    }
+    await delay(150)
+    return clone(store.productVariants.filter((v) => String(v.product_id) === String(productId)))
+  },
+
+  async getSizeRecommendation({ productId, referenceBrand, referenceSize, fitPreference = 'Regular' }) {
+    if (hasLiveApi()) {
+      try {
+        return await live('/shopper/size-recommendation/', {
+          method: 'POST',
+          body: { product_id: productId, reference_brand: referenceBrand, reference_size: referenceSize, fit_preference: fitPreference },
+          role: 'shopper',
+        })
+      } catch (err) {
+        console.warn('Live size recommendation failed, falling back to mock:', err)
+      }
+    }
+    await delay(400)
+    const product = store.products.find((p) => String(p.id) === String(productId))
+    const brandOffsets = { nike: 0, adidas: -0.5, puma: 0, zara: 0.5, 'h&m': 0, 'levi\'s': 0 }
+    const fitOffsets = { Tight: -0.5, Regular: 0, Relaxed: 0.5 }
+    const bOffset = brandOffsets[String(referenceBrand).toLowerCase()] ?? 0
+    const fOffset = fitOffsets[fitPreference] ?? 0
+    const net = bOffset + fOffset
+
+    const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+    let recSize = referenceSize
+    const num = parseFloat(referenceSize)
+    if (!isNaN(num)) {
+      const calc = num + net
+      recSize = Number.isInteger(calc) ? String(calc) : String(calc)
+    } else if (SIZES.includes(referenceSize.toUpperCase())) {
+      const idx = SIZES.indexOf(referenceSize.toUpperCase())
+      const shifted = Math.max(0, Math.min(SIZES.length - 1, idx + Math.round(net)))
+      recSize = SIZES[shifted]
+    }
+
+    const variants = store.productVariants.filter((v) => String(v.product_id) === String(productId))
+    const matchingVar = variants.find((v) => v.size.toUpperCase() === recSize.toUpperCase())
+
+    return {
+      product_id: productId,
+      product_name: product?.name || 'Product',
+      recommended_size: recSize,
+      confidence_score: 94,
+      in_stock: matchingVar ? matchingVar.stock > 0 : (product?.stock || 0) > 0,
+      variant_id: matchingVar?.id || null,
+      fit_guidance: `Based on your ${referenceBrand} size ${referenceSize} and '${fitPreference}' preference, size ${recSize} guarantees the best fit with zero return risk.`,
+      available_variants: clone(variants),
+    }
+  },
+
+  async checkReturnEligibility({ orderItemId }) {
+    if (hasLiveApi()) {
+      try {
+        return await live('/shopper/returns/check-eligibility/', {
+          method: 'POST',
+          body: { order_item_id: orderItemId },
+          role: 'shopper',
+        })
+      } catch (err) {
+        console.warn('Live return eligibility failed, falling back to mock:', err)
+      }
+    }
+    await delay(300)
+    return {
+      eligible: true,
+      reason: 'Eligible for Free Return or Instant Exchange (24 days remaining).',
+      days_since_delivery: 6,
+      return_window_days: 30,
+      refund_amount: '2499.00',
+      incentive_store_credit_bonus_percent: 5,
+      exchange_options: [
+        { id: 'var_opt_1', size: 'S', color: 'Black', stock: 5 },
+        { id: 'var_opt_2', size: 'L', color: 'Black', stock: 8 },
+        { id: 'var_opt_3', size: 'XL', color: 'Black', stock: 4 },
+      ],
+    }
+  },
+
+  async createShopperReturn({ orderId, orderItemId, type, reason, notes, exchangeVariantId, refundMethod, pickupSlot, photos }) {
+    if (hasLiveApi()) {
+      try {
+        return await live('/shopper/returns/create/', {
+          method: 'POST',
+          body: {
+            order_id: orderId,
+            order_item_id: orderItemId,
+            type,
+            reason,
+            notes,
+            exchange_variant_id: exchangeVariantId,
+            refund_method: refundMethod || 'original',
+            pickup_slot: pickupSlot || 'Tomorrow · 10:00 AM – 1:00 PM',
+            photos: photos || [],
+          },
+          role: 'shopper',
+        })
+      } catch (err) {
+        console.warn('Live create return failed, falling back to mock:', err)
+      }
+    }
+    await delay(600)
+    const newReturnId = `ret_${Date.now()}`
+    const order = store.orders.find((o) => String(o.id) === String(orderId) || String(o.order_number) === String(orderId))
+    const retObj = {
+      id: newReturnId,
+      order_id: orderId,
+      order_number: order?.order_number || `ORD-${orderId}`,
+      type: type || 'REFUND',
+      reason,
+      status: 'approved',
+      outcome: 'auto_approved',
+      pickup_slot: pickupSlot || 'Tomorrow · 10:00 AM – 1:00 PM',
+      driver_name: 'Suresh Kumar',
+      driver_phone: '+91 98451 22301',
+      estimated_arrival_window: '2.3 km away (arriving in ~35 mins)',
+      created_at: new Date().toISOString(),
+    }
+    store.returns.unshift(retObj)
+    return {
+      return_id: newReturnId,
+      status: 'approved',
+      type: retObj.type,
+      order_number: retObj.order_number,
+      pickup_slot: retObj.pickup_slot,
+      driver_name: retObj.driver_name,
+      driver_phone: retObj.driver_phone,
+      estimated_arrival_window: retObj.estimated_arrival_window,
+      message: type === 'EXCHANGE' ? 'Exchange confirmed! Selected size reserved for immediate dispatch.' : 'Return approved! Free doorstep pickup scheduled.',
+    }
+  },
+
+  async getShopperReturnTracking(returnId) {
+    if (hasLiveApi()) {
+      try {
+        return await live(`/shopper/returns/${returnId}/tracking/`, { role: 'shopper' })
+      } catch (err) {
+        console.warn('Live return tracking failed, falling back to mock:', err)
+      }
+    }
+    await delay(300)
+    const ret = store.returns.find((r) => String(r.id) === String(returnId) || String(r.order_number) === String(returnId))
+    return {
+      return_id: ret?.id || returnId,
+      order_number: ret?.order_number || 'ORD-1001',
+      type: ret?.type || 'EXCHANGE',
+      status: ret?.status || 'approved',
+      reason: ret?.reason || 'Wrong size / Fit issue',
+      refund_amount: '2499.00',
+      refund_method: 'Original Payment Method',
+      pickup_slot: ret?.pickup_slot || 'Tomorrow · 10:00 AM – 1:00 PM',
+      driver: {
+        name: ret?.driver_name || 'Suresh Kumar',
+        phone: ret?.driver_phone || '+91 98451 22301',
+        distance: '2.3 km away',
+        eta: '35 mins',
+        vehicle: 'Hero Electric (KA-04-ET-9102)',
+      },
+      exchange_details: ret?.type === 'EXCHANGE' ? { size: 'L', sku: 'SHIRT-COT-L' } : null,
+      expected_refund_date: '28 Aug 2026',
+      milestone_steps: [
+        { id: 'requested', title: 'Requested', completed: true, date: 'Today' },
+        { id: 'approved', title: 'Approved', completed: true, date: 'Today' },
+        { id: 'pickup_scheduled', title: 'Pickup Scheduled', completed: true, date: 'Tomorrow' },
+        { id: 'inspected', title: 'Inspected at Doorstep', completed: false },
+        { id: 'completed', title: 'Exchange Shipped / Refunded', completed: false },
+      ],
+      timeline: [
+        { label: 'Return & Smart Exchange Initiated', at: new Date().toISOString(), done: true },
+        { label: 'Auto-Approved with Zero Friction', at: new Date().toISOString(), done: true },
+        { label: 'Pickup Partner Assigned (Suresh Kumar)', at: new Date().toISOString(), done: true },
+      ],
+    }
+  },
+
+  async validateCart(items = []) {
+    if (hasLiveApi()) {
+      try {
+        return await live('/shopper/cart/validate/', {
+          method: 'POST',
+          body: { items },
+          role: 'shopper',
+        })
+      } catch (err) {
+        console.warn('Live cart validation failed, falling back to mock:', err)
+      }
+    }
+    await delay(200)
+    let subtotal = 0
+    const validatedItems = (items || []).map((item) => {
+      const p = store.products.find((prod) => String(prod.id) === String(item.product_id))
+      const price = Number(p?.price || item.price || 0)
+      const qty = Number(item.quantity || 1)
+      subtotal += price * qty
+      const stock = p?.stock ?? 10
+      return {
+        product_id: item.product_id,
+        name: p?.name || item.name,
+        price,
+        quantity: qty,
+        stock_available: stock,
+        is_low_stock: stock > 0 && stock <= 5,
+        is_out_of_stock: stock <= 0,
+        is_returnable: p?.is_returnable ?? true,
+      }
+    })
+
+    const threshold = 3000
+    const qualifies = subtotal >= threshold
+    const remaining = Math.max(0, threshold - subtotal)
+    const progress = Math.min(100, Math.round((subtotal / threshold) * 100))
+
+    return {
+      items: validatedItems,
+      subtotal,
+      free_shipping_threshold: threshold,
+      amount_remaining_for_free_shipping: remaining,
+      qualifies_for_free_shipping: qualifies,
+      free_shipping_progress_percent: progress,
+      has_final_sale_items: validatedItems.some((i) => !i.is_returnable),
+      warnings: validatedItems.filter((i) => i.is_low_stock).map((i) => `Only ${i.stock_available} left in stock for '${i.name}'!`),
+    }
+  },
+
+  async compareProducts(productIds = []) {
+    if (hasLiveApi()) {
+      try {
+        return await live('/shopper/products/compare/', {
+          method: 'POST',
+          body: { product_ids: productIds },
+          role: 'shopper',
+        })
+      } catch (err) {
+        console.warn('Live product compare failed, falling back to mock:', err)
+      }
+    }
+    await delay(350)
+    const prods = store.products.filter((p) => productIds.includes(p.id))
+    const matrix = prods.map((p) => {
+      const returnRate = Math.max(3.2, Math.min(14.5, +(18.0 - (p.rating || 4.5) * 2.5).toFixed(1)))
+      return {
+        product_id: p.id,
+        name: p.name,
+        image: p.image,
+        price: p.price,
+        original_price: p.original_price || Math.round(p.price * 1.25),
+        rating: p.rating || 4.5,
+        review_count: p.review_count || 50,
+        return_rate_percent: returnRate,
+        fit_score: 'True to size (96% fit confidence)',
+        return_window_days: p.return_window_days || 30,
+        is_returnable: p.is_returnable ?? true,
+        in_stock: (p.stock || 0) > 0,
+      }
+    })
+    const best = prods.reduce((prev, curr) => ((curr.rating || 0) > (prev.rating || 0) ? curr : prev), prods[0] || {})
+    return {
+      comparison_matrix: matrix,
+      recommended_product_id: best?.id || null,
+      ai_summary: `We recommend '${best?.name}' as the top pick: it boasts a ${best?.rating || 4.8}★ rating with the lowest verified return rate among compared items.`,
+    }
+  },
+
+  async setPriceWatch({ productId, targetPrice }) {
+    if (hasLiveApi()) {
+      try {
+        return await live('/shopper/wishlist/price-watch/', {
+          method: 'POST',
+          body: { product_id: productId, target_price: targetPrice },
+          role: 'shopper',
+        })
+      } catch (err) {
+        console.warn('Live price watch failed, falling back to mock:', err)
+      }
+    }
+    await delay(250)
+    const p = store.products.find((prod) => String(prod.id) === String(productId))
+    const alertObj = { product_id: productId, target_price: targetPrice, created_at: new Date().toISOString() }
+    store.priceAlerts.push(alertObj)
+    return {
+      product_id: productId,
+      product_name: p?.name || 'Product',
+      current_price: p?.price,
+      target_price: targetPrice,
+      alert_enabled: true,
+      message: `Price watch set for ${p?.name || 'Product'}! You'll be notified when it drops below ₹${targetPrice}.`,
+    }
+  },
+
+  async getUserPreferences() {
+    await delay(150)
+    return clone(store.userPreferences)
+  },
+
+  async updateUserPreferences(patch = {}) {
+    await delay(200)
+    Object.assign(store.userPreferences, patch)
+    return clone(store.userPreferences)
+  },
+
+  async getShopperActivitySummary() {
+    await delay(200)
+    const shopperOrders = store.orders.slice(0, 5)
+    const shopperReturns = store.returns.slice(0, 3)
+    const inTransitOrders = shopperOrders.filter((o) => ['in transit', 'shipped', 'out for delivery', 'processing'].includes((o.delivery_status || o.status || '').toLowerCase()))
+    const activeReturns = shopperReturns.filter((r) => ['approved', 'pickup_scheduled', 'manual_review', 'requested'].includes((r.status || '').toLowerCase()))
+    return {
+      in_transit_orders_count: inTransitOrders.length,
+      active_returns_count: activeReturns.length,
+      reward_points: session.shopper?.reward_points ?? 1250,
+      recent_orders: clone(shopperOrders),
+      recent_returns: clone(shopperReturns),
+    }
   },
 }
 

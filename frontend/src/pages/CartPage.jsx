@@ -103,12 +103,43 @@ export default function CartPage() {
     )
   }
 
+  const freeThreshold = 3000
+  const remainingForFree = Math.max(0, freeThreshold - subtotal)
+  const freeProgress = Math.min(100, Math.round((subtotal / freeThreshold) * 100))
+
   return (
-    <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="text-2xl font-bold text-slate-900">Your cart</h1>
-      <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_340px]">
+    <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-900">Your cart</h1>
+        <span className="text-xs text-slate-500 font-semibold">{cart.length} item{cart.length !== 1 ? 's' : ''}</span>
+      </div>
+
+      {/* Free Shipping Progress */}
+      <div className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 via-white to-purple-50/80 p-4 shadow-sm">
+        <div className="flex items-center justify-between text-xs mb-1.5">
+          <span className="font-bold text-indigo-900">
+            {remainingForFree === 0 ? (
+              <span className="text-emerald-700 font-bold">🎉 Free Delivery Unlocked on this order!</span>
+            ) : (
+              <span>Add <strong>{INR.format(remainingForFree)}</strong> more to unlock FREE Delivery (Orders ₹3,000+)</span>
+            )}
+          </span>
+          <span className="font-extrabold text-indigo-600">{freeProgress}%</span>
+        </div>
+        <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+          <div
+            className={`h-full transition-all duration-500 rounded-full ${
+              remainingForFree === 0 ? 'bg-emerald-500' : 'bg-indigo-600'
+            }`}
+            style={{ width: `${freeProgress}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
         <div className="space-y-4">
           {cart.map((item) => {
+            const key = item.cart_key || item.product_id
             // Find applicable coupon for this individual item
             const itemCoupon = coupons.find((c) => {
               if (!c.is_active) return false
@@ -118,16 +149,28 @@ export default function CartPage() {
             })
 
             return (
-              <div key={item.product_id} className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4">
+              <div key={key} className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 {/* Product image */}
                 {item.image && (
-                  <div style={{ width: 80, height: 80, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: '#f1f5f9' }}>
+                  <div style={{ width: 80, height: 80, borderRadius: 12, overflow: 'hidden', flexShrink: 0, background: '#f1f5f9' }}>
                     <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   </div>
                 )}
                 <div className="flex-1">
-                  <p className="font-semibold text-slate-900">{item.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-slate-900">{item.name}</p>
+                    {item.size && (
+                      <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] font-bold text-indigo-700">
+                        Size {item.size}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-slate-500">{INR.format(item.price)} each</p>
+                  {item.is_returnable === false && (
+                    <span className="mt-1 inline-block text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
+                      ⚠️ Final Sale (Non-Returnable)
+                    </span>
+                  )}
                   {itemCoupon && (
                     <span className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-purple-700 border border-purple-200">
                       🏷️ Coupon available: <strong className="font-mono">{itemCoupon.code}</strong> ({itemCoupon.discount_type === 'percentage' ? `${itemCoupon.discount_value}% off` : `₹${itemCoupon.discount_value} off`})
