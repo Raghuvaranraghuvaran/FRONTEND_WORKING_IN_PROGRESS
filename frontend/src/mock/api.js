@@ -923,12 +923,21 @@ export const api = {
     return clone(shopper)
   },
 
-  async getShopperOrders() {
+  async getShopperOrders(params = {}) {
     if (hasLiveApi()) {
       try {
-        const liveOrders = await live('/orders/')
+        const queryParams = new URLSearchParams()
+        if (params.status && params.status !== 'all') queryParams.set('status', params.status)
+        if (params.search) queryParams.set('search', params.search)
+        if (params.page) queryParams.set('page', params.page)
+        if (params.limit) queryParams.set('limit', params.limit)
+        const qs = queryParams.toString()
+        const liveOrders = await live(`/orders/${qs ? `?${qs}` : ''}`)
         if (Array.isArray(liveOrders)) {
           return liveOrders
+        }
+        if (liveOrders?.results && Array.isArray(liveOrders.results)) {
+          return liveOrders.results
         }
       } catch (err) {
         console.warn('Live getShopperOrders error, falling back to local store:', err)
@@ -937,25 +946,85 @@ export const api = {
     await delay(300)
     const shopperId = session.shopper?.id
     const shopperEmail = (session.shopper?.email || '').toLowerCase()
-    const orders = clone(store.orders).filter(
+    let orders = clone(store.orders).filter(
       (o) => (shopperId && String(o.user_id) === String(shopperId)) || (shopperEmail && (String(o.customer_email || '').toLowerCase() === shopperEmail || String(o.user?.email || '').toLowerCase() === shopperEmail))
     )
-    return orders.length > 0 ? orders : clone(store.orders).slice(0, 15)
+    if (orders.length === 0) {
+      orders = clone(store.orders)
+    }
+
+    if (params.status && params.status !== 'all') {
+      const st = params.status.toLowerCase()
+      orders = orders.filter((o) => {
+        const oStatus = (o.delivery_status || o.status || '').toLowerCase()
+        if (st === 'in transit') return ['in transit', 'shipped', 'out for delivery'].includes(oStatus)
+        if (st === 'delivered') return ['delivered', 'completed'].includes(oStatus)
+        if (st === 'return processing') return oStatus.includes('return') || o.returnTracking
+        if (st === 'cancelled') return oStatus === 'cancelled'
+        return oStatus === st
+      })
+    }
+
+    if (params.search) {
+      const q = params.search.toLowerCase().trim()
+      orders = orders.filter((o) => {
+        const matchNum = String(o.order_number || o.id || '').toLowerCase().includes(q)
+        const matchItem = (o.items || []).some((item) => String(item.name || item.title || '').toLowerCase().includes(q))
+        return matchNum || matchItem
+      })
+    }
+
+    return orders
   },
 
   async getShopperReturns() {
-    if (hasLiveApi()) return live('/returns/')
-    await delay(500)
+    if (hasLiveApi()) {
+      try {
+        const liveReturns = await live('/returns/')
+        if (Array.isArray(liveReturns)) {
+          return liveReturns
+        }
+        if (liveReturns?.results && Array.isArray(liveReturns.results)) {
+          return liveReturns.results
+        }
+      } catch (err) {
+        console.warn('Live getShopperReturns error, falling back to local store:', err)
+      }
+    }
+    await delay(300)
     const shopperId = session.shopper?.id
-    return clone(store.returns).filter((r) => r.user_id === shopperId)
+    const shopperEmail = (session.shopper?.email || '').toLowerCase()
+    let returns = clone(store.returns).filter(
+      (r) => (shopperId && String(r.user_id) === String(shopperId)) || (shopperEmail && String(r.customer_email || '').toLowerCase() === shopperEmail)
+    )
+    if (returns.length === 0) {
+      returns = clone(store.returns)
+    }
+    return returns
   },
 
   async trackOrder(orderId) {
-    if (hasLiveApi()) return live(`/orders/${orderId}/track/`)
-    await delay(400)
-    const order = store.orders.find((o) => o.id === orderId)
-    if (!order) throw new Error('Order not found.')
-    return clone(order.tracking_events || [])
+    if (hasLiveApi()) {
+      try {
+        const liveTrack = await live(`/orders/${orderId}/track/`)
+        if (Array.isArray(liveTrack)) return liveTrack
+      } catch (err) {
+        console.warn('Live trackOrder error, falling back to local store:', err)
+      }
+    }
+    await delay(300)
+    const order = store.orders.find((o) => String(o.id) === String(orderId) || String(o.order_number) === String(orderId))
+    if (!order) return [
+      { label: 'Order Confirmed', at: new Date().toISOString(), done: true },
+      { label: 'In Transit', at: new Date().toISOString(), done: true },
+      { label: 'Out for Delivery', at: null, done: false },
+      { label: 'Delivered', at: null, done: false },
+    ]
+    return clone(order.tracking_events || [
+      { label: 'Order Confirmed', at: order.created_at, done: true },
+      { label: 'In Transit', at: order.created_at, done: true },
+      { label: 'Delivered', at: order.delivered_at, done: Boolean(order.delivered_at) },
+    ])
   },
 
   async requestOrderCancellationOTP({ orderId, reason }) {

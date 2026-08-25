@@ -128,7 +128,22 @@ class ShopperOrderListView(APIView):
         # If demo shopper has no orders placed yet, provide the demo seed orders
         if not orders.exists() and user.email.lower() == "demo@shopper.com":
             orders = Order.objects.all().prefetch_related("items", "items__product").select_related("user", "merchant", "invoice").order_by("-created_at")[:15]
-            
+
+        status_param = request.query_params.get("status")
+        if status_param and status_param.lower() != "all":
+            st = status_param.strip()
+            orders = orders.filter(
+                Q(status__iexact=st) | Q(delivery_status__iexact=st)
+            )
+
+        search_param = request.query_params.get("search")
+        if search_param and search_param.strip():
+            sq = search_param.strip()
+            orders = orders.filter(
+                Q(order_number__icontains=sq) |
+                Q(items__name__icontains=sq)
+            ).distinct()
+
         return success(OrderListSerializer(orders, many=True).data)
 
 
