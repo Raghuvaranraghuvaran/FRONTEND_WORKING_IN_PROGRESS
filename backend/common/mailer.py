@@ -280,12 +280,75 @@ def _send_via_brevo_http(subject, message, recipients, from_name=DEFAULT_FROM_NA
     return False
 
 
+def _send_via_sendgrid_http(subject, message, recipients, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
+    """
+    Delivers email to ANY recipient via SendGrid HTTPS API (Port 443).
+    """
+    api_key = (os.getenv("SENDGRID_API_KEY") or getattr(settings, "SENDGRID_API_KEY", "")).strip()
+    if not api_key:
+        return False
+
+    sender_email = (
+        from_addr
+        or os.getenv("SENDGRID_FROM_EMAIL")
+        or getattr(settings, "DEFAULT_FROM_EMAIL", "infiniteganesforu@gmail.com")
+    ).strip()
+
+    payload = {
+        "personalizations": [{"to": [{"email": r} for r in recipients]}],
+        "from": {"email": sender_email, "name": from_name},
+        "subject": subject,
+        "content": [
+            {"type": "text/plain", "value": message or "ReturnGuard Notification"},
+        ],
+    }
+    if html_message:
+        payload["content"].append({"type": "text/html", "value": html_message})
+
+    if pdf_bytes:
+        content_bytes = pdf_bytes.encode("utf-8") if isinstance(pdf_bytes, str) else pdf_bytes
+        b64_content = base64.b64encode(content_bytes).decode("ascii")
+        payload["attachments"] = [
+            {
+                "content": b64_content,
+                "filename": pdf_filename or "Invoice.pdf",
+                "type": "application/pdf",
+                "disposition": "attachment",
+            }
+        ]
+
+    req_data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.sendgrid.com/v3/mail/send",
+        data=req_data,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "ReturnGuard-Backend/1.0",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipients} via SendGrid HTTPS API!", flush=True)
+            return True
+    except urllib.error.HTTPError as http_err:
+        err_body = http_err.read().decode("utf-8", errors="ignore")
+        print(f"[Email Dispatch] SendGrid API HTTP error {http_err.code}: {err_body}", flush=True)
+    except Exception as exc:
+        print(f"[Email Dispatch] SendGrid API request error: {exc}", flush=True)
+
+    return False
+
+
 def _dispatch_all_strategies(subject, message, recipients, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
     """
     Executes resilient waterfall delivery:
-    1. Brevo HTTPS API (Sends to ANY recipient worldwide over Port 443)
-    2. Resend HTTPS API (Port 443)
-    3. Direct SMTP (Port 587 / Port 465)
+    1. Brevo HTTPS API (Port 443)
+    2. SendGrid HTTPS API (Port 443)
+    3. Resend HTTPS API (Port 443)
+    4. Direct SMTP (Port 587 / Port 465)
     """
     if isinstance(recipients, str):
         recipients = [recipients]
@@ -298,12 +361,17 @@ def _dispatch_all_strategies(subject, message, recipients, from_name=DEFAULT_FRO
         if _send_via_brevo_http(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
             return True
 
-    # Step 2: Try Resend HTTPS API
+    # Step 2: Try SendGrid HTTPS API
+    if os.getenv("SENDGRID_API_KEY") or getattr(settings, "SENDGRID_API_KEY", ""):
+        if _send_via_sendgrid_http(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
+            return True
+
+    # Step 3: Try Resend HTTPS API
     if os.getenv("RESEND_API_KEY") or getattr(settings, "RESEND_API_KEY", ""):
         if _send_via_resend_http(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
             return True
 
-    # Step 3: Fall back to SMTP sockets
+    # Step 4: Fall back to SMTP sockets
     if _send_direct_smtp(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
         return True
 
