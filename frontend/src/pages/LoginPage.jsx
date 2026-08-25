@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Eye, EyeOff } from 'lucide-react'
 import { api } from '../mock/api'
 import { useApp } from '../context/AppContext'
 import BrandLogo from '../components/BrandLogo'
@@ -47,6 +48,7 @@ export default function LoginPage() {
 
   const [activeTab, setActiveTab] = useState('pw')
   const [form, setForm] = useState({ email: 'demo@shopper.com', password: 'demo123' })
+  const [showPassword, setShowPassword] = useState(false)
   const [otpEmail, setOtpEmail] = useState('demo@shopper.com')
   const [remember, setRemember] = useState(true)
   const [error, setError] = useState('')
@@ -62,6 +64,8 @@ export default function LoginPage() {
   const [resetChallengeId, setResetChallengeId] = useState(null)
   const [newPassword, setNewPassword] = useState('')
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
+  const [showResetPassword, setShowResetPassword] = useState(false)
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false)
   const googleButtonRef = useRef(null)
 
   useEffect(() => {
@@ -313,30 +317,46 @@ export default function LoginPage() {
                       <IconLock />
                       <input
                         className="rg-input"
-                        type="password"
+                        type={showResetPassword ? 'text' : 'password'}
                         autoComplete="new-password"
                         required
-                        minLength={8}
-                        placeholder="At least 8 characters"
+                        minLength={6}
+                        placeholder="At least 6 characters"
                         value={newPassword}
                         onChange={e => setNewPassword(e.target.value)}
                         style={inp}
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowResetPassword(!showResetPassword)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 0, display: 'flex', alignItems: 'center' }}
+                        title={showResetPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showResetPassword ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
+                      </button>
                     </div>
                     <label style={lbl}>Confirm New Password</label>
                     <div className="rg-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 18 }}>
                       <IconLock />
                       <input
                         className="rg-input"
-                        type="password"
+                        type={showResetConfirmPassword ? 'text' : 'password'}
                         autoComplete="new-password"
                         required
-                        minLength={8}
+                        minLength={6}
                         placeholder="Re-enter new password"
                         value={newPasswordConfirm}
                         onChange={e => setNewPasswordConfirm(e.target.value)}
                         style={inp}
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 0, display: 'flex', alignItems: 'center' }}
+                        title={showResetConfirmPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showResetConfirmPassword ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
+                      </button>
                     </div>
                     <motion.button type="submit" disabled={submitting || resetCode.length < 6}
                       whileHover={{ scale: submitting ? 1 : 1.02 }} whileTap={{ scale: 0.97 }}
@@ -458,7 +478,7 @@ export default function LoginPage() {
                   <IconLock />
                   <input
                     className="rg-input"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     name="auth_user_secret"
                     autoComplete="current-password"
                     required
@@ -478,6 +498,22 @@ export default function LoginPage() {
                       padding: 0,
                     }}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#9ca3af',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
+                  </button>
                 </div>
 
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#6b7280', marginBottom: 18, cursor: 'pointer' }}>
