@@ -205,59 +205,77 @@ def _send_via_brevo_http(subject, message, recipients, from_name=DEFAULT_FROM_NA
     if not api_key:
         return False
 
-    sender_email = (
-        from_addr
-        or os.getenv("BREVO_FROM_EMAIL")
-        or getattr(settings, "DEFAULT_FROM_EMAIL", "infiniteganesforu@gmail.com")
-    ).strip()
-    if "<" in sender_email and ">" in sender_email:
-        sender_email = sender_email.split("<")[1].split(">")[0].strip()
+    # Possible verified sender emails in Brevo
+    candidate_senders = []
+    if from_addr:
+        candidate_senders.append(from_addr)
+    if os.getenv("BREVO_FROM_EMAIL"):
+        candidate_senders.append(os.getenv("BREVO_FROM_EMAIL"))
+    if getattr(settings, "DEFAULT_FROM_EMAIL", None):
+        candidate_senders.append(getattr(settings, "DEFAULT_FROM_EMAIL"))
+    candidate_senders.extend(["infiniteganesforu@gmail.com", "raghuvaranraghuvaran65@gmail.com"])
 
-    payload = {
-        "sender": {
-            "name": from_name,
-            "email": sender_email,
-        },
-        "to": [{"email": r} for r in recipients],
-        "subject": subject,
-        "textContent": message or "ReturnGuard Notification",
-    }
-    if html_message:
-        payload["htmlContent"] = html_message
+    # Deduplicate while preserving order
+    seen = set()
+    unique_senders = []
+    for s in candidate_senders:
+        s_clean = s.strip()
+        if "<" in s_clean and ">" in s_clean:
+            s_clean = s_clean.split("<")[1].split(">")[0].strip()
+        if s_clean and s_clean not in seen:
+            seen.add(s_clean)
+            unique_senders.append(s_clean)
 
-    if pdf_bytes:
-        content_bytes = pdf_bytes.encode("utf-8") if isinstance(pdf_bytes, str) else pdf_bytes
-        b64_content = base64.b64encode(content_bytes).decode("ascii")
-        payload["attachment"] = [
-            {
-                "name": pdf_filename or "Invoice.pdf",
-                "content": b64_content,
-            }
-        ]
+    for sender_email in unique_senders:
+        payload = {
+            "sender": {
+                "name": from_name,
+                "email": sender_email,
+            },
+            "to": [{"email": r} for r in recipients],
+            "subject": subject,
+            "textContent": message or "ReturnGuard Notification",
+        }
+        if html_message:
+            payload["htmlContent"] = html_message
 
-    req_data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        "https://api.brevo.com/v3/smtp/email",
-        data=req_data,
-        headers={
-            "api-key": api_key,
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "User-Agent": "ReturnGuard-Backend/1.0",
-        },
-        method="POST",
-    )
+        if pdf_bytes:
+            content_bytes = pdf_bytes.encode("utf-8") if isinstance(pdf_bytes, str) else pdf_bytes
+            b64_content = base64.b64encode(content_bytes).decode("ascii")
+            payload["attachment"] = [
+                {
+                    "name": pdf_filename or "Invoice.pdf",
+                    "content": b64_content,
+                }
+            ]
 
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            resp_body = resp.read().decode("utf-8")
-            print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipients} via Brevo HTTPS API! (Response: {resp_body})", flush=True)
-            return True
-    except urllib.error.HTTPError as http_err:
-        err_body = http_err.read().decode("utf-8", errors="ignore")
-        print(f"[Email Dispatch] Brevo API HTTP error {http_err.code}: {err_body}", flush=True)
-    except Exception as exc:
-        print(f"[Email Dispatch] Brevo API request error: {exc}", flush=True)
+        req_data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.brevo.com/v3/smtp/email",
+            data=req_data,
+            headers={
+                "api-key": api_key,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": "ReturnGuard-Backend/1.0",
+            },
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                resp_body = resp.read().decode("utf-8")
+                print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipients} via Brevo HTTPS API! (Sender: {sender_email}, Response: {resp_body})", flush=True)
+                return True
+        except urllib.error.HTTPError as http_err:
+            err_body = http_err.read().decode("utf-8", errors="ignore")
+            print(f"[Email Dispatch] Brevo API HTTP error {http_err.code} for sender '{sender_email}': {err_body}", flush=True)
+            if "Sender not found" in err_body or "sender" in err_body.lower():
+                continue  # Try next candidate sender email
+            break
+        except Exception as exc:
+            print(f"[Email Dispatch] Brevo API request error for sender '{sender_email}': {exc}", flush=True)
+            break
 
     return False
 
