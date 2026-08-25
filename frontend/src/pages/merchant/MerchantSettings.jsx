@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../mock/api'
 import { formatDate } from '../../lib/format'
-import { Store, MapPin, Phone, ShieldCheck, Tag, Mail, CheckCircle2 } from 'lucide-react'
+import { Store, MapPin, Phone, ShieldCheck, Tag, Mail, CheckCircle2, KeyRound, Lock, Eye, EyeOff } from 'lucide-react'
 
 export default function MerchantSettings() {
   const [settings, setSettings] = useState(null)
@@ -21,6 +21,15 @@ export default function MerchantSettings() {
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Password change state
+  const [pwdForm, setPwdForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false)
+  const [showNewPwd, setShowNewPwd] = useState(false)
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false)
+  const [pwdError, setPwdError] = useState('')
+  const [pwdSuccess, setPwdSuccess] = useState('')
+  const [pwdSaving, setPwdSaving] = useState(false)
 
   useEffect(() => {
     api.getMerchantOnboarding().then((merchant) => {
@@ -72,6 +81,35 @@ export default function MerchantSettings() {
     } catch (err) {
       setError(err.message || 'Failed to save merchant settings.')
       setSaving(false)
+    }
+  }
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault()
+    setPwdError('')
+    setPwdSuccess('')
+    if (!pwdForm.newPassword || pwdForm.newPassword.length < 6) {
+      setPwdError('New password must be at least 6 characters.')
+      return
+    }
+    if (pwdForm.newPassword !== pwdForm.confirmPassword) {
+      setPwdError('New password and confirm password do not match.')
+      return
+    }
+    setPwdSaving(true)
+    try {
+      await api.updateMerchantPassword({
+        currentPassword: pwdForm.currentPassword,
+        newPassword: pwdForm.newPassword,
+        merchantUsername: settings?.merchant_username || form.admin_email,
+      })
+      setPwdSuccess('Merchant password updated successfully!')
+      setPwdForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      window.setTimeout(() => setPwdSuccess(''), 4000)
+    } catch (err) {
+      setPwdError(err.message || 'Failed to update merchant password.')
+    } finally {
+      setPwdSaving(false)
     }
   }
 
@@ -266,6 +304,115 @@ export default function MerchantSettings() {
           </div>
         </div>
       </form>
+
+      {/* ── Merchant Change Password Section ────────────────────────────── */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
+        <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+          <KeyRound className="h-5 w-5 text-indigo-600" />
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Security & Account Password</h2>
+            <p className="text-xs text-slate-500">Update your merchant portal sign-in password.</p>
+          </div>
+        </div>
+
+        {pwdError && (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs font-bold text-rose-700">
+            {pwdError}
+          </div>
+        )}
+
+        {pwdSuccess && (
+          <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3.5 text-xs font-bold text-emerald-800 animate-fade-in">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>{pwdSuccess}</span>
+          </div>
+        )}
+
+        <form onSubmit={handlePasswordSubmit} className="space-y-4 max-w-lg">
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-1">
+              Current Password
+            </label>
+            <div className="relative">
+              <input
+                type={showCurrentPwd ? 'text' : 'password'}
+                placeholder="Enter current password (optional for demo)"
+                value={pwdForm.currentPassword}
+                onChange={(e) => setPwdForm({ ...pwdForm, currentPassword: e.target.value })}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPwd(!showCurrentPwd)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                title={showCurrentPwd ? 'Hide password' : 'Show password'}
+              >
+                {showCurrentPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-1">
+              New Password *
+            </label>
+            <div className="relative">
+              <input
+                type={showNewPwd ? 'text' : 'password'}
+                required
+                minLength={6}
+                placeholder="At least 6 characters"
+                value={pwdForm.newPassword}
+                onChange={(e) => setPwdForm({ ...pwdForm, newPassword: e.target.value })}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPwd(!showNewPwd)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                title={showNewPwd ? 'Hide password' : 'Show password'}
+              >
+                {showNewPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-1">
+              Confirm New Password *
+            </label>
+            <div className="relative">
+              <input
+                type={showConfirmPwd ? 'text' : 'password'}
+                required
+                minLength={6}
+                placeholder="Re-type your new password"
+                value={pwdForm.confirmPassword}
+                onChange={(e) => setPwdForm({ ...pwdForm, confirmPassword: e.target.value })}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPwd(!showConfirmPwd)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                title={showConfirmPwd ? 'Hide password' : 'Show password'}
+              >
+                {showConfirmPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={pwdSaving}
+              className="rounded-xl bg-teal-600 hover:bg-teal-700 px-6 py-2.5 text-xs font-bold text-white shadow-sm active:scale-95 disabled:opacity-50 transition cursor-pointer"
+            >
+              {pwdSaving ? 'Updating Password…' : 'Update Merchant Password'}
+            </button>
+          </div>
+        </form>
+      </div>
 
       {/* Fraud Rules Shortcut */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

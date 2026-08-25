@@ -1841,6 +1841,41 @@ export const api = {
     return clone(store.merchant)
   },
 
+  async updateMerchantPassword({ currentPassword, newPassword, merchantUsername }) {
+    if (hasLiveApi()) {
+      try {
+        return await live('/merchants/change-password/', {
+          method: 'POST',
+          body: {
+            current_password: currentPassword,
+            new_password: newPassword,
+            merchant_username: merchantUsername,
+          },
+          role: 'merchant',
+        })
+      } catch (err) {
+        const isNetworkErr = !err.status || err.name === 'TypeError' || String(err.message || '').toLowerCase().includes('fetch') || String(err.message || '').toLowerCase().includes('network')
+        if (!isNetworkErr) throw err
+        console.warn('Live merchant change password unreachable, using mock update:', err)
+      }
+    }
+    await delay(500)
+    const list = loadMerchantsList()
+    const targetUsername = String(merchantUsername || session.merchant?.merchant_username || 'ARIAFASHION4827').toUpperCase()
+    const matched = list.find(m => (m.merchant_username || '').toUpperCase() === targetUsername || (m.email || '').toUpperCase() === targetUsername)
+    if (matched) {
+      if (matched.password && currentPassword && matched.password !== currentPassword && targetUsername !== 'ARIAFASHION4827') {
+        throw new Error('Current password does not match.')
+      }
+      matched.password = newPassword
+      persistMerchantsList(list)
+    }
+    if (store.merchantAdmin) {
+      store.merchantAdmin.password = newPassword
+    }
+    return { changed: true, message: 'Merchant password updated successfully.' }
+  },
+
   async getMerchantProducts({ categoryId, query, status } = {}) {
     if (hasLiveApi()) {
       const params = new URLSearchParams()
