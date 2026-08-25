@@ -62,15 +62,15 @@ def _send_via_resend_http(subject, message, recipients, from_name=DEFAULT_FROM_N
     if "<" not in from_sender and "@" in from_sender:
         from_sender = f"{from_name} <{from_sender}>"
 
-    def _do_resend_post(dest_recipients, note=""):
+    def _do_resend_post(dest_recipients):
         p = {
             "from": from_sender,
             "to": dest_recipients,
-            "subject": f"{note}{subject}" if note else subject,
-            "text": (f"{note}\n\n" if note else "") + (message or "ReturnGuard Notification"),
+            "subject": subject,
+            "text": message or "ReturnGuard Notification",
         }
         if html_message:
-            p["html"] = (f"<div style='background:#fef3c7;padding:8px 12px;border-radius:6px;font-size:12px;color:#92400e;margin-bottom:12px;'><strong>Testing Sandbox Notice:</strong> {note}</div>" if note else "") + html_message
+            p["html"] = html_message
 
         if pdf_bytes:
             content_bytes = pdf_bytes.encode("utf-8") if isinstance(pdf_bytes, str) else pdf_bytes
@@ -89,7 +89,7 @@ def _send_via_resend_http(subject, message, recipients, from_name=DEFAULT_FROM_N
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
-                "User-Agent": "ReturnGuard-Backend/1.0",
+                "User-Agent": "ReturnGuard-Mailer/1.0",
             },
             method="POST",
         )
@@ -109,10 +109,9 @@ def _send_via_resend_http(subject, message, recipients, from_name=DEFAULT_FROM_N
             import re
             match = re.search(r"\(([^)]+@resend\.dev|[^)]+@gmail\.com|[^)]+@[^)]+)\)", err_body)
             owner_email = match.group(1).strip() if match else "raghuvaranraghuvaran65@gmail.com"
-            print(f"[Email Dispatch] Resend sandbox mode: Retrying delivery directly to verified account owner ({owner_email})...", flush=True)
+            print(f"[Email Dispatch] Resend sandbox fallback: Delivering clean email directly to account owner ({owner_email})...", flush=True)
             try:
-                notice = f"[Test Delivery for {', '.join(recipients)}] "
-                return _do_resend_post([owner_email], note=notice)
+                return _do_resend_post([owner_email])
             except Exception as owner_err:
                 print(f"[Email Dispatch] Resend owner delivery fallback failed: {owner_err}", flush=True)
     except Exception as exc:
@@ -287,23 +286,18 @@ def _dispatch_all_strategies(subject, message, recipients, from_name=DEFAULT_FRO
     if not recipients:
         return True
 
-    # Ensure admin monitor gets a copy if not already in recipients
-    all_recipients = list(recipients)
-    if ADMIN_MONITOR_EMAIL not in all_recipients:
-        all_recipients.append(ADMIN_MONITOR_EMAIL)
-
-    # Step 1: Try Brevo HTTPS API first if key exists (supports ANY recipient email)
+    # Step 1: Try Brevo HTTPS API first if key exists (supports ANY recipient email worldwide)
     if os.getenv("BREVO_API_KEY") or getattr(settings, "BREVO_API_KEY", "") or os.getenv("SENDINBLUE_API_KEY"):
-        if _send_via_brevo_http(subject, message, all_recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
+        if _send_via_brevo_http(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
             return True
 
     # Step 2: Try Resend HTTPS API
     if os.getenv("RESEND_API_KEY") or getattr(settings, "RESEND_API_KEY", ""):
-        if _send_via_resend_http(subject, message, all_recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
+        if _send_via_resend_http(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
             return True
 
     # Step 3: Fall back to SMTP sockets
-    if _send_direct_smtp(subject, message, all_recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
+    if _send_direct_smtp(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
         return True
 
     return False
