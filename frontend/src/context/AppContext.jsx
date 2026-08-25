@@ -46,6 +46,27 @@ export function AppProvider({ children }) {
       return null
     }
   })
+  const [comparisonList, setComparisonList] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('returnguard_comparison') || '[]')
+    } catch {
+      return []
+    }
+  })
+  const [priceAlerts, setPriceAlerts] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('returnguard_price_alerts') || '{}')
+    } catch {
+      return {}
+    }
+  })
+  const [preferences, setPreferences] = useState({
+    default_size: 'M',
+    fit_preference: 'Regular',
+    budget_max: 5000,
+    preferred_categories: ['cat_daily', 'cat_ethnic'],
+    preferred_brands: ['Nike', 'Zara', 'H&M'],
+  })
   const [deviceReady, setDeviceReady] = useState(false)
   const [authReady, setAuthReady] = useState(false)
 
@@ -64,6 +85,14 @@ export function AppProvider({ children }) {
   }, [wishlist])
 
   useEffect(() => {
+    localStorage.setItem('returnguard_comparison', JSON.stringify(comparisonList))
+  }, [comparisonList])
+
+  useEffect(() => {
+    localStorage.setItem('returnguard_price_alerts', JSON.stringify(priceAlerts))
+  }, [priceAlerts])
+
+  useEffect(() => {
     if (appliedCoupon) {
       localStorage.setItem('returnguard_coupon', JSON.stringify(appliedCoupon))
     } else {
@@ -72,10 +101,11 @@ export function AppProvider({ children }) {
   }, [appliedCoupon])
 
   useEffect(() => {
-    Promise.all([api.getCurrentShopper(), api.getCurrentMerchant()])
-      .then(([currentShopper, currentMerchant]) => {
+    Promise.all([api.getCurrentShopper(), api.getCurrentMerchant(), api.getUserPreferences()])
+      .then(([currentShopper, currentMerchant, userPrefs]) => {
         if (currentShopper) setShopper(currentShopper)
         if (currentMerchant) setMerchant(currentMerchant)
+        if (userPrefs) setPreferences(userPrefs)
       })
       .catch(() => {})
       .finally(() => setAuthReady(true))
@@ -93,14 +123,21 @@ export function AppProvider({ children }) {
       setWishlist,
       appliedCoupon,
       setAppliedCoupon,
+      comparisonList,
+      setComparisonList,
+      priceAlerts,
+      setPriceAlerts,
+      preferences,
+      setPreferences,
       deviceReady,
       authReady,
-      addToCart(product, qty = 1) {
+      addToCart(product, qty = 1, selectedVariant = null) {
         if (!product) return
         const pId = product.id || product.product_id
         setCart((current) => {
           const list = Array.isArray(current) ? [...current] : []
-          const index = list.findIndex((item) => String(item.product_id) === String(pId))
+          const key = selectedVariant ? `${pId}_${selectedVariant.size}` : String(pId)
+          const index = list.findIndex((item) => String(item.cart_key || item.product_id) === String(key))
           if (index >= 0) {
             list[index] = {
               ...list[index],
@@ -111,20 +148,24 @@ export function AppProvider({ children }) {
           return [
             ...list,
             {
+              cart_key: key,
               product_id: pId,
+              variant_id: selectedVariant?.id || null,
+              size: selectedVariant?.size || null,
               category_id: product.category_id,
               name: product.name,
-              price: Number(product.price),
+              price: Number(product.price) + Number(selectedVariant?.extra_price_delta || 0),
               quantity: Number(qty) || 1,
               image: product.image,
+              is_returnable: product.is_returnable ?? true,
             },
           ]
         })
       },
-      removeFromCart(productId) {
+      removeFromCart(keyOrId) {
         setCart((current) =>
           (Array.isArray(current) ? current : []).filter(
-            (item) => String(item.product_id) !== String(productId)
+            (item) => String(item.cart_key || item.product_id) !== String(keyOrId)
           )
         )
       },
@@ -146,15 +187,42 @@ export function AppProvider({ children }) {
           (item) => String(item.id || item.product_id) === String(productId)
         )
       },
-      updateCartItem(productId, quantity) {
+      toggleCompare(product) {
+        if (!product) return
+        const pId = product.id || product.product_id
+        setComparisonList((current) => {
+          const list = Array.isArray(current) ? [...current] : []
+          const found = list.find((p) => String(p.id || p.product_id) === String(pId))
+          if (found) {
+            return list.filter((p) => String(p.id || p.product_id) !== String(pId))
+          }
+          if (list.length >= 4) {
+            return [...list.slice(1), product]
+          }
+          return [...list, product]
+        })
+      },
+      isComparing(productId) {
+        return (Array.isArray(comparisonList) ? comparisonList : []).some(
+          (p) => String(p.id || p.product_id) === String(productId)
+        )
+      },
+      setPriceAlert(productId, targetPrice) {
+        setPriceAlerts((prev) => ({
+          ...prev,
+          [String(productId)]: targetPrice,
+        }))
+        api.setPriceWatch({ productId, targetPrice }).catch(() => {})
+      },
+      updateCartItem(keyOrId, quantity) {
         setCart((current) => {
           const list = Array.isArray(current) ? [...current] : []
           const num = Number(quantity)
           if (num <= 0) {
-            return list.filter((item) => String(item.product_id) !== String(productId))
+            return list.filter((item) => String(item.cart_key || item.product_id) !== String(keyOrId))
           }
           return list.map((item) =>
-            String(item.product_id) === String(productId) ? { ...item, quantity: num } : item
+            String(item.cart_key || item.product_id) === String(keyOrId) ? { ...item, quantity: num } : item
           )
         })
       },
@@ -163,7 +231,7 @@ export function AppProvider({ children }) {
         setAppliedCoupon(null)
       },
     }),
-    [shopper, merchant, cart, wishlist, appliedCoupon, deviceReady, authReady],
+    [shopper, merchant, cart, wishlist, appliedCoupon, comparisonList, priceAlerts, preferences, deviceReady, authReady],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

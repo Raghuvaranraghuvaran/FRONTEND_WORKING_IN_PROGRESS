@@ -25,8 +25,17 @@ class ReturnRequest(TimestampedModel):
         ("bank_transfer", "Direct Bank Transfer / UPI"),
     )
 
+    TYPE_CHOICES = (
+        ("EXCHANGE", "Smart Exchange"),
+        ("REFUND", "Refund"),
+        ("STORE_CREDIT", "Store Credit"),
+    )
+
     order = models.ForeignKey(
         "orders.Order", on_delete=models.CASCADE, related_name="returns"
+    )
+    order_item = models.ForeignKey(
+        "orders.OrderItem", on_delete=models.SET_NULL, null=True, blank=True, related_name="returns"
     )
     merchant = models.ForeignKey(
         "merchants.Merchant", on_delete=models.CASCADE, related_name="returns"
@@ -35,9 +44,14 @@ class ReturnRequest(TimestampedModel):
         "accounts.User", on_delete=models.CASCADE, related_name="returns"
     )
     customer_name = models.CharField(max_length=255)
+    type = models.CharField(max_length=16, choices=TYPE_CHOICES, default="REFUND")
     reason = models.CharField(max_length=64)
     note = models.TextField(blank=True, default="")
     refund_method = models.CharField(max_length=32, choices=REFUND_METHOD_CHOICES, default="original")
+    refund_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    exchange_variant = models.ForeignKey(
+        "catalog.ProductVariant", on_delete=models.SET_NULL, null=True, blank=True, related_name="exchange_returns"
+    )
     images = models.JSONField(default=list)
     risk_tier = models.CharField(max_length=16, default="Low")
     risk_score = models.PositiveIntegerField(default=0)
@@ -48,6 +62,9 @@ class ReturnRequest(TimestampedModel):
     risk_context = models.TextField(blank=True, default="")
     signals = models.JSONField(default=list)
     pickup_slot = models.CharField(max_length=64, blank=True, default="")
+    driver_name = models.CharField(max_length=128, blank=True, default="")
+    driver_phone = models.CharField(max_length=32, blank=True, default="")
+    estimated_arrival_window = models.CharField(max_length=64, blank=True, default="")
     proof_image_url = models.TextField(blank=True, default="", help_text="Unboxing photo / return proof image URL")
     proof_verified = models.BooleanField(default=False)
     reviewed_by = models.CharField(max_length=255, blank=True, default="")

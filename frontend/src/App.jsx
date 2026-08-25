@@ -16,6 +16,8 @@ import ReturnRequestPage from './pages/ReturnRequestPage'
 import ProfilePage from './pages/ProfilePage'
 import WishlistPage from './pages/WishlistPage'
 import HelpPage from './pages/HelpPage'
+import ShopperHomeFeed from './pages/ShopperHomeFeed'
+import ReturnTrackingPage from './pages/ReturnTrackingPage'
 import PaymentSuccessPage from './pages/PaymentSuccessPage'
 import PaymentFailurePage from './pages/PaymentFailurePage'
 import MerchantLoginPage from './pages/MerchantLoginPage'
@@ -73,6 +75,7 @@ function AppRoutes() {
       
       {/* Shopper pages - with sidebar layout */}
       <Route element={<ShopperLayout />}>
+        <Route path="/home" element={<ShopperHomeFeed />} />
         <Route path="/shop" element={<ShopPage />} />
         <Route path="/products/:productId" element={<ProductDetailPage />} />
         <Route path="/wishlist" element={<WishlistPage />} />
@@ -85,6 +88,7 @@ function AppRoutes() {
         <Route path="/orders" element={<RequireShopper><OrdersPage /></RequireShopper>} />
         <Route path="/returns" element={<RequireShopper><OrdersPage /></RequireShopper>} />
         <Route path="/track-return" element={<RequireShopper><OrdersPage /></RequireShopper>} />
+        <Route path="/returns/:returnId/track" element={<RequireShopper><ReturnTrackingPage /></RequireShopper>} />
         <Route path="/orders/:orderId/return" element={<RequireShopper><ReturnRequestPage /></RequireShopper>} />
         <Route path="/profile" element={<RequireShopper><ProfilePage /></RequireShopper>} />
       </Route>

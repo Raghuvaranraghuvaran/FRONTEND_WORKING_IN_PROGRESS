@@ -39,11 +39,20 @@ class Product(TimestampedModel):
         Category, on_delete=models.SET_NULL, null=True, related_name="products"
     )
     name = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, blank=True)
     description = models.TextField(blank=True, default="")
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    original_price = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text="Original MRP for strike-through display",
+    )
     stock = models.PositiveIntegerField(default=0)
     image = models.URLField(blank=True, default="")
     is_active = models.BooleanField(default=True)
+    is_returnable = models.BooleanField(default=True)
+    return_window_days = models.PositiveIntegerField(default=30)
+    rating = models.DecimalField(max_digits=3, decimal_places=1, default=4.5)
+    review_count = models.PositiveIntegerField(default=0)
 
     def save(self, *args, **kwargs):
         if not self.id:
@@ -52,4 +61,28 @@ class Product(TimestampedModel):
 
     def __str__(self):
         return self.name
+
+
+class ProductVariant(models.Model):
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="variants"
+    )
+    sku = models.CharField(max_length=64, unique=True)
+    size = models.CharField(max_length=32, help_text="e.g. S, M, L, XL, 8, 9, 10")
+    color = models.CharField(max_length=64, blank=True, default="")
+    stock = models.PositiveIntegerField(default=0)
+    extra_price_delta = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text="Additional cost on top of base product price",
+    )
+
+    class Meta:
+        unique_together = ("product", "size", "color")
+        indexes = [models.Index(fields=["product", "stock"])]
+
+    def __str__(self):
+        parts = [self.product.name, self.size]
+        if self.color:
+            parts.append(self.color)
+        return " / ".join(parts)
 

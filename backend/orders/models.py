@@ -84,9 +84,16 @@ class OrderItem(models.Model):
     product = models.ForeignKey(
         "catalog.Product", on_delete=models.SET_NULL, null=True, related_name="order_items"
     )
+    variant = models.ForeignKey(
+        "catalog.ProductVariant", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="order_items",
+    )
     name = models.CharField(max_length=255)
     quantity = models.PositiveIntegerField(default=1)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    is_final_sale = models.BooleanField(
+        default=False, help_text="Non-returnable item"
+    )
 
     def __str__(self):
         return f"{self.name} x{self.quantity}"

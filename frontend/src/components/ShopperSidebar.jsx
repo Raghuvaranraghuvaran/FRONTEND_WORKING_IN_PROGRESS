@@ -104,6 +104,10 @@ export default function ShopperSidebar({ onClose }) {
       {/* ── Nav Items ────────────────────────────────────────────────── */}
       <nav style={{ flex: 1, padding: '12px 12px', display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
         <SidebarItem
+          to="/home" icon="✨" label="For You Feed"
+          active={location.pathname === '/home'} onClick={handleNav}
+        />
+        <SidebarItem
           to="/dashboard" icon="🏠" label="Dashboard"
           active={location.pathname === '/dashboard'} onClick={handleNav}
         />
