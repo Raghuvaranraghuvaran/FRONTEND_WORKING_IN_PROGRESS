@@ -10,6 +10,7 @@ urlpatterns = [
     path("verify-otp/", views.LoginOTPVerifyView.as_view(), name="verify-login-otp"),
     path("forgot-password/", views.ForgotPasswordRequestView.as_view(), name="forgot-password"),
     path("reset-password/", views.ResetPasswordView.as_view(), name="reset-password"),
+    path("change-password/", views.ChangePasswordView.as_view(), name="change-password"),
     path("refresh/", views.RefreshView.as_view(), name="refresh"),
     path("logout/", views.LogoutView.as_view(), name="logout"),
     path("me/", views.MeView.as_view(), name="me"),

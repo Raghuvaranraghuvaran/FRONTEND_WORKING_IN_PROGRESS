@@ -178,4 +178,9 @@ class ResetPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField()
     challenge_id = serializers.IntegerField(required=False, allow_null=True)
     code = serializers.RegexField(regex=r"^\d{6}$")
-    new_password = serializers.CharField(write_only=True, min_length=8)
+    new_password = serializers.CharField(write_only=True, min_length=6)
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    new_password = serializers.CharField(write_only=True, min_length=6)

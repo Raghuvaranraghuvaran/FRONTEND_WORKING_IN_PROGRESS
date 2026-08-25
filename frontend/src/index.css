@@ -113,16 +113,12 @@ input:focus-visible, input:focus, input:active {
 .rg-field, .rg-m-field, .ml-field {
   position: relative;
   overflow: hidden;
-  background: #ffffff !important;
-  background-image: none !important;
+  background: #ffffff;
 }
 
-input, input[type="text"], input[type="email"], input[type="search"], input[type="password"], .rg-input, .ml-input {
-  background: #ffffff !important;
-  background-color: #ffffff !important;
+.rg-input, .ml-input {
   background-image: none !important;
   background-repeat: no-repeat !important;
-  background-position: -9999px -9999px !important;
 }
 
 input::-webkit-contacts-auto-fill-button,
