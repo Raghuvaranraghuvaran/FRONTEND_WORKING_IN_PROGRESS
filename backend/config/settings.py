@@ -148,16 +148,22 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-CORS_ALLOWED_ORIGINS = env_list(
-    "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175"
-)
+cors_allowed_raw = os.getenv("CORS_ALLOWED_ORIGINS", "").strip()
+if cors_allowed_raw.lower() in {"1", "true", "yes", "all", "*"}:
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOWED_ORIGINS = []
+else:
+    CORS_ALLOWED_ORIGINS = env_list(
+        "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175"
+    )
+    CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", True)
+
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https?://.*\.vercel\.app$",
     r"^https?://.*\.netlify\.app$",
     r"^https?://.*\.onrender\.com$",
     r"^https?://.*\.railway\.app$",
 ]
-CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", True)
 CORS_ALLOW_CREDENTIALS = True
 
 
