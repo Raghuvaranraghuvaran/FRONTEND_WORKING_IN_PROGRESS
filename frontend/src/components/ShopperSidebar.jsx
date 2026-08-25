@@ -116,10 +116,6 @@ export default function ShopperSidebar({ onClose }) {
           active={location.pathname === '/orders' || location.pathname.startsWith('/orders/')} onClick={handleNav}
         />
         <SidebarItem
-          to="/returns" icon="🔄" label="Returns"
-          active={location.pathname === '/returns'} onClick={handleNav}
-        />
-        <SidebarItem
           to="/wishlist" icon="❤️" label="Wishlist"
           active={location.pathname === '/wishlist'}
           badge={wishlistCount}
