@@ -488,29 +488,41 @@ export const api = {
     }
 
     // Category parse
+    let newCategoryFound = false
     if (/ethnic|lehenga|saree|kurta|anarkali|dupatta|wedding|traditional/.test(text)) {
       ctx.category_id = 'cat_ethnic'
+      newCategoryFound = true
     } else if (/daily|shirt|t-shirt|tee|trouser|sneaker|shoes|college|casual/.test(text)) {
       ctx.category_id = 'cat_daily'
+      newCategoryFound = true
     } else if (/electronic|earbud|headphone|speaker|band|watch|power bank/.test(text)) {
       ctx.category_id = 'cat_electronics'
+      newCategoryFound = true
     } else if (/home|decor|dinner|lamp|light|basket|cushion/.test(text)) {
       ctx.category_id = 'cat_home'
+      newCategoryFound = true
     }
 
     // Specific item
-    if (/sneaker|shoes|canvas/.test(text)) ctx.item_type = 'sneaker'
-    if (/saree|banarasi/.test(text)) ctx.item_type = 'saree'
-    if (/lehenga/.test(text)) ctx.item_type = 'lehenga'
-    if (/kurta/.test(text)) ctx.item_type = 'kurta'
-    if (/shirt/.test(text) && !/t-shirt|tshirt|tee/.test(text)) ctx.item_type = 'shirt'
-    if (/t-shirt|tshirt|tee/.test(text)) ctx.item_type = 'tshirt'
-    if (/trouser|pant/.test(text)) ctx.item_type = 'trouser'
-    if (/earbud|headphone|earphone/.test(text)) ctx.item_type = 'earbuds'
-    if (/lamp|light/.test(text)) ctx.item_type = 'lamp'
-    if (/dinner|plate|bowl|crockery/.test(text)) ctx.item_type = 'dinner'
-    if (/bag|handbag|tote|purse|basket|storage/.test(text)) ctx.item_type = 'bag'
-    if (/pillow|cushion/.test(text)) ctx.item_type = 'cushion'
+    let currentItem = null
+    if (/sneaker|shoes|canvas/.test(text)) currentItem = 'sneaker'
+    if (/saree|banarasi/.test(text)) currentItem = 'saree'
+    if (/lehenga/.test(text)) currentItem = 'lehenga'
+    if (/kurta/.test(text)) currentItem = 'kurta'
+    if (/shirt/.test(text) && !/t-shirt|tshirt|tee/.test(text)) currentItem = 'shirt'
+    if (/t-shirt|tshirt|tee/.test(text)) currentItem = 'tshirt'
+    if (/trouser|pant/.test(text)) currentItem = 'trouser'
+    if (/earbud|headphone|earphone/.test(text)) currentItem = 'earbuds'
+    if (/lamp|light/.test(text)) currentItem = 'lamp'
+    if (/dinner|plate|bowl|crockery/.test(text)) currentItem = 'dinner'
+    if (/bag|handbag|tote|purse|basket|storage/.test(text)) currentItem = 'bag'
+    if (/pillow|cushion/.test(text)) currentItem = 'cushion'
+
+    if (currentItem) {
+      ctx.item_type = currentItem
+    } else if (newCategoryFound) {
+      delete ctx.item_type
+    }
 
     // Compare
     if (/which one is better|which is better|compare|difference between/.test(text)) {

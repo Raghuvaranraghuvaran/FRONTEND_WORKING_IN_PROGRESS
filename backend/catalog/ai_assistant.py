@@ -287,15 +287,13 @@ def parse_shopper_intent(message, current_context=None, cart_items=None):
         "cat_home": ["home", "decor", "dinner set", "crockery", "plate", "plates", "lamp", "table lamp", "light", "basket", "storage", "cushion", "pillow", "cushion cover", "living room"],
     }
 
-    found_category = None
+    matched_new_category = False
     for cat_id, keywords in category_map.items():
         if any(re.search(rf'\b{re.escape(kw)}\b', text) for kw in keywords):
-            found_category = cat_id
+            ctx["category_id"] = cat_id
+            intents.append("CATEGORY_SPECIFIED")
+            matched_new_category = True
             break
-
-    if found_category:
-        ctx["category_id"] = found_category
-        intents.append("CATEGORY_SPECIFIED")
 
     # 3. Occasion
     occasions = {
@@ -364,10 +362,19 @@ def parse_shopper_intent(message, current_context=None, cart_items=None):
         "bag": ["bag", "bags", "handbag", "handbags", "tote", "tote bag", "totes", "purse", "purses", "clutch", "basket", "baskets", "storage basket", "storage", "organizer", "woven"],
         "cushion": ["cushion", "cushions", "cushion cover", "cushion covers", "pillow", "pillows", "pillow cover", "throw"],
     }
+    
+    # Extract item_type from CURRENT text
+    current_item_type = None
     for item_key, syns in item_keywords.items():
         if any(re.search(rf'\b{re.escape(s)}\b', text) for s in syns):
-            ctx["item_type"] = item_key
+            current_item_type = item_key
             break
+
+    if current_item_type:
+        ctx["item_type"] = current_item_type
+    elif matched_new_category or "REFINE" not in "".join(intents):
+        # Clear previous item_type if user asked a general category query or new topic
+        ctx.pop("item_type", None)
 
     return intents, ctx
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles,
@@ -8,20 +8,17 @@ import {
   Send,
   RotateCcw,
   Heart,
-  ChevronRight,
-  Check,
   Star,
   ExternalLink,
   ShieldCheck,
   Scale,
-  ArrowRight,
   Maximize2,
   Minimize2,
-  Plus,
   Mic,
   MicOff,
-  Volume2,
   Radio,
+  AlertCircle,
+  Check,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { api } from '../mock/api'
@@ -44,7 +41,7 @@ const INITIAL_WELCOME_MESSAGE = {
 }
 
 export default function AiShoppingAssistant() {
-  const { cart, addToCart, wishlist, toggleWishlist, isInWishlist, shopper } = useApp()
+  const { cart, addToCart, toggleWishlist, isInWishlist } = useApp()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -54,6 +51,7 @@ export default function AiShoppingAssistant() {
   const [inputValue, setInputValue] = useState('')
   const [loading, setLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
+  const [micError, setMicError] = useState(null)
   const [context, setContext] = useState({})
   const [addedItemIds, setAddedItemIds] = useState({})
   const [showBadge, setShowBadge] = useState(true)
@@ -96,13 +94,28 @@ export default function AiShoppingAssistant() {
     return null
   }
 
-  const startListening = () => {
+  const startListening = async () => {
+    setMicError(null)
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SpeechRecognition) {
-      alert('Voice recognition is not supported in this browser. Please use Google Chrome, Brave, or Microsoft Edge.')
+      setMicError('Speech recognition is not supported in this browser. Please use Google Chrome, Microsoft Edge, or Safari.')
       return
     }
 
+    // Step 1: Ensure microphone media device permission on laptop/desktop browsers
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        // Stop audio tracks immediately after granting permission
+        stream.getTracks().forEach((track) => track.stop())
+      }
+    } catch (err) {
+      console.warn('Microphone permission request error:', err)
+      setMicError('Microphone access was blocked. Please click the lock/camera icon in your browser URL bar to allow microphone access.')
+      return
+    }
+
+    // Step 2: Abort previous instance if any
     if (recognitionRef.current) {
       try {
         recognitionRef.current.abort()
@@ -118,6 +131,7 @@ export default function AiShoppingAssistant() {
 
       recognition.onstart = () => {
         setIsListening(true)
+        setMicError(null)
         finalTranscriptRef.current = ''
       }
 
@@ -145,7 +159,11 @@ export default function AiShoppingAssistant() {
         console.warn('Speech recognition error:', event.error)
         setIsListening(false)
         if (event.error === 'not-allowed') {
-          alert('Microphone access was denied. Please allow microphone permissions in your browser to speak with the assistant.')
+          setMicError('Microphone permission denied. Allow microphone in your browser settings to speak.')
+        } else if (event.error === 'no-speech') {
+          // No speech detected, ignore or reset
+        } else {
+          setMicError(`Voice error: ${event.error}. You can also type your message below.`)
         }
       }
 
@@ -162,6 +180,7 @@ export default function AiShoppingAssistant() {
     } catch (err) {
       console.error('Failed to start speech recognition:', err)
       setIsListening(false)
+      setMicError('Could not start voice recognition. Please type your message.')
     }
   }
 
@@ -200,6 +219,7 @@ export default function AiShoppingAssistant() {
     setInputValue('')
     finalTranscriptRef.current = ''
     setShowBadge(false)
+    setMicError(null)
 
     // Add user message
     const userMessage = {
@@ -261,6 +281,14 @@ export default function AiShoppingAssistant() {
     }, 2000)
   }
 
+  const handleOpenProduct = (product, e) => {
+    e?.stopPropagation()
+    const pId = product.id || product.product_id
+    if (pId) {
+      navigate(`/products/${pId}`)
+    }
+  }
+
   const handleResetChat = () => {
     if (isListening && recognitionRef.current) {
       try {
@@ -271,6 +299,7 @@ export default function AiShoppingAssistant() {
     setMessages([INITIAL_WELCOME_MESSAGE])
     setContext({})
     setInputValue('')
+    setMicError(null)
     finalTranscriptRef.current = ''
     if (inputRef.current) inputRef.current.focus()
   }
@@ -314,7 +343,7 @@ export default function AiShoppingAssistant() {
                     e.stopPropagation()
                     setShowBadge(false)
                   }}
-                  className="text-slate-400 hover:text-slate-200 ml-1 p-0.5"
+                  className="text-slate-400 hover:text-slate-200 ml-1 p-0.5 cursor-pointer"
                   title="Dismiss"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -455,7 +484,7 @@ export default function AiShoppingAssistant() {
                     </div>
                   )}
 
-                  {/* ── Product Recommendation Cards Carousel / Grid ── */}
+                  {/* ── Product Recommendation Cards (Fully Clickable!) ── */}
                   {msg.products && msg.products.length > 0 && (
                     <div className="mt-3 w-full space-y-2.5">
                       <div className="flex items-center justify-between text-[11px] font-semibold text-indigo-300 px-1">
@@ -474,7 +503,9 @@ export default function AiShoppingAssistant() {
                           return (
                             <div
                               key={pId}
-                              className="group relative flex flex-col rounded-2xl border border-slate-700/80 bg-slate-800/80 p-3 hover:border-indigo-500/50 hover:bg-slate-800 transition-all duration-200 shadow-md overflow-hidden"
+                              onClick={(e) => handleOpenProduct(product, e)}
+                              className="group relative flex flex-col rounded-2xl border border-slate-700/80 bg-slate-800/80 p-3 hover:border-indigo-500/80 hover:bg-slate-800 hover:shadow-xl transition-all duration-200 shadow-md overflow-hidden cursor-pointer"
+                              title="Click to view product details"
                             >
                               {/* Top row: image + info */}
                               <div className="flex gap-3">
@@ -550,19 +581,19 @@ export default function AiShoppingAssistant() {
 
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    setIsOpen(false)
-                                    navigate(`/products/${pId}`)
-                                  }}
-                                  className="flex items-center justify-center rounded-xl bg-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-600 hover:text-white transition cursor-pointer"
-                                  title="View details"
+                                  onClick={(e) => handleOpenProduct(product, e)}
+                                  className="flex items-center justify-center rounded-xl bg-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-200 hover:bg-indigo-600 hover:text-white transition cursor-pointer"
+                                  title="View product details"
                                 >
                                   <ExternalLink className="h-3.5 w-3.5" />
                                 </button>
 
                                 <button
                                   type="button"
-                                  onClick={() => toggleWishlist(product)}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleWishlist(product)
+                                  }}
                                   className={`flex items-center justify-center rounded-xl p-1.5 transition cursor-pointer ${
                                     inWish
                                       ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30'
@@ -617,6 +648,30 @@ export default function AiShoppingAssistant() {
               <div ref={messagesEndRef} />
             </div>
 
+            {/* ── Voice Error Alert Banner ── */}
+            <AnimatePresence>
+              {micError && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-amber-950/90 border-t border-amber-500/40 px-4 py-2 flex items-center justify-between text-xs text-amber-200"
+                >
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
+                    <p className="text-[11px] leading-tight">{micError}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMicError(null)}
+                    className="text-amber-400 hover:text-amber-200 p-1 cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* ── Voice Listening Live Banner ── */}
             <AnimatePresence>
               {isListening && (
@@ -636,7 +691,7 @@ export default function AiShoppingAssistant() {
                     <div>
                       <p className="font-bold text-white flex items-center gap-1.5">
                         <Radio className="h-3.5 w-3.5 text-rose-400 animate-spin" />
-                        <span>Listening to your voice...</span>
+                        <span>Listening to your laptop microphone...</span>
                       </p>
                       <p className="text-[10px] text-rose-300">Speak now, or tap Done when finished</p>
                     </div>
@@ -665,7 +720,7 @@ export default function AiShoppingAssistant() {
                 <button
                   type="button"
                   onClick={toggleListening}
-                  title={isListening ? 'Click to search spoken voice' : 'Tap to speak to ReturnGuard AI'}
+                  title={isListening ? 'Click to search spoken voice' : 'Tap to speak into laptop microphone'}
                   className={`flex h-10 w-10 items-center justify-center rounded-xl transition cursor-pointer shrink-0 ${
                     isListening
                       ? 'bg-rose-600 text-white animate-pulse ring-4 ring-rose-500/40 shadow-lg shadow-rose-600/30'
@@ -689,7 +744,7 @@ export default function AiShoppingAssistant() {
                         handleSendMessage()
                       }
                     }}
-                    placeholder={isListening ? 'Transcribing your voice...' : "Tell me what you're looking for..."}
+                    placeholder={isListening ? 'Transcribing your speech...' : "Tell me what you're looking for..."}
                     autoComplete="off"
                     style={{
                       backgroundColor: '#ffffff',
