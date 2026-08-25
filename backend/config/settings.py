@@ -200,6 +200,8 @@ EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "25"))
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "") or os.getenv("SENDINBLUE_API_KEY", "")
+BREVO_FROM_EMAIL = os.getenv("BREVO_FROM_EMAIL", os.getenv("DEFAULT_FROM_EMAIL", "infiniteganesforu@gmail.com"))
 
 # Safe fallback: if SMTP is selected but host/user/password aren't filled in, fall back to console
 if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend" and not (EMAIL_HOST and EMAIL_HOST_USER and EMAIL_HOST_PASSWORD):

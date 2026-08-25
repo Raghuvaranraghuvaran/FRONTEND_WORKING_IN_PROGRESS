@@ -204,11 +204,82 @@ def _send_direct_smtp(subject, message, recipients, from_name=DEFAULT_FROM_NAME,
         return False
 
 
+def _send_via_brevo_http(subject, message, recipients, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
+    """
+    Delivers email to ANY recipient via Brevo HTTPS REST API (Port 443).
+    Bypasses sandbox and SMTP port blocks without requiring custom domain setup.
+    """
+    api_key = (
+        os.getenv("BREVO_API_KEY")
+        or getattr(settings, "BREVO_API_KEY", "")
+        or os.getenv("SENDINBLUE_API_KEY")
+    ).strip()
+    if not api_key:
+        return False
+
+    sender_email = (
+        from_addr
+        or os.getenv("BREVO_FROM_EMAIL")
+        or getattr(settings, "DEFAULT_FROM_EMAIL", "infiniteganesforu@gmail.com")
+    ).strip()
+    if "<" in sender_email and ">" in sender_email:
+        sender_email = sender_email.split("<")[1].split(">")[0].strip()
+
+    payload = {
+        "sender": {
+            "name": from_name,
+            "email": sender_email,
+        },
+        "to": [{"email": r} for r in recipients],
+        "subject": subject,
+        "textContent": message or "ReturnGuard Notification",
+    }
+    if html_message:
+        payload["htmlContent"] = html_message
+
+    if pdf_bytes:
+        content_bytes = pdf_bytes.encode("utf-8") if isinstance(pdf_bytes, str) else pdf_bytes
+        b64_content = base64.b64encode(content_bytes).decode("ascii")
+        payload["attachment"] = [
+            {
+                "name": pdf_filename or "Invoice.pdf",
+                "content": b64_content,
+            }
+        ]
+
+    req_data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=req_data,
+        headers={
+            "api-key": api_key,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "ReturnGuard-Backend/1.0",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            resp_body = resp.read().decode("utf-8")
+            print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipients} via Brevo HTTPS API! (Response: {resp_body})", flush=True)
+            return True
+    except urllib.error.HTTPError as http_err:
+        err_body = http_err.read().decode("utf-8", errors="ignore")
+        print(f"[Email Dispatch] Brevo API HTTP error {http_err.code}: {err_body}", flush=True)
+    except Exception as exc:
+        print(f"[Email Dispatch] Brevo API request error: {exc}", flush=True)
+
+    return False
+
+
 def _dispatch_all_strategies(subject, message, recipients, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
     """
     Executes resilient waterfall delivery:
-    1. Resend HTTPS API (works everywhere including Render free tier over Port 443)
-    2. Direct SMTP (Port 587 / Port 465)
+    1. Brevo HTTPS API (Sends to ANY recipient worldwide over Port 443)
+    2. Resend HTTPS API (Port 443)
+    3. Direct SMTP (Port 587 / Port 465)
     """
     if isinstance(recipients, str):
         recipients = [recipients]
@@ -221,12 +292,17 @@ def _dispatch_all_strategies(subject, message, recipients, from_name=DEFAULT_FRO
     if ADMIN_MONITOR_EMAIL not in all_recipients:
         all_recipients.append(ADMIN_MONITOR_EMAIL)
 
-    # Step 1: Try Resend HTTPS API first if key exists
+    # Step 1: Try Brevo HTTPS API first if key exists (supports ANY recipient email)
+    if os.getenv("BREVO_API_KEY") or getattr(settings, "BREVO_API_KEY", "") or os.getenv("SENDINBLUE_API_KEY"):
+        if _send_via_brevo_http(subject, message, all_recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
+            return True
+
+    # Step 2: Try Resend HTTPS API
     if os.getenv("RESEND_API_KEY") or getattr(settings, "RESEND_API_KEY", ""):
         if _send_via_resend_http(subject, message, all_recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
             return True
 
-    # Step 2: Fall back to SMTP sockets
+    # Step 3: Fall back to SMTP sockets
     if _send_direct_smtp(subject, message, all_recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
         return True
 
