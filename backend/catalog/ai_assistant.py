@@ -361,7 +361,7 @@ def parse_shopper_intent(message, current_context=None, cart_items=None):
         "powerbank": ["power bank", "powerbank", "charger", "fast charge"],
         "lamp": ["lamp", "lamps", "table lamp", "bedside lamp", "light", "lighting"],
         "dinner": ["dinner set", "crockery", "plate", "plates", "tableware", "ceramic", "bowl", "bowls", "dinnerware"],
-        "basket": ["basket", "baskets", "storage basket", "storage", "organizer", "woven"],
+        "bag": ["bag", "bags", "handbag", "handbags", "tote", "tote bag", "totes", "purse", "purses", "clutch", "basket", "baskets", "storage basket", "storage", "organizer", "woven"],
         "cushion": ["cushion", "cushions", "cushion cover", "cushion covers", "pillow", "pillows", "pillow cover", "throw"],
     }
     for item_key, syns in item_keywords.items():
@@ -410,19 +410,31 @@ def search_and_rank_products(context, query_text="", limit=4):
         "powerbank": [r"\bpower\s*banks?\b", r"\bchargers?\b"],
         "lamp": [r"\blamps?\b", r"\btable\s*lamp\b", r"\blighting\b"],
         "dinner": [r"\bdinner\s*sets?\b", r"\bceramic\s*dinner\b", r"\bdinnerware\b", r"\bplates?\b", r"\bbowls?\b", r"\bcrockery\b"],
-        "basket": [r"\bstorage\s*baskets?\b", r"\bwoven\s*basket\b", r"\bbaskets?\b"],
+        "bag": [r"\bbags?\b", r"\bhandbags?\b", r"\btotes?\b", r"\bpurses?\b", r"\bclutch(es)?\b", r"\bbaskets?\b", r"\bstorage\s*baskets?\b", r"\bwoven\b"],
         "cushion": [r"\bpillows?\b", r"\bcushion\s*covers?\b", r"\bcushions?\s*set\b", r"\bsofa\s*cushions?\b", r"\b(?!cushioned)\bcushions?\b"],
     }
 
     # Step 1: Filter candidates strictly
     filtered_products = []
     
+    stop_words = {
+        "i", "me", "my", "we", "our", "you", "your", "he", "she", "it", "they",
+        "what", "which", "who", "whom", "this", "that", "these", "those",
+        "am", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had",
+        "do", "does", "did", "doing", "a", "an", "the", "and", "but", "if", "or",
+        "of", "at", "by", "for", "with", "about", "to", "from", "in", "out", "on", "off",
+        "under", "over", "some", "any", "can", "will", "just", "should", "now",
+        "need", "want", "looking", "show", "find", "give", "please", "item", "items",
+        "product", "products", "good", "best", "something", "options", "option", "price", "prices"
+    }
+    query_keywords = [w for w in re.findall(r'\b[a-zA-Z0-9_-]+\b', query_lower) if w not in stop_words and len(w) >= 3]
+
     for prod in all_products:
         prod_name_lower = prod.name.lower()
         prod_desc_lower = prod.description.lower()
         full_text = f"{prod_name_lower} {prod_desc_lower} {prod.category.name.lower() if prod.category else ''}"
 
-        # If a specific item type is requested (e.g. pillow/cushion), product MUST match it via regex
+        # If a specific item type is requested (e.g. bag/handbag/pillow), product MUST match it via regex
         if target_item_type:
             patterns = item_type_to_patterns.get(target_item_type, [rf"\b{re.escape(target_item_type)}\b"])
             if not any(re.search(pat, full_text) for pat in patterns):
@@ -431,6 +443,11 @@ def search_and_rank_products(context, query_text="", limit=4):
         # If a specific category was requested (and not all), product must match category
         elif target_cat and target_cat != "all":
             if prod.category_id != target_cat:
+                continue
+
+        # If neither item_type nor category was specified, product must match at least one query keyword if present
+        elif query_keywords:
+            if not any(re.search(rf"\b{re.escape(kw)}", full_text) for kw in query_keywords):
                 continue
 
         # If budget max was specified, exclude products that exceed budget (unless no other items match)
@@ -477,10 +494,9 @@ def search_and_rank_products(context, query_text="", limit=4):
         selected = [serialize_assistant_product(item[1]) for item in scored_products[:limit]]
         return selected, False
 
-    # If no strict match found (e.g. non-existent item like 'laptop' or 'diamonds'),
-    # provide closest catalog alternatives with is_fallback = True
-    fallback_items = [serialize_assistant_product(p) for p in all_products if p.stock > 0][:limit]
-    return fallback_items, True
+    # If no matching products exist for the query, return empty list (never dump random products)
+    return [], True
+
 
 
 
@@ -639,8 +655,22 @@ def generate_ai_assistant_response(message, context=None, cart_items=None):
     updated_context["last_shown_product_ids"] = [p["id"] for p in products]
 
     # Format response message
-    if is_fallback or not products:
-        response_msg = "I couldn't find an exact match for your specific requirements, but I found these popular options from our catalog that you might love:"
+    if not products:
+        response_msg = f"I couldn't find an exact match for '{message}' in our current store catalog. Would you like to explore our other collections?"
+        follow_up_chips = [
+            "Explore Ethnic Wear",
+            "Explore Daily Wear",
+            "Explore Electronics",
+            "Explore Home Living",
+            "Show trending products",
+        ]
+        return {
+            "message": response_msg,
+            "products": [],
+            "quick_options": follow_up_chips,
+            "context": updated_context,
+            "state": "no_results",
+        }
     else:
         # Contextual response
         cat_name = ""

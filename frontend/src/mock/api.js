@@ -499,7 +499,6 @@ export const api = {
     }
 
     // Specific item
-    // Specific item
     if (/sneaker|shoes|canvas/.test(text)) ctx.item_type = 'sneaker'
     if (/saree|banarasi/.test(text)) ctx.item_type = 'saree'
     if (/lehenga/.test(text)) ctx.item_type = 'lehenga'
@@ -510,7 +509,7 @@ export const api = {
     if (/earbud|headphone|earphone/.test(text)) ctx.item_type = 'earbuds'
     if (/lamp|light/.test(text)) ctx.item_type = 'lamp'
     if (/dinner|plate|bowl|crockery/.test(text)) ctx.item_type = 'dinner'
-    if (/basket|storage/.test(text)) ctx.item_type = 'basket'
+    if (/bag|handbag|tote|purse|basket|storage/.test(text)) ctx.item_type = 'bag'
     if (/pillow|cushion/.test(text)) ctx.item_type = 'cushion'
 
     // Compare
@@ -545,6 +544,8 @@ export const api = {
       matches = matches.filter(p => /lamp|light/i.test(p.name + ' ' + p.description))
     } else if (ctx.item_type === 'dinner') {
       matches = matches.filter(p => /dinner|ceramic|plate|bowl/i.test(p.name + ' ' + p.description))
+    } else if (ctx.item_type === 'bag') {
+      matches = matches.filter(p => /basket|bag|tote|storage|woven/i.test(p.name + ' ' + p.description))
     } else if (ctx.item_type === 'saree') {
       matches = matches.filter(p => /saree|banarasi/i.test(p.name + ' ' + p.description))
     } else if (ctx.item_type === 'lehenga') {
@@ -562,9 +563,14 @@ export const api = {
       if (budgetMatches.length > 0) matches = budgetMatches
     }
 
-    const isFallback = matches.length === 0
-    if (isFallback) {
-      matches = store.products.slice(0, 3)
+    if (matches.length === 0) {
+      return {
+        message: `I couldn't find an exact match for "${message}" in our store catalog right now. Would you like to explore our other collections?`,
+        products: [],
+        quick_options: ['Explore Ethnic Wear', 'Explore Daily Wear', 'Explore Electronics', 'Explore Home Living', 'Show trending products'],
+        context: ctx,
+        state: 'no_results',
+      }
     }
 
     const enriched = matches.map(p => ({
@@ -582,9 +588,7 @@ export const api = {
     ctx.last_shown_product_ids = enriched.map(p => p.id)
 
     return {
-      message: isFallback
-        ? "I couldn't find an exact match for your requirements, but I found a few similar options:"
-        : `I found these great options for you! 💕`,
+      message: `I found these great options for you! 💕`,
       products: enriched,
       quick_options: ['More affordable', 'More premium', 'In another color', 'Which one is better?', 'Show trending products'],
       context: ctx,
