@@ -235,8 +235,17 @@ export default function OrdersPage() {
   }
 
   useEffect(() => {
-    fetchOrders()
-  }, [statusFilter])
+    if (location.pathname.includes('/returns') || location.pathname.includes('/track-return')) {
+      setTab('returns')
+    } else {
+      setTab('orders')
+    }
+  }, [location.pathname])
+
+  const handleTabChange = (newTab) => {
+    setTab(newTab)
+    navigate(newTab === 'returns' ? '/returns' : '/orders', { replace: true })
+  }
 
   // Reset page when search or tab changes
   useEffect(() => {
@@ -403,7 +412,7 @@ export default function OrdersPage() {
       {/* ── Activity Tabs (Orders vs Returns) ──────────────────────────────── */}
       <div className="mb-6 flex flex-wrap gap-2">
         <button
-          onClick={() => setTab('orders')}
+          onClick={() => handleTabChange('orders')}
           className={`rounded-full px-5 py-2 text-xs font-bold transition-all cursor-pointer ${
             tab === 'orders'
               ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-600/20'
@@ -413,7 +422,7 @@ export default function OrdersPage() {
           Orders ({orders.length})
         </button>
         <button
-          onClick={() => setTab('returns')}
+          onClick={() => handleTabChange('returns')}
           className={`rounded-full px-5 py-2 text-xs font-bold transition-all cursor-pointer ${
             tab === 'returns'
               ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-600/20'

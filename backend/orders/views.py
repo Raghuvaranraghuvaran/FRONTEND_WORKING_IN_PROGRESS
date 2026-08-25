@@ -246,6 +246,9 @@ class UpdateOrderStatusView(APIView):
     """Update order delivery status (e.g. Processing, In Transit, Delivered, etc.)."""
     permission_classes = [AllowAny]
 
+    def patch(self, request, pk):
+        return self.post(request, pk)
+
     def post(self, request, pk):
         merchant = require_merchant_context(request)
         order = Order.objects.filter(pk=pk if str(pk).isdigit() else 0).first() or Order.objects.filter(order_number__icontains=str(pk)).first()
