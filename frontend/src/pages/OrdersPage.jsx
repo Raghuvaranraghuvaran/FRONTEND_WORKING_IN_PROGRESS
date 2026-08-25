@@ -424,7 +424,7 @@ export default function OrdersPage() {
             <motion.div
               layoutId="activeOrderTabPill"
               className="absolute inset-0 rounded-xl bg-indigo-600 shadow-sm"
-              transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 34 }}
             />
           )}
           <span className="relative z-10">Orders ({orders.length})</span>
@@ -440,7 +440,7 @@ export default function OrdersPage() {
             <motion.div
               layoutId="activeOrderTabPill"
               className="absolute inset-0 rounded-xl bg-indigo-600 shadow-sm"
-              transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 34 }}
             />
           )}
           <span className="relative z-10">Returns ({returns.length})</span>
@@ -611,10 +611,10 @@ export default function OrdersPage() {
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={tab}
-            initial={{ opacity: 0, x: tab === 'orders' ? -14 : 14, scale: 0.985 }}
+            initial={{ opacity: 0, x: tab === 'orders' ? -10 : 10, scale: 0.992 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: tab === 'orders' ? 14 : -14, scale: 0.985 }}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+            exit={{ opacity: 0, x: tab === 'orders' ? 10 : -10, scale: 0.992 }}
+            transition={{ duration: 0.17, ease: [0.16, 1, 0.3, 1] }}
           >
             {tab === 'orders' ? (
         filteredOrders.length === 0 ? (

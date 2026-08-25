@@ -238,7 +238,7 @@ export default function ProfilePage() {
                     <motion.div
                       layoutId="profileTabLine"
                       className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full"
-                      transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 34 }}
                     />
                   )}
                 </button>
@@ -251,10 +251,10 @@ export default function ProfilePage() {
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, y: 12, scale: 0.99 }}
+            initial={{ opacity: 0, y: 8, scale: 0.992 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.99 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            exit={{ opacity: 0, y: -6, scale: 0.992 }}
+            transition={{ duration: 0.17, ease: [0.16, 1, 0.3, 1] }}
           >
             {activeTab === 'profile' && (
           <form onSubmit={submit} className="space-y-6">
