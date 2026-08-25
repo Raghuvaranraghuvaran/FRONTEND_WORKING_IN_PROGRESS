@@ -279,6 +279,9 @@ class ReviewReturnView(APIView):
 class UpdateOrderStatusView(APIView):
     permission_classes = [IsAuthenticated, IsMerchantAdmin]
 
+    def patch(self, request, order_id):
+        return self.post(request, order_id)
+
     def post(self, request, order_id):
         merchant = get_merchant_from_user(request.user)
         order = Order.objects.filter(

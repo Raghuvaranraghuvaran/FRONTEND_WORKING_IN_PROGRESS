@@ -42,6 +42,7 @@ class ReturnApiTests(TestCase):
             customer_name="Shopper",
             total=1000,
             payment_method="COD",
+            delivery_status="Delivered",
         )
         OrderItem.objects.create(
             order=self.order, product=self.product, name="Test Product", quantity=1, price=1000
