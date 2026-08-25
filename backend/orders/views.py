@@ -448,17 +448,14 @@ class VerifyOrderCancellationView(APIView):
                 code_hash=code_hash,
             ).first()
 
-        if challenge is None and demo_match:
-            challenge = OTPChallenge.objects.filter(
-                purpose="order_cancellation",
-                verified_at__isnull=True,
-                expires_at__gt=now,
-            ).order_by("-created_at").first()
+        if demo_match:
+            if challenge:
+                challenge.verified_at = now
+                challenge.save(update_fields=["verified_at", "updated_at"])
+        else:
+            if challenge is None:
+                raise AppError("Invalid or expired verification code.", code="OTP_INVALID")
 
-        if challenge is None and not demo_match:
-            raise AppError("Invalid or expired verification code.", code="OTP_INVALID")
-
-        if challenge:
             if challenge.attempts >= 5:
                 raise AppError("Too many incorrect attempts. Please request a new code.", code="OTP_ATTEMPTS_EXCEEDED")
             challenge.attempts += 1
@@ -466,7 +463,7 @@ class VerifyOrderCancellationView(APIView):
 
             pepper = getattr(settings, "OTP_PEPPER", "")
             code_hash = hashlib.sha256(f"{pepper}:{code}".encode()).hexdigest()
-            if not secrets.compare_digest(code_hash, challenge.code_hash) and not demo_match:
+            if not secrets.compare_digest(code_hash, challenge.code_hash):
                 raise AppError("Invalid verification code. Please check your email or enter 123456.", code="OTP_INVALID")
 
             challenge.verified_at = now

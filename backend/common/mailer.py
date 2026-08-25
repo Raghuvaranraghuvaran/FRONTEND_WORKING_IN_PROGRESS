@@ -1,4 +1,5 @@
 import logging
+import os
 import smtplib
 import ssl
 from concurrent.futures import ThreadPoolExecutor
@@ -17,15 +18,27 @@ DEFAULT_FROM_NAME = "ReturnGuard Security"
 
 
 def _get_smtp_credentials():
-    user = getattr(settings, "EMAIL_HOST_USER", "infiniteganesforu@gmail.com")
-    password = getattr(settings, "EMAIL_HOST_PASSWORD", "kzgzqywjqocxjorv")
-    host = getattr(settings, "EMAIL_HOST", "smtp.gmail.com")
+    user = (
+        os.getenv("EMAIL_HOST_USER")
+        or getattr(settings, "EMAIL_HOST_USER", None)
+        or "infiniteganesforu@gmail.com"
+    ).strip()
+    password = (
+        os.getenv("EMAIL_HOST_PASSWORD")
+        or getattr(settings, "EMAIL_HOST_PASSWORD", None)
+        or "kzgzqywjqocxjorv"
+    ).strip().replace(" ", "")
+    host = (
+        os.getenv("EMAIL_HOST")
+        or getattr(settings, "EMAIL_HOST", None)
+        or "smtp.gmail.com"
+    ).strip()
     return user, password, host
 
 
 def _send_direct_smtp(subject, message, recipients, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
     """
-    Sends email to all recipients in a single fast SSL connection (Port 465) with 4s timeout.
+    Sends email to all recipients with resilient TLS/SSL strategies and 12s timeout.
     """
     if isinstance(recipients, str):
         recipients = [recipients]
@@ -65,28 +78,30 @@ def _send_direct_smtp(subject, message, recipients, from_name=DEFAULT_FROM_NAME,
         msg["Auto-Submitted"] = "auto-generated"
         msg["X-Auto-Response-Suppress"] = "All"
 
-    # Fast Strategy 1: SMTPS / SSL over Port 465 (timeout 4s)
+    # Strategy 1: STARTTLS over Port 587 (Works on all cloud providers without SSL blocks)
     try:
         context = ssl.create_default_context()
-        with smtplib.SMTP_SSL(smtp_host, 465, context=context, timeout=4) as server:
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(effective_from, recipients, msg.as_string())
-        print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipients} via {smtp_host} SSL (Port 465)!", flush=True)
-        return True
-    except Exception as err_ssl:
-        print(f"[Email Dispatch] Port 465 SSL failed ({err_ssl}), trying Port 587 TLS...", flush=True)
-
-    # Fast Strategy 2: STARTTLS over Port 587 (timeout 4s)
-    try:
-        context = ssl.create_default_context()
-        with smtplib.SMTP(smtp_host, 587, timeout=4) as server:
+        with smtplib.SMTP(smtp_host, 587, timeout=12) as server:
+            server.ehlo()
             server.starttls(context=context)
+            server.ehlo()
             server.login(smtp_user, smtp_pass)
             server.sendmail(effective_from, recipients, msg.as_string())
-        print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipients} via {smtp_host} TLS (Port 587)!", flush=True)
+        print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipients} via {smtp_host} Port 587 (TLS)!", flush=True)
         return True
     except Exception as err_tls:
-        print(f"[Email Dispatch] Port 587 TLS failed ({err_tls}), attempting Django backend fallback...", flush=True)
+        print(f"[Email Dispatch] Port 587 TLS failed ({err_tls}), trying Port 465 SSL...", flush=True)
+
+    # Strategy 2: SMTPS / SSL over Port 465
+    try:
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(smtp_host, 465, context=context, timeout=12) as server:
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(effective_from, recipients, msg.as_string())
+        print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipients} via {smtp_host} Port 465 (SSL)!", flush=True)
+        return True
+    except Exception as err_ssl:
+        print(f"[Email Dispatch] Port 465 SSL failed ({err_ssl}), attempting Django backend fallback...", flush=True)
 
     # Strategy 3: Standard Django EmailMultiAlternatives fallback
     try:

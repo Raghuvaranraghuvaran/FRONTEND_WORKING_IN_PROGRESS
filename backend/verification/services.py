@@ -178,29 +178,26 @@ class OTPVerificationService:
                 code_hash=code_hash,
             ).first()
 
-        # Step 3: If demo OTP used, find the latest active challenge for user
-        if challenge is None and demo_match:
-            challenge = OTPChallenge.objects.filter(
-                user=user,
-                purpose=self.LOGIN_PURPOSE,
-                verified_at__isnull=True,
-                expires_at__gt=now,
-            ).order_by("-created_at").first()
+        if demo_match:
+            if challenge:
+                challenge.verified_at = timezone.now()
+                challenge.save(update_fields=["verified_at", "updated_at"])
+            VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="confirmed", confidence=1)
+            return user
 
-        if challenge is None and not demo_match:
+        if challenge is None:
             raise AppError("Invalid or expired sign-in code. Please check your email or enter demo code 123456.", code="OTP_INVALID")
 
-        if challenge:
-            if challenge.attempts >= self.MAX_ATTEMPTS:
-                raise AppError("Too many attempts. Request a new code.", code="OTP_ATTEMPTS_EXCEEDED")
-            challenge.attempts += 1
-            challenge.save(update_fields=["attempts", "updated_at"])
-            code_matches = secrets.compare_digest(self._hash_code(code), challenge.code_hash) or demo_match
-            if not code_matches:
-                VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="failed")
-                raise AppError("Invalid sign-in code. Please check your email or enter 123456.", code="OTP_INVALID")
-            challenge.verified_at = timezone.now()
-            challenge.save(update_fields=["verified_at", "updated_at"])
+        if challenge.attempts >= self.MAX_ATTEMPTS:
+            raise AppError("Too many attempts. Request a new code.", code="OTP_ATTEMPTS_EXCEEDED")
+        challenge.attempts += 1
+        challenge.save(update_fields=["attempts", "updated_at"])
+        code_matches = secrets.compare_digest(self._hash_code(code), challenge.code_hash)
+        if not code_matches:
+            VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="failed")
+            raise AppError("Invalid sign-in code. Please check your email or enter 123456.", code="OTP_INVALID")
+        challenge.verified_at = timezone.now()
+        challenge.save(update_fields=["verified_at", "updated_at"])
 
         VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="confirmed", confidence=1)
         return user
@@ -281,27 +278,26 @@ class OTPVerificationService:
                 code_hash=code_hash,
             ).first()
 
-        if challenge is None and demo_match:
-            challenge = OTPChallenge.objects.filter(
-                user=user,
-                purpose=self.RESET_PURPOSE,
-                verified_at__isnull=True,
-                expires_at__gt=now,
-            ).order_by("-created_at").first()
+        if demo_match:
+            if challenge:
+                challenge.verified_at = timezone.now()
+                challenge.save(update_fields=["verified_at", "updated_at"])
+            user.set_password(new_password)
+            user.save(update_fields=["password"])
+            return user
 
-        if challenge is None and not demo_match:
+        if challenge is None:
             raise AppError("Invalid or expired reset code. Please request a new one.", code="OTP_INVALID")
 
-        if challenge:
-            if challenge.attempts >= self.MAX_ATTEMPTS:
-                raise AppError("Too many attempts. Request a new code.", code="OTP_ATTEMPTS_EXCEEDED")
-            challenge.attempts += 1
-            challenge.save(update_fields=["attempts", "updated_at"])
-            code_matches = secrets.compare_digest(self._hash_code(code), challenge.code_hash) or demo_match
-            if not code_matches:
-                raise AppError("Invalid reset code. Please check your email or enter 123456.", code="OTP_INVALID")
-            challenge.verified_at = timezone.now()
-            challenge.save(update_fields=["verified_at", "updated_at"])
+        if challenge.attempts >= self.MAX_ATTEMPTS:
+            raise AppError("Too many attempts. Request a new code.", code="OTP_ATTEMPTS_EXCEEDED")
+        challenge.attempts += 1
+        challenge.save(update_fields=["attempts", "updated_at"])
+        code_matches = secrets.compare_digest(self._hash_code(code), challenge.code_hash)
+        if not code_matches:
+            raise AppError("Invalid reset code. Please check your email or enter 123456.", code="OTP_INVALID")
+        challenge.verified_at = timezone.now()
+        challenge.save(update_fields=["verified_at", "updated_at"])
 
         user.set_password(new_password)
         user.save(update_fields=["password"])
