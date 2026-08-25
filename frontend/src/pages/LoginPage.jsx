@@ -134,7 +134,7 @@ export default function LoginPage() {
 
   const submitNewPassword = async (e) => {
     e.preventDefault(); setError('')
-    if (newPassword.length < 8) { setError('Password must be at least 8 characters.'); return }
+    if (newPassword.length < 6) { setError('Password must be at least 6 characters.'); return }
     if (newPassword !== newPasswordConfirm) { setError('Passwords do not match.'); return }
     setSubmitting(true)
     try {

@@ -371,19 +371,26 @@ class MerchantLoginView(APIView):
 
             return success(merchant_login_payload(user))
 
-        # Find user by merchant_username
-        user = User.objects.filter(merchant_username__iexact=username, role=User.ROLE_MERCHANT_ADMIN).first()
+        # Find user by merchant_username or email
+        user = (
+            User.objects.filter(merchant_username__iexact=username).first()
+            or User.objects.filter(email__iexact=username).first()
+        )
         if user is None:
-            # Fallback: check by email in case merchant entered email as username
-            user = User.objects.filter(email__iexact=username, role=User.ROLE_MERCHANT_ADMIN).first()
-        if user is None:
-            # Fallback: check Merchant record by merchant_username and grab admin user
-            merchant = Merchant.objects.filter(merchant_username__iexact=username).first()
+            # Fallback: check Merchant record by merchant_username or admin_email and grab admin user
+            merchant = (
+                Merchant.objects.filter(merchant_username__iexact=username).first()
+                or Merchant.objects.filter(admin_email__iexact=username).first()
+            )
             if merchant and merchant.admins.exists():
                 user = merchant.admins.first().user
 
-        if user is None or not user.check_password(password) or not user.is_merchant_admin:
+        if user is None or not user.check_password(password):
             raise AppError("Invalid username or password.", code="INVALID_CREDENTIALS")
+
+        if user.role != User.ROLE_MERCHANT_ADMIN:
+            user.role = User.ROLE_MERCHANT_ADMIN
+            user.save(update_fields=["role"])
 
         return success(merchant_login_payload(user))
 
