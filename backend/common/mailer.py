@@ -62,46 +62,59 @@ def _send_via_resend_http(subject, message, recipients, from_name=DEFAULT_FROM_N
     if "<" not in from_sender and "@" in from_sender:
         from_sender = f"{from_name} <{from_sender}>"
 
-    payload = {
-        "from": from_sender,
-        "to": recipients,
-        "subject": subject,
-        "text": message or "ReturnGuard Notification",
-    }
-    if html_message:
-        payload["html"] = html_message
+    def _do_resend_post(dest_recipients, note=""):
+        p = {
+            "from": from_sender,
+            "to": dest_recipients,
+            "subject": f"{note}{subject}" if note else subject,
+            "text": (f"{note}\n\n" if note else "") + (message or "ReturnGuard Notification"),
+        }
+        if html_message:
+            p["html"] = (f"<div style='background:#fef3c7;padding:8px 12px;border-radius:6px;font-size:12px;color:#92400e;margin-bottom:12px;'><strong>Testing Sandbox Notice:</strong> {note}</div>" if note else "") + html_message
 
-    if pdf_bytes:
-        if isinstance(pdf_bytes, str):
-            pdf_bytes = pdf_bytes.encode("utf-8")
-        b64_content = base64.b64encode(pdf_bytes).decode("ascii")
-        payload["attachments"] = [
-            {
-                "filename": pdf_filename or "Invoice.pdf",
-                "content": b64_content,
-            }
-        ]
+        if pdf_bytes:
+            content_bytes = pdf_bytes.encode("utf-8") if isinstance(pdf_bytes, str) else pdf_bytes
+            b64_content = base64.b64encode(content_bytes).decode("ascii")
+            p["attachments"] = [
+                {
+                    "filename": pdf_filename or "Invoice.pdf",
+                    "content": b64_content,
+                }
+            ]
 
-    req_data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        "https://api.resend.com/emails",
-        data=req_data,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "User-Agent": "ReturnGuard-Backend/1.0",
-        },
-        method="POST",
-    )
-
-    try:
+        req_data = json.dumps(p).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.resend.com/emails",
+            data=req_data,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "ReturnGuard-Backend/1.0",
+            },
+            method="POST",
+        )
         with urllib.request.urlopen(req, timeout=15) as resp:
             resp_body = resp.read().decode("utf-8")
-            print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {recipients} via Resend HTTPS API! (Response: {resp_body})", flush=True)
+            print(f"[Email Dispatch] SUCCESS: Delivered '{subject}' to {dest_recipients} via Resend HTTPS API! (Response: {resp_body})", flush=True)
             return True
+
+    try:
+        return _do_resend_post(recipients)
     except urllib.error.HTTPError as http_err:
         err_body = http_err.read().decode("utf-8", errors="ignore")
         print(f"[Email Dispatch] Resend API HTTP error {http_err.code}: {err_body}", flush=True)
+        
+        # If Resend free sandbox restricted to account owner (e.g. raghuvaranraghuvaran65@gmail.com)
+        if http_err.code == 403 and "only send testing emails to your own email address" in err_body:
+            import re
+            match = re.search(r"\(([^)]+@resend\.dev|[^)]+@gmail\.com|[^)]+@[^)]+)\)", err_body)
+            owner_email = match.group(1).strip() if match else "raghuvaranraghuvaran65@gmail.com"
+            print(f"[Email Dispatch] Resend sandbox mode: Retrying delivery directly to verified account owner ({owner_email})...", flush=True)
+            try:
+                notice = f"[Test Delivery for {', '.join(recipients)}] "
+                return _do_resend_post([owner_email], note=notice)
+            except Exception as owner_err:
+                print(f"[Email Dispatch] Resend owner delivery fallback failed: {owner_err}", flush=True)
     except Exception as exc:
         print(f"[Email Dispatch] Resend API request error: {exc}", flush=True)
 
