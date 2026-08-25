@@ -164,18 +164,35 @@ export default function AiShoppingAssistant() {
       }
 
       recognition.onerror = (event) => {
-        console.warn('Speech recognition error:', event.error)
+        console.warn('Speech recognition event error:', event.error)
         setIsListening(false)
-        if (event.error === 'not-allowed') {
-          setMicError('Microphone permission denied. Click the lock icon in the address bar to allow mic access.')
-        } else if (event.error === 'network') {
-          // Occurs in Brave Browser when Google Speech service is shielded
-          setMicError('Brave browser blocks Google speech cloud. Enable "Google services for speech" in brave://settings/privacy or choose a quick voice search below.')
+        
+        let errorMsg = ''
+        if (event.error === 'network') {
+          errorMsg = 'Voice service unavailable in your browser. You can type your request directly below.'
+        } else if (event.error === 'not-allowed' || event.error === 'permission-denied') {
+          errorMsg = 'Microphone permission denied. Allow microphone access in your browser settings to speak.'
         } else if (event.error === 'no-speech') {
-          // No speech detected, ignore or reset
+          // No speech detected, silently reset
+          return
+        } else if (event.error === 'audio-capture') {
+          errorMsg = 'No microphone found on your device. Please type your message below.'
+        } else if (event.error === 'aborted') {
+          // User or programmatic abort, silently reset
+          return
         } else {
-          setMicError(`Voice error: ${event.error}. You can also type your message below.`)
+          errorMsg = `Voice recognition error (${event.error}). Please type your message below.`
         }
+
+        setMicError(errorMsg)
+        if (inputRef.current) {
+          inputRef.current.focus()
+        }
+
+        // Auto-dismiss the notification after 5 seconds
+        setTimeout(() => {
+          setMicError((prev) => (prev === errorMsg ? null : prev))
+        }, 5000)
       }
 
       recognition.onend = () => {
