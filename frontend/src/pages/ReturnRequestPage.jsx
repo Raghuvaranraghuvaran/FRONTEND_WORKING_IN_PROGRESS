@@ -84,7 +84,7 @@ export default function ReturnRequestPage() {
     setLoading(true)
     Promise.all([
       api.getShopperOrders(),
-      api.getReturns ? api.getReturns().catch(() => []) : Promise.resolve([])
+      api.getShopperReturns().catch(() => [])
     ])
       .then(([orders, returns]) => {
         const found = (orders || []).find((o) => String(o.id) === String(orderId) || String(o.order_number) === String(orderId))
