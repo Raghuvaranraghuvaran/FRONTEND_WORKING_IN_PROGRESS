@@ -12,14 +12,14 @@ export default function MerchantLoginPage() {
   const navigate = useNavigate()
   const { setMerchant } = useApp()
 
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
+  const [username, setUsername] = useState('ARIAFASHION4827')
+  const [password, setPassword] = useState('demo123')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
-  const [isVerified, setIsVerified] = useState(false)
-  const [recaptchaToken, setRecaptchaToken] = useState(null)
+  const [isVerified, setIsVerified] = useState(true)
+  const [recaptchaToken, setRecaptchaToken] = useState('verified_token_demo')
   const [focusedField, setFocusedField] = useState('')
 
   const handleCaptchaClick = () => {
@@ -139,6 +139,34 @@ export default function MerchantLoginPage() {
                 {error}
               </div>
             )}
+
+            {/* Demo indicator & quick refill */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'rgba(13,148,136,0.08)', border: '1px solid rgba(13,148,136,0.2)',
+              borderRadius: 8, padding: '7px 11px', marginTop: 14, marginBottom: 4,
+              fontSize: 12, color: '#0f766e',
+            }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 500 }}>
+                ⚡ Demo credentials loaded
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername('ARIAFASHION4827')
+                  setPassword('demo123')
+                  setIsVerified(true)
+                  setRecaptchaToken('verified_token_demo')
+                  setError('')
+                }}
+                style={{
+                  background: A, color: '#fff', border: 'none', borderRadius: 5,
+                  padding: '3px 8px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Refill Demo
+              </button>
+            </div>
 
             {/* form */}
             <form onSubmit={handleSubmit} style={{ marginTop: 18 }}>

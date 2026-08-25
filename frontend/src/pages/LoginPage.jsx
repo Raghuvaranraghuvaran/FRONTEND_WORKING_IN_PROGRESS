@@ -46,8 +46,8 @@ export default function LoginPage() {
   const { setShopper } = useApp()
 
   const [activeTab, setActiveTab] = useState('pw')
-  const [form, setForm] = useState({ email: '', password: '' })
-  const [otpEmail, setOtpEmail] = useState('')
+  const [form, setForm] = useState({ email: 'demo@shopper.com', password: 'demo123' })
+  const [otpEmail, setOtpEmail] = useState('demo@shopper.com')
   const [remember, setRemember] = useState(true)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -348,6 +348,32 @@ export default function LoginPage() {
               </div>
             ) : (
               <>
+            {/* Demo indicator & quick refill */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'rgba(111,92,240,0.08)', border: '1px solid rgba(111,92,240,0.2)',
+              borderRadius: 8, padding: '7px 11px', marginTop: 14, marginBottom: -6,
+              fontSize: 12, color: '#4c1d95',
+            }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 500 }}>
+                ⚡ Demo credentials loaded
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setForm({ email: 'demo@shopper.com', password: 'demo123' })
+                  setOtpEmail('demo@shopper.com')
+                  setError('')
+                }}
+                style={{
+                  background: A, color: '#fff', border: 'none', borderRadius: 5,
+                  padding: '3px 8px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Refill Demo
+              </button>
+            </div>
+
             {/* tabs */}
             <div style={{
               display: 'flex', background: 'rgba(111,92,240,0.07)',
