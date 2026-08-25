@@ -95,25 +95,26 @@ export default function CheckoutPage() {
   }
 
   const validatePaymentDetails = () => {
-    if (paymentMethod === 'Card') {
-      if (!paymentDetails.card_number || paymentDetails.card_number.replace(/\s/g, '').length !== 16) {
+    if (paymentMethod === 'CREDIT_CARD' || paymentMethod === 'DEBIT_CARD') {
+      const cardNumber = (paymentDetails.card_number || '').replace(/\s/g, '')
+      if (!cardNumber || cardNumber.length !== 16) {
         throw new Error('Please enter a valid 16-digit card number')
       }
-      if (!paymentDetails.card_expiry || !paymentDetails.card_expiry.match(/^\d{2}\/\d{2}$/)) {
+      if (!paymentDetails.expiry || !paymentDetails.expiry.match(/^\d{2}\/\d{2}$/)) {
         throw new Error('Please enter a valid expiry date (MM/YY)')
       }
-      if (!paymentDetails.card_cvv || paymentDetails.card_cvv.length !== 3) {
+      if (!paymentDetails.cvv || !String(paymentDetails.cvv).replace(/\s/g, '').match(/^\d{3}$/)) {
         throw new Error('Please enter a valid 3-digit CVV')
       }
-      if (!paymentDetails.card_holder_name) {
+      if (!paymentDetails.card_holder) {
         throw new Error('Please enter cardholder name')
       }
     } else if (paymentMethod === 'UPI') {
-      if (paymentDetails.upi_mode === 'id' && !paymentDetails.upi_id) {
+      if (!paymentDetails.upi_id) {
         throw new Error('Please enter a valid UPI ID (e.g. name@upi)')
       }
-    } else if (paymentMethod === 'Netbanking') {
-      if (!paymentDetails.bank_code) {
+    } else if (paymentMethod === 'NET_BANKING' || paymentMethod === 'MOBILE_BANKING') {
+      if (!paymentDetails.bank_name && !paymentDetails.mobile_banking_app) {
         throw new Error('Please select a bank')
       }
     }

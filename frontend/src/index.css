@@ -96,6 +96,70 @@ input:focus-visible, input:focus, input:active {
 .animate-particle { animation: particle-rise 7s ease-in-out infinite; }
 .animate-light-drift { animation: light-drift 12s ease-in-out infinite; }
 
+/* ── Smooth Interactive & Tab Shift Transition Utilities ────────────────── */
+.smooth-trans {
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.smooth-scale-hover {
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.smooth-scale-hover:hover {
+  transform: translateY(-2px) scale(1.012);
+}
+
+.smooth-tab-shift {
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Shared animation utilities (tailwindcss-animate style) ─────────────── */
+@keyframes rg-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes rg-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes rg-zoom-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes rg-slide-in-top {
+  from { opacity: 0; transform: translateY(-1rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes rg-slide-in-bottom {
+  from { opacity: 0; transform: translateY(1rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in { animation: rg-fade-in 0.25s ease-out both; }
+
+.animate-in {
+  animation-duration: 0.2s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+.animate-in.fade-in { animation-name: rg-fade-in; }
+.animate-in.zoom-in,
+.animate-in.zoom-in-95 { animation-name: rg-zoom-in; }
+.animate-in.slide-in-from-top-4 { animation-name: rg-slide-in-top; }
+.animate-in.slide-in-from-bottom-4 { animation-name: rg-slide-in-bottom; }
+
+.animate-in.duration-150 { animation-duration: 0.15s; }
+.animate-in.duration-200 { animation-duration: 0.2s; }
+.animate-in.duration-300 { animation-duration: 0.3s; }
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
 @media (prefers-reduced-motion: reduce) {
   .animate-float-y,
   .animate-float-y-sm,
@@ -104,7 +168,9 @@ input:focus-visible, input:focus, input:active {
   .animate-gentle-rotate,
   .animate-fade-up,
   .animate-particle,
-  .animate-light-drift {
+  .animate-light-drift,
+  .animate-fade-in,
+  .animate-in {
     animation: none !important;
   }
 }

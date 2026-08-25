@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   ShieldCheck,
@@ -226,21 +227,36 @@ export default function ProfilePage() {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`pb-3 text-sm font-semibold transition-colors border-b-2 cursor-pointer ${
+                  className={`relative pb-3 text-sm font-semibold transition-colors cursor-pointer ${
                     isActive
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-slate-600 hover:text-slate-900'
+                      ? 'text-blue-600'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  {tab.label}
+                  <span>{tab.label}</span>
+                  {isActive && (
+                    <motion.div
+                      layoutId="profileTabLine"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full"
+                      transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                    />
+                  )}
                 </button>
               )
             })}
           </nav>
         </div>
 
-        {/* ── MAIN PROFILE TAB VIEW ──────────────────────────────────────── */}
-        {activeTab === 'profile' && (
+        {/* ── Animated Tab Content View ──────────────────────────────────── */}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 12, scale: 0.99 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.99 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {activeTab === 'profile' && (
           <form onSubmit={submit} className="space-y-6">
             
             {/* 1. Personal Information Card */}
@@ -867,6 +883,8 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+          </motion.div>
+        </AnimatePresence>
 
       </div>
 

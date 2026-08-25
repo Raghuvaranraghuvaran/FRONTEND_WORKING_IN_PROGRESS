@@ -27,7 +27,7 @@ export default function RegisterPage() {
     if (!form.name.trim()) { setError('Please enter your full name.'); return }
     if (!form.email.trim() || !form.email.includes('@')) { setError('Please enter a valid email address.'); return }
     if (!form.phone.trim()) { setError('Please enter your mobile phone number.'); return }
-    if (!form.password || form.password.length < 4) { setError('Password must be at least 4 characters.'); return }
+    if (!form.password || form.password.length < 8) { setError('Password must be at least 8 characters.'); return }
 
     setSubmitting(true)
     try {
@@ -242,8 +242,8 @@ export default function RegisterPage() {
                   className="rg-input"
                   type={showPassword ? 'text' : 'password'}
                   required
-                  minLength={4}
-                  placeholder="Create a password (min 4 chars)"
+                  minLength={8}
+                  placeholder="Create a password (min 8 chars)"
                   value={form.password}
                   onChange={update('password')}
                   autoComplete="new-password"
