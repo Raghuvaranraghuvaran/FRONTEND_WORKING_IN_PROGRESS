@@ -60,3 +60,40 @@ class ProductDetailView(RetrieveAPIView):
     serializer_class = ProductDetailSerializer
     queryset = Product.objects.filter(is_active=True).select_related("category")
     lookup_field = "pk"
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .ai_assistant import generate_ai_assistant_response
+
+
+class AIAssistantChatView(APIView):
+    """
+    AI Shopping Assistant endpoint.
+    Accepts natural-language requests, parses context, and returns
+    curated real catalog product cards, follow-ups, and comparisons.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        message = request.data.get("message", "")
+        context = request.data.get("context", {})
+        cart = request.data.get("cart", [])
+        
+        try:
+            result = generate_ai_assistant_response(message=message, context=context, cart_items=cart)
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {
+                    "message": "Sorry, I couldn't load the products right now. Please try again.",
+                    "products": [],
+                    "quick_options": ["Find under ₹1000", "Show trending products"],
+                    "context": context,
+                    "state": "error",
+                    "error": str(e),
+                },
+                status=status.HTTP_200_OK,
+            )
+

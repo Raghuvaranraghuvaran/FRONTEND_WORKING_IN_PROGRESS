@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes, Navigate, Outlet } from 'react-router-dom
 import { AppProvider, useApp } from './context/AppContext'
 import StorefrontHeader from './components/StorefrontHeader'
 import ShopperLayout from './components/ShopperLayout'
+import AiShoppingAssistant from './components/AiShoppingAssistant'
 import LandingPage from './pages/LandingPage'
 import DashboardPage from './pages/DashboardPage'
 import ShopPage from './pages/ShopPage'
@@ -133,6 +134,7 @@ export default function App() {
     <BrowserRouter>
       <AppProvider>
         <AppRoutes />
+        <AiShoppingAssistant />
       </AppProvider>
     </BrowserRouter>
   )

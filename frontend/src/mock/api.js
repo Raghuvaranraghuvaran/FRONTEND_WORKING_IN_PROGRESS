@@ -413,6 +413,160 @@ export const api = {
     return clone(store.products.find((p) => p.id === id) || null)
   },
 
+  async sendAssistantMessage({ message = '', context = {}, cart = [] } = {}) {
+    if (hasLiveApi()) {
+      try {
+        const res = await live('/products/ai-assistant/', {
+          method: 'POST',
+          body: { message, context, cart },
+        })
+        if (res && res.message) return res
+      } catch (err) {
+        console.warn('AI Assistant API request fallback to client-side catalog:', err)
+      }
+    }
+    await delay(350)
+    
+    // Client-side fallback implementation matching real catalog data
+    const text = (message || '').trim().toLowerCase()
+    const ctx = { ...(context || {}) }
+    
+    // Check greeting
+    if (['hi', 'hello', 'hey', 'start'].includes(text) && !ctx.category_id && !ctx.budget_max) {
+      return {
+        message: "Hi! 👋 I'm your ReturnGuard Shopping Assistant.\nTell me what you're looking for, and I'll help you find the best products.",
+        products: [],
+        quick_options: [
+          'Find something for me',
+          'Shop by occasion',
+          'Find under ₹1000',
+          'Show trending products',
+          'Help me choose',
+          'Find similar products',
+        ],
+        context: ctx,
+        state: 'welcome',
+      }
+    }
+
+    // Budget parse
+    const budgetMatch = text.match(/(?:under|below|less than|budget|max|upto)\s*(?:rs\.?|inr|₹)?\s*(\d+)/i) || text.match(/(?:rs\.?|inr|₹)\s*(\d+)/i)
+    if (budgetMatch) {
+      ctx.budget_max = Number(budgetMatch[1])
+    }
+    if (text.includes('cheaper') || text.includes('more affordable') || text.includes('cheapest')) {
+      ctx.budget_max = ctx.budget_max ? Math.round(ctx.budget_max * 0.7) : 1500
+    }
+    if (text.includes('more premium') || text.includes('luxury')) {
+      ctx.budget_min = 2500
+      delete ctx.budget_max
+    }
+
+    // Category parse
+    if (/ethnic|lehenga|saree|kurta|anarkali|dupatta|wedding|traditional/.test(text)) {
+      ctx.category_id = 'cat_ethnic'
+    } else if (/daily|shirt|t-shirt|tee|trouser|sneaker|shoes|college|casual/.test(text)) {
+      ctx.category_id = 'cat_daily'
+    } else if (/electronic|earbud|headphone|speaker|band|watch|power bank/.test(text)) {
+      ctx.category_id = 'cat_electronics'
+    } else if (/home|decor|dinner|lamp|light|basket|cushion/.test(text)) {
+      ctx.category_id = 'cat_home'
+    }
+
+    // Specific item
+    // Specific item
+    if (/sneaker|shoes|canvas/.test(text)) ctx.item_type = 'sneaker'
+    if (/saree|banarasi/.test(text)) ctx.item_type = 'saree'
+    if (/lehenga/.test(text)) ctx.item_type = 'lehenga'
+    if (/kurta/.test(text)) ctx.item_type = 'kurta'
+    if (/shirt/.test(text) && !/t-shirt|tshirt|tee/.test(text)) ctx.item_type = 'shirt'
+    if (/t-shirt|tshirt|tee/.test(text)) ctx.item_type = 'tshirt'
+    if (/trouser|pant/.test(text)) ctx.item_type = 'trouser'
+    if (/earbud|headphone|earphone/.test(text)) ctx.item_type = 'earbuds'
+    if (/lamp|light/.test(text)) ctx.item_type = 'lamp'
+    if (/dinner|plate|bowl|crockery/.test(text)) ctx.item_type = 'dinner'
+    if (/basket|storage/.test(text)) ctx.item_type = 'basket'
+    if (/pillow|cushion/.test(text)) ctx.item_type = 'cushion'
+
+    // Compare
+    if (/which one is better|which is better|compare|difference between/.test(text)) {
+      const candidates = store.products.slice(0, 2)
+      return {
+        message: `Here is a side-by-side comparison between **${candidates[0].name}** (₹${candidates[0].price}) and **${candidates[1].name}** (₹${candidates[1].price}):\n\nBoth are authentic products with 7-day verified ReturnGuard returns. **${candidates[0].name}** is top-rated (⭐ 4.8) for quality, while **${candidates[1].name}** offers fantastic versatility.`,
+        products: candidates.map(p => ({ ...p, rating: 4.7, rating_count: 150, in_stock: p.stock > 0 })),
+        comparison: {
+          products: candidates,
+          specs: [
+            { aspect: 'Price', product_a: `₹${candidates[0].price}`, product_b: `₹${candidates[1].price}` },
+            { aspect: 'Rating', product_a: '⭐ 4.8 (120+ reviews)', product_b: '⭐ 4.6 (95+ reviews)' },
+            { aspect: 'Return Policy', product_a: '✓ 7-Day Free Returns', product_b: '✓ 7-Day Free Returns' },
+          ],
+          verdict: `Choose **${candidates[0].name}** for top quality, or **${candidates[1].name}** for better everyday value.`
+        },
+        quick_options: ['Show cheaper options', 'In another color', 'Help me choose'],
+        context: ctx,
+        state: 'comparison',
+      }
+    }
+
+    // Filter real products strictly from store
+    let matches = store.products.filter(p => p.stock > 0)
+    
+    if (ctx.item_type === 'cushion') {
+      matches = matches.filter(p => /cushion|pillow|cover/i.test(p.name + ' ' + p.description))
+    } else if (ctx.item_type === 'sneaker') {
+      matches = matches.filter(p => /sneaker|canvas|shoe/i.test(p.name + ' ' + p.description))
+    } else if (ctx.item_type === 'lamp') {
+      matches = matches.filter(p => /lamp|light/i.test(p.name + ' ' + p.description))
+    } else if (ctx.item_type === 'dinner') {
+      matches = matches.filter(p => /dinner|ceramic|plate|bowl/i.test(p.name + ' ' + p.description))
+    } else if (ctx.item_type === 'saree') {
+      matches = matches.filter(p => /saree|banarasi/i.test(p.name + ' ' + p.description))
+    } else if (ctx.item_type === 'lehenga') {
+      matches = matches.filter(p => /lehenga/i.test(p.name + ' ' + p.description))
+    } else if (ctx.item_type === 'kurta') {
+      matches = matches.filter(p => /kurta/i.test(p.name + ' ' + p.description))
+    } else if (ctx.item_type === 'earbuds') {
+      matches = matches.filter(p => /earbud|headphone|anc/i.test(p.name + ' ' + p.description))
+    } else if (ctx.category_id) {
+      matches = matches.filter(p => p.category_id === ctx.category_id)
+    }
+
+    if (ctx.budget_max) {
+      const budgetMatches = matches.filter(p => Number(p.price) <= ctx.budget_max)
+      if (budgetMatches.length > 0) matches = budgetMatches
+    }
+
+    const isFallback = matches.length === 0
+    if (isFallback) {
+      matches = store.products.slice(0, 3)
+    }
+
+    const enriched = matches.map(p => ({
+      ...p,
+      price: Number(p.price),
+      original_price: Math.round(Number(p.price) * 1.18),
+      discount_percent: 15,
+      rating: 4.6,
+      rating_count: 140,
+      in_stock: p.stock > 0,
+      category_name: store.categories.find(c => c.id === p.category_id)?.name || 'General',
+      highlights: ['Authentic ReturnGuard product', '7-day hassle-free returns'],
+    }))
+
+    ctx.last_shown_product_ids = enriched.map(p => p.id)
+
+    return {
+      message: isFallback
+        ? "I couldn't find an exact match for your requirements, but I found a few similar options:"
+        : `I found these great options for you! 💕`,
+      products: enriched,
+      quick_options: ['More affordable', 'More premium', 'In another color', 'Which one is better?', 'Show trending products'],
+      context: ctx,
+      state: 'recommendations',
+    }
+  },
+
   // ---- Auth ----
   async register({ name, email, password: _password, phone, address }) {
     if (hasLiveApi()) {
