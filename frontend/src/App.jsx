@@ -16,7 +16,6 @@ import ReturnRequestPage from './pages/ReturnRequestPage'
 import ProfilePage from './pages/ProfilePage'
 import WishlistPage from './pages/WishlistPage'
 import HelpPage from './pages/HelpPage'
-import ShopperHomeFeed from './pages/ShopperHomeFeed'
 import ReturnTrackingPage from './pages/ReturnTrackingPage'
 import PaymentSuccessPage from './pages/PaymentSuccessPage'
 import PaymentFailurePage from './pages/PaymentFailurePage'
@@ -75,7 +74,7 @@ function AppRoutes() {
       
       {/* Shopper pages - with sidebar layout */}
       <Route element={<ShopperLayout />}>
-        <Route path="/home" element={<ShopperHomeFeed />} />
+        <Route path="/home" element={<Navigate to="/dashboard" replace />} />
         <Route path="/shop" element={<ShopPage />} />
         <Route path="/products/:productId" element={<ProductDetailPage />} />
         <Route path="/wishlist" element={<WishlistPage />} />
