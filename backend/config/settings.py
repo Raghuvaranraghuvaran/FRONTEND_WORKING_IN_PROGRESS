@@ -19,7 +19,7 @@ def env_list(name, default=""):
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-dev-key-change-me-production-secret-key-returnguard-2026")
 DEBUG = env_bool("DJANGO_DEBUG", True)
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,.onrender.com,.railway.app,.vercel.app,*")
+ALLOWED_HOSTS = ["*"] if DEBUG else env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver,.onrender.com,.railway.app,.vercel.app,*")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
