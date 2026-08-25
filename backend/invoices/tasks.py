@@ -451,48 +451,22 @@ Best regards,
 
 
 def _send_direct_smtp_invoice(subject, text_content, html_content, recipient, pdf_bytes=None, pdf_filename="Invoice.pdf", from_name=DEFAULT_FROM_NAME, from_addr=SMTP_USER):
-    """Direct SMTP sender with HTML alternative and PDF attachment support."""
-    msg = MIMEMultipart("mixed")
-    msg["Subject"] = subject
-    msg["From"] = formataddr((from_name, from_addr))
-    msg["To"] = recipient
-
-    # Alternative body (text + html)
-    alt_part = MIMEMultipart("alternative")
-    alt_part.attach(MIMEText(text_content, "plain", "utf-8"))
-    alt_part.attach(MIMEText(html_content, "html", "utf-8"))
-    msg.attach(alt_part)
-
-    # Attach PDF
-    if pdf_bytes:
-        pdf_attachment = MIMEApplication(pdf_bytes, _subtype="pdf")
-        pdf_attachment.add_header('Content-Disposition', 'attachment', filename=pdf_filename)
-        msg.attach(pdf_attachment)
-
-    # Strategy 1: SMTPS / SSL over Port 465
+    """Direct SMTP sender with Resend HTTPS API and SMTP fallback support."""
     try:
-        context = ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=15) as server:
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(from_addr, [recipient], msg.as_string())
-        print(f"[Email Dispatch] SUCCESS: Delivered rich HTML invoice to {recipient} via SSL 465!", flush=True)
-        return True
-    except Exception as err_ssl:
-        print(f"[Email Dispatch] Port 465 SSL failed ({err_ssl}), attempting Port 587 TLS...", flush=True)
-
-    # Strategy 2: STARTTLS over Port 587
-    try:
-        context = ssl.create_default_context()
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
-            server.starttls(context=context)
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(from_addr, [recipient], msg.as_string())
-        print(f"[Email Dispatch] SUCCESS: Delivered rich HTML invoice to {recipient} via TLS 587!", flush=True)
-        return True
-    except Exception as err_tls:
-        print(f"[Email Dispatch] Port 587 TLS failed ({err_tls})", flush=True)
-
-    return False
+        from common.mailer import send_email_sync
+        return send_email_sync(
+            subject=subject,
+            message=text_content,
+            recipient_list=[recipient],
+            from_name=from_name,
+            from_addr=from_addr,
+            html_message=html_content,
+            pdf_bytes=pdf_bytes,
+            pdf_filename=pdf_filename,
+        )
+    except Exception as exc:
+        print(f"[Invoice Mailer] Email dispatch failed: {exc}", flush=True)
+        return False
 
 
 def _safe_display(obj, field_name):
