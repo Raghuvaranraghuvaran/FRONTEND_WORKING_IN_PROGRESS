@@ -59,7 +59,7 @@ function StatCard({ icon, label, value, subtext, color = 'purple' }) {
 }
 
 export default function ShopPage() {
-  const { shopper, toggleWishlist, isInWishlist, addToCart, wishlist } = useApp()
+  const { shopper, toggleWishlist, isInWishlist, addToCart, wishlist, cart = [] } = useApp()
   const [categories, setCategories] = useState([])
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -561,7 +561,7 @@ export default function ShopPage() {
               textDecoration: 'none',
             }}
           >
-            View Cart ({cart.length}) →
+            View Cart ({cart?.length || 0}) →
           </Link>
         </div>
       )}
