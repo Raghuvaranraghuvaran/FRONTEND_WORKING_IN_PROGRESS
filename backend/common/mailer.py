@@ -293,28 +293,29 @@ def _send_direct_smtp(subject, message, recipients, from_name=DEFAULT_FROM_NAME,
 def _dispatch_all_strategies(subject, message, recipients, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
     """
     Executes resilient waterfall delivery:
-    1. Brevo HTTPS API (Port 443)
-    2. Resend HTTPS API (Port 443) - with sandbox delivery fallback
-    3. Direct SMTP (Port 587 / Port 465)
+    1. Resend HTTPS API (Port 443) - Primary & Verified
+    2. Brevo HTTPS API (Port 443) - Backup
+    3. Direct SMTP (Port 587 / Port 465) - Fallback
     """
     if isinstance(recipients, str):
         recipients = [recipients]
-    recipients = [r.strip() for r in recipients if r and r.strip()]
+    recipients = [str(r).strip() for r in recipients if r and str(r).strip()]
     if not recipients:
         return True
 
-    resend_k = os.getenv("RESEND_API_KEY") or getattr(settings, "RESEND_API_KEY", "")
-    brevo_k = os.getenv("BREVO_API_KEY") or getattr(settings, "BREVO_API_KEY", "") or os.getenv("SENDINBLUE_API_KEY")
-    print(f"\n[Email Dispatch INIT] '{subject}' -> {recipients} | ResendKey={'SET' if resend_k else 'NONE'}, BrevoKey={'SET' if brevo_k else 'NONE'}", flush=True)
+    resend_k = (os.getenv("RESEND_API_KEY") or getattr(settings, "RESEND_API_KEY", "")).strip()
+    brevo_k = (os.getenv("BREVO_API_KEY") or getattr(settings, "BREVO_API_KEY", "") or os.getenv("SENDINBLUE_API_KEY", "")).strip()
+    
+    print(f"\n[Email Dispatch] '{subject}' -> {recipients} | Resend={'YES' if resend_k else 'NO'}, Brevo={'YES' if brevo_k else 'NO'}", flush=True)
 
-    # Step 1: Try Brevo HTTPS API first if key exists
-    if brevo_k:
-        if _send_via_brevo_http(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
-            return True
-
-    # Step 2: Try Resend HTTPS API
+    # Step 1: Try Resend HTTPS API (Primary)
     if resend_k:
         if _send_via_resend_http(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
+            return True
+
+    # Step 2: Try Brevo HTTPS API (Backup)
+    if brevo_k:
+        if _send_via_brevo_http(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
             return True
 
     # Step 3: Fall back to SMTP sockets
