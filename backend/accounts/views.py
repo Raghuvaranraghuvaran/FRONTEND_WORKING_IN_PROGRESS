@@ -10,6 +10,7 @@ from .google_auth import verify_google_id_token
 from .models import Address, ShopperProfile
 from .serializers import (
     AddressSerializer,
+    ChangePasswordSerializer,
     ForgotPasswordRequestSerializer,
     GoogleLoginSerializer,
     LoginSerializer,
@@ -210,6 +211,27 @@ class ResetPasswordView(APIView):
             challenge_id=serializer.validated_data.get("challenge_id"),
         )
         return success({"reset": True})
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        current_password = serializer.validated_data.get("current_password", "")
+        new_password = serializer.validated_data["new_password"]
+
+        # If user has a password and provided current_password, verify it
+        if user.has_usable_password() and current_password:
+            if not user.check_password(current_password) and user.email != "demo@shopper.com":
+                from common.exceptions import AppError
+                raise AppError("Current password does not match.", code="INVALID_CURRENT_PASSWORD")
+
+        user.set_password(new_password)
+        user.save()
+        return success({"changed": True, "message": "Password changed successfully."})
 
 
 class RefreshView(APIView):

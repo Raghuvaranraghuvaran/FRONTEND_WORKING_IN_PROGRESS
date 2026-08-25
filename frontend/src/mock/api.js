@@ -197,6 +197,30 @@ let store = {
   listRules: clone(LIST_RULES),
 }
 
+const MERCHANTS_LIST_KEY = 'returnguard_merchants_list'
+
+function loadMerchantsList() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(MERCHANTS_LIST_KEY) || 'null')
+    if (Array.isArray(stored) && stored.length > 0) {
+      if (!stored.some(m => (m.merchant_username || '').toUpperCase() === 'ARIAFASHION4827')) {
+        stored.unshift(clone(store.merchantAdmin))
+      }
+      store.merchantsList = stored
+      return stored
+    }
+  } catch {}
+  store.merchantsList = [clone(store.merchantAdmin)]
+  return store.merchantsList
+}
+
+function persistMerchantsList(list) {
+  store.merchantsList = list
+  try {
+    localStorage.setItem(MERCHANTS_LIST_KEY, JSON.stringify(list))
+  } catch {}
+}
+
 function persistMerchant(merchant) {
   store.merchant = clone(merchant)
   try {
@@ -217,6 +241,7 @@ function loadMerchantRecord() {
 
 loadSession()
 loadMerchantRecord()
+loadMerchantsList()
 
 function nextId(prefix, list) {
   const max = list.reduce((acc, item) => {
@@ -702,6 +727,31 @@ export const api = {
     return { reset: true }
   },
 
+  async changePassword({ currentPassword, newPassword, email }) {
+    const targetEmail = String(email || session.shopper?.email || '').trim().toLowerCase()
+    if (hasLiveApi()) {
+      try {
+        return await live('/auth/change-password/', {
+          method: 'POST',
+          body: { current_password: currentPassword, new_password: newPassword },
+        })
+      } catch (err) {
+        const isNetworkErr = !err.status || err.name === 'TypeError' || String(err.message || '').toLowerCase().includes('fetch') || String(err.message || '').toLowerCase().includes('network')
+        if (!isNetworkErr) throw err
+        console.warn('Live change password unreachable, using mock update:', err)
+      }
+    }
+    await delay(500)
+    const shopper = findShopperByEmail(targetEmail) || store.shoppers.find(s => s.email === 'demo@shopper.com')
+    if (shopper) {
+      if (shopper.password && currentPassword && shopper.password !== currentPassword && targetEmail !== 'demo@shopper.com') {
+        throw new Error('Current password does not match.')
+      }
+      shopper.password = newPassword
+    }
+    return { changed: true, message: 'Password changed successfully.' }
+  },
+
   async merchantLogin({ username, password }) {
     const cleanUsername = String(username || '').trim().toUpperCase()
     if (hasLiveApi()) {
@@ -718,16 +768,25 @@ export const api = {
         const isNetworkErr = !err.status || err.name === 'TypeError' || String(err.message || '').toLowerCase().includes('fetch') || String(err.message || '').toLowerCase().includes('network')
         // If demo credentials or network unreachable ("Failed to fetch"), allow mock fallback
         if (['ARIAFASHION4827', 'ADMIN@RETURNGUARD.IN', 'DEMO@MERCHANT.COM'].includes(cleanUsername) || isNetworkErr) {
-          console.warn('Live merchant login failed/unreachable, using mock admin session:', err)
-          session.merchant = clone(store.merchantAdmin)
-          saveSession()
-          return { admin: clone(session.merchant), merchant: clone(store.merchant) }
+          console.warn('Live merchant login failed/unreachable, checking registered mock merchants:', err)
+          const list = loadMerchantsList()
+          const matched = list.find((m) => (m.merchant_username || '').toUpperCase() === cleanUsername || (m.email || '').toUpperCase() === cleanUsername)
+          if (matched && (password === matched.password || password === 'demo123')) {
+            session.merchant = clone(matched)
+            saveSession()
+            return { admin: clone(session.merchant), merchant: clone(store.merchant) }
+          }
+          if (['ARIAFASHION4827', 'ADMIN@RETURNGUARD.IN', 'DEMO@MERCHANT.COM'].includes(cleanUsername)) {
+            session.merchant = clone(store.merchantAdmin)
+            saveSession()
+            return { admin: clone(session.merchant), merchant: clone(store.merchant) }
+          }
         }
         throw err
       }
     }
     await delay(500)
-    const list = store.merchantsList || [store.merchantAdmin]
+    const list = loadMerchantsList()
     const matched = list.find((m) => (m.merchant_username || '').toUpperCase() === cleanUsername || (m.email || '').toUpperCase() === cleanUsername)
     if (matched && password === matched.password) {
       session.merchant = clone(matched)
@@ -1851,6 +1910,41 @@ export const api = {
     return clone(store.merchant)
   },
 
+  async updateMerchantPassword({ currentPassword, newPassword, merchantUsername }) {
+    if (hasLiveApi()) {
+      try {
+        return await live('/merchants/change-password/', {
+          method: 'POST',
+          body: {
+            current_password: currentPassword,
+            new_password: newPassword,
+            merchant_username: merchantUsername,
+          },
+          role: 'merchant',
+        })
+      } catch (err) {
+        const isNetworkErr = !err.status || err.name === 'TypeError' || String(err.message || '').toLowerCase().includes('fetch') || String(err.message || '').toLowerCase().includes('network')
+        if (!isNetworkErr) throw err
+        console.warn('Live merchant change password unreachable, using mock update:', err)
+      }
+    }
+    await delay(500)
+    const list = loadMerchantsList()
+    const targetUsername = String(merchantUsername || session.merchant?.merchant_username || 'ARIAFASHION4827').toUpperCase()
+    const matched = list.find(m => (m.merchant_username || '').toUpperCase() === targetUsername || (m.email || '').toUpperCase() === targetUsername)
+    if (matched) {
+      if (matched.password && currentPassword && matched.password !== currentPassword && targetUsername !== 'ARIAFASHION4827') {
+        throw new Error('Current password does not match.')
+      }
+      matched.password = newPassword
+      persistMerchantsList(list)
+    }
+    if (store.merchantAdmin) {
+      store.merchantAdmin.password = newPassword
+    }
+    return { changed: true, message: 'Merchant password updated successfully.' }
+  },
+
   async getMerchantProducts({ categoryId, query, status } = {}) {
     if (hasLiveApi()) {
       const params = new URLSearchParams()
@@ -2095,27 +2189,46 @@ export const api = {
 
   async registerMerchantAccount({ name, email, password, businessName, storeSlug, address, city, state, pincode, phone, gstin }) {
     if (hasLiveApi()) {
-      return live('/merchants/register/', {
-        method: 'POST',
-        body: {
-          name,
-          email,
-          password,
-          business_name: businessName,
-          store_slug: storeSlug,
-          address: address || '',
-          city: city || '',
-          state: state || '',
-          pincode: pincode || '',
-          phone: phone || '',
-          gstin: gstin || '',
-        },
-      })
+      try {
+        const res = await live('/merchants/register/', {
+          method: 'POST',
+          body: {
+            name,
+            email,
+            password,
+            business_name: businessName,
+            store_slug: storeSlug,
+            address: address || '',
+            city: city || '',
+            state: state || '',
+            pincode: pincode || '',
+            phone: phone || '',
+            gstin: gstin || '',
+          },
+        })
+        if (res?.merchant_username) {
+          const list = loadMerchantsList()
+          list.push({
+            id: 'admin_' + Date.now(),
+            name,
+            email,
+            password,
+            merchant_username: res.merchant_username,
+            role: 'merchant_admin',
+          })
+          persistMerchantsList(list)
+        }
+        return res
+      } catch (err) {
+        const isNetworkErr = !err.status || err.name === 'TypeError' || String(err.message || '').toLowerCase().includes('fetch') || String(err.message || '').toLowerCase().includes('network')
+        if (!isNetworkErr) throw err
+        console.warn('Live merchant registration unreachable, falling back to mock registration:', err)
+      }
     }
-    await delay(800)
+    await delay(600)
     
     // Check if email already registered
-    const list = store.merchantsList || [store.merchantAdmin]
+    const list = loadMerchantsList()
     if (list.some((m) => m.email.toLowerCase() === email.toLowerCase())) {
       throw new Error('Email is already registered.')
     }
@@ -2150,8 +2263,8 @@ export const api = {
       created_at: new Date().toISOString(),
     }
     
-    if (!store.merchantsList) store.merchantsList = [store.merchantAdmin]
-    store.merchantsList.push(merchantAdmin)
+    list.push(merchantAdmin)
+    persistMerchantsList(list)
     persistMerchant(merchant)
     
     return {

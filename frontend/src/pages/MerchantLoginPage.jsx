@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Eye, EyeOff, Lock, User, ArrowRight, ShieldCheck, Check } from 'lucide-react'
 import { api } from '../mock/api'
 import { useApp } from '../context/AppContext'
@@ -10,10 +10,14 @@ const A = '#0d9488'
 
 export default function MerchantLoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { setMerchant } = useApp()
 
-  const [username, setUsername] = useState('ARIAFASHION4827')
-  const [password, setPassword] = useState('demo123')
+  const initialUser = location.state?.username || 'ARIAFASHION4827'
+  const initialPassword = location.state?.password || 'demo123'
+
+  const [username, setUsername] = useState(initialUser)
+  const [password, setPassword] = useState(initialPassword)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)

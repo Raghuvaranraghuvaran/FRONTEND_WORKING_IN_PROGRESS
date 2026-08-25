@@ -20,6 +20,9 @@ import {
   Trash2,
   Edit2,
   X,
+  Eye,
+  EyeOff,
+  KeyRound,
 } from 'lucide-react'
 import { api } from '../mock/api'
 import { useApp } from '../context/AppContext'
@@ -51,6 +54,44 @@ export default function ProfilePage() {
   const [showAddressModal, setShowAddressModal] = useState(false)
   const [editingAddressId, setEditingAddressId] = useState(null)
   const [addressForm, setAddressForm] = useState({ label: 'Home', line: '', isPrimary: false })
+
+  // Password change state
+  const [pwdForm, setPwdForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false)
+  const [showNewPwd, setShowNewPwd] = useState(false)
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false)
+  const [pwdError, setPwdError] = useState('')
+  const [pwdSuccess, setPwdSuccess] = useState('')
+  const [pwdSaving, setPwdSaving] = useState(false)
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault()
+    setPwdError('')
+    setPwdSuccess('')
+    if (!pwdForm.newPassword || pwdForm.newPassword.length < 6) {
+      setPwdError('New password must be at least 6 characters.')
+      return
+    }
+    if (pwdForm.newPassword !== pwdForm.confirmPassword) {
+      setPwdError('New password and confirm password do not match.')
+      return
+    }
+    setPwdSaving(true)
+    try {
+      await api.changePassword({
+        currentPassword: pwdForm.currentPassword,
+        newPassword: pwdForm.newPassword,
+        email: shopper?.email || form.email,
+      })
+      setPwdSuccess('Password changed successfully!')
+      setPwdForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      setTimeout(() => setPwdSuccess(''), 4000)
+    } catch (err) {
+      setPwdError(err.message || 'Failed to change password.')
+    } finally {
+      setPwdSaving(false)
+    }
+  }
 
   // Sync state when shopper changes
   useEffect(() => {
@@ -679,42 +720,150 @@ export default function ProfilePage() {
 
         {/* ── SECURITY TAB VIEW ───────────────────────────────────────────── */}
         {activeTab === 'security' && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-6">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Security & Sign-In</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Manage authentication, 2FA OTP, and active sessions.</p>
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-6">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Security & Sign-In</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Manage authentication, 2FA OTP, and active sessions.</p>
+              </div>
+
+              <div className="space-y-4 divide-y divide-slate-100">
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                      <Lock className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">Email Verification</p>
+                      <p className="text-xs text-slate-500">{form.email}</p>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                    <Check className="h-3 w-3" /> Verified
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between pt-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                      <ShieldCheck className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">Two-Factor OTP Authentication</p>
+                      <p className="text-xs text-slate-500">Fast login via email challenge or SMS bypass.</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
+                    Active
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-4 divide-y divide-slate-100">
-              <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                    <Lock className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-900">Email Verification</p>
-                    <p className="text-xs text-slate-500">{form.email}</p>
-                  </div>
+            {/* ── Change Password Card ────────────────────────────────────────── */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                  <KeyRound className="h-4 w-4" />
                 </div>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                  <Check className="h-3 w-3" /> Verified
-                </span>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Change Password</h3>
+                  <p className="text-xs text-slate-500">Update your account login password.</p>
+                </div>
               </div>
 
-              <div className="flex items-center justify-between pt-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                    <ShieldCheck className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-900">Two-Factor OTP Authentication</p>
-                    <p className="text-xs text-slate-500">Fast login via email challenge or SMS bypass.</p>
+              {pwdError && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-3 text-xs font-medium text-rose-700">
+                  {pwdError}
+                </div>
+              )}
+
+              {pwdSuccess && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-xs font-medium text-emerald-700 flex items-center gap-2">
+                  <Check className="h-4 w-4 shrink-0" />
+                  {pwdSuccess}
+                </div>
+              )}
+
+              <form onSubmit={handleChangePassword} className="space-y-4 max-w-lg">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Current Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showCurrentPwd ? 'text' : 'password'}
+                      placeholder="Enter current password (optional for demo)"
+                      value={pwdForm.currentPassword}
+                      onChange={(e) => setPwdForm({ ...pwdForm, currentPassword: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPwd(!showCurrentPwd)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showCurrentPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                 </div>
-                <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
-                  Active
-                </span>
-              </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    New Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showNewPwd ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      placeholder="At least 6 characters"
+                      value={pwdForm.newPassword}
+                      onChange={(e) => setPwdForm({ ...pwdForm, newPassword: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPwd(!showNewPwd)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showNewPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Confirm New Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPwd ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      placeholder="Re-type your new password"
+                      value={pwdForm.confirmPassword}
+                      onChange={(e) => setPwdForm({ ...pwdForm, confirmPassword: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPwd(!showConfirmPwd)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showConfirmPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={pwdSaving}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition cursor-pointer disabled:opacity-60"
+                >
+                  {pwdSaving ? 'Updating Password…' : 'Update Password'}
+                </button>
+              </form>
             </div>
           </div>
         )}

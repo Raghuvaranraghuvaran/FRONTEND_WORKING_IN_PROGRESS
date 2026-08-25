@@ -480,7 +480,12 @@ export default function MerchantRegisterPage() {
             <div className="mt-5 pt-2">
               <button
                 type="button"
-                onClick={() => navigate('/merchant/login')}
+                onClick={() => navigate('/merchant/login', {
+                  state: {
+                    username: successData.merchant_username,
+                    password: successData.password,
+                  }
+                })}
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 py-3 text-xs font-bold text-white uppercase tracking-wider transition-all shadow-md shadow-teal-600/20 cursor-pointer"
               >
                 Continue to Login <ArrowRight className="h-4 w-4" />
