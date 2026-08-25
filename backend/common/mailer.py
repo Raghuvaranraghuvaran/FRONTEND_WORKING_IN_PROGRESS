@@ -50,7 +50,8 @@ def _send_via_resend_http(subject, message, recipients, from_name=DEFAULT_FROM_N
     Delivers email via Resend HTTPS API (Port 443).
     Includes smart delivery fallback to verified owner if Resend sandbox restricts outside recipients.
     """
-    api_key = (os.getenv("RESEND_API_KEY") or getattr(settings, "RESEND_API_KEY", "")).strip()
+    raw_key = os.getenv("RESEND_API_KEY") or getattr(settings, "RESEND_API_KEY", "")
+    api_key = str(raw_key).strip().strip('"').strip("'")
     if not api_key:
         return False
 
@@ -58,7 +59,8 @@ def _send_via_resend_http(subject, message, recipients, from_name=DEFAULT_FROM_N
         os.getenv("RESEND_FROM_EMAIL")
         or getattr(settings, "RESEND_FROM_EMAIL", "")
         or "onboarding@resend.dev"
-    ).strip()
+    )
+    from_sender = str(from_sender).strip().strip('"').strip("'")
     
     if "<" not in from_sender and "@" in from_sender:
         from_sender = f"{from_name} <{from_sender}>"
@@ -327,12 +329,9 @@ def send_email_sync(subject, message, recipient_list, from_name=DEFAULT_FROM_NAM
 
 def send_async_email(subject, message, recipient_list, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
     """
-    Spawns non-blocking background thread for immediate HTTP response.
+    Submits email to persistent ThreadPoolExecutor for background dispatch.
     """
-    t = threading.Thread(
-        target=_dispatch_all_strategies,
-        args=(subject, message, recipient_list, from_name, from_addr, html_message, pdf_bytes, pdf_filename),
-        daemon=True,
-        name="email_dispatch_worker",
+    _EMAIL_EXECUTOR.submit(
+        _dispatch_all_strategies,
+        subject, message, recipient_list, from_name, from_addr, html_message, pdf_bytes, pdf_filename
     )
-    t.start()

@@ -126,8 +126,8 @@ class OTPVerificationService:
 
         text_body = f"Hi {user.name or 'there'},\n\nYour ReturnGuard sign-in verification code is: {code}\n\nThis code expires in 5 minutes.\n\nThank you,\nReturnGuard Team"
 
-        from common.mailer import send_async_email
-        send_async_email(
+        from common.mailer import send_email_sync
+        send_email_sync(
             subject=f"Your ReturnGuard verification code: {code}",
             message=text_body,
             html_message=html_body,
