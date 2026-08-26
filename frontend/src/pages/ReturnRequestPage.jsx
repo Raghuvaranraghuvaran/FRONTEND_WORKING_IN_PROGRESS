@@ -209,35 +209,6 @@ export default function ReturnRequestPage() {
     )
   }
 
-  // Delivery status check
-  const isDelivered =
-    order.delivery_status?.toLowerCase() === 'delivered' ||
-    order.status?.toLowerCase() === 'delivered'
-
-  if (!isDelivered) {
-    return (
-      <main className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <div className="rounded-2xl border border-amber-200 bg-white p-8 shadow-sm">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-amber-600 mb-4">
-            <Package className="h-8 w-8" />
-          </div>
-          <h1 className="text-xl font-bold text-slate-900">Return Not Available Yet</h1>
-          <p className="mt-2 text-sm text-slate-600 max-w-md mx-auto">
-            Order <strong>#{order.order_number}</strong> is currently in <strong>{order.delivery_status || order.status}</strong> status. Returns can only be requested after the package has been delivered to you.
-          </p>
-          <div className="mt-6">
-            <Link
-              to="/orders"
-              className="inline-flex rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
-            >
-              Back to My Orders
-            </Link>
-          </div>
-        </div>
-      </main>
-    )
-  }
-
   // Return window validation (7 days)
   const returnWindowDays = 7
   let isExpired = false
@@ -382,8 +353,8 @@ export default function ReturnRequestPage() {
           )}
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link to="/orders" className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-indigo-500">
-              View My Orders
+            <Link to="/orders?tab=returns" className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-indigo-500">
+              View in Returns Tab →
             </Link>
             <Link to="/shop" className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50">
               Continue Shopping

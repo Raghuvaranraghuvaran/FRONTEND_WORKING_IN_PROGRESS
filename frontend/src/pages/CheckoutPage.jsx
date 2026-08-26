@@ -43,6 +43,15 @@ export default function CheckoutPage() {
     ? shopper.addresses
     : [DEFAULT_PRIMARY_ADDRESS]
 
+  useEffect(() => {
+    if (shopper?.addresses && shopper.addresses.length > 0) {
+      const found = shopper.addresses.some((a) => a.id === selectedAddressId)
+      if (!found && selectedAddressId !== 'custom') {
+        setSelectedAddressId(shopper.addresses[0].id)
+      }
+    }
+  }, [shopper, selectedAddressId])
+
   const availableRewardPoints = shopper?.reward_points ?? 1000
   const subtotal = (cart || []).reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0)
 
@@ -68,10 +77,10 @@ export default function CheckoutPage() {
   const prepaidDiscount = prepaidBonusApplied && paymentMethod !== 'COD' ? 50 : 0
   const finalTotal = Math.max(0, remainingBeforePoints - rewardDiscount - prepaidDiscount)
 
-  const selectedAddress = addresses.find((a) => a.id === selectedAddressId)
+  const selectedAddress = addresses.find((a) => String(a.id) === String(selectedAddressId))
   const baseAddressLine = selectedAddressId === 'custom'
     ? customAddress.trim()
-    : (selectedAddress ? selectedAddress.line : DEFAULT_PRIMARY_ADDRESS.line)
+    : (selectedAddress ? selectedAddress.line : (addresses?.[0]?.line || DEFAULT_PRIMARY_ADDRESS.line))
 
   const deliveryAddressLine = altPhone.trim()
     ? `${baseAddressLine} (Alt Phone: ${altPhone.trim()})`
@@ -284,13 +293,34 @@ export default function CheckoutPage() {
   }
 
   // Early return for empty cart (when not viewing a placed order step)
-  if (cart.length === 0 && !order) {
+  if ((!cart || cart.length === 0) && !order) {
     return (
-      <main className="mx-auto max-w-3xl px-4 py-20 text-center">
-        <p className="text-lg font-semibold text-slate-900">Your cart is empty</p>
-        <Link to="/shop" className="mt-3 inline-block text-sm font-semibold text-indigo-600">
-          Browse products
-        </Link>
+      <main className="mx-auto max-w-xl px-4 py-16 sm:px-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 sm:p-10 text-center shadow-md">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 text-3xl shadow-inner mb-4">
+            🛍️
+          </div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Your shopping cart is empty</h1>
+          <p className="mt-2 text-sm text-slate-500 max-w-sm mx-auto">
+            You don't have any items ready for checkout yet. Explore our curated collections to add products.
+          </p>
+
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              to="/shop"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-500 shadow-sm transition"
+            >
+              <span>Explore Catalog</span>
+              <span>→</span>
+            </Link>
+            <Link
+              to="/orders"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+            >
+              <span>View Past Orders</span>
+            </Link>
+          </div>
+        </div>
       </main>
     )
   }
@@ -578,7 +608,7 @@ export default function CheckoutPage() {
                     type="radio"
                     name="address"
                     value={address.id}
-                    checked={selectedAddressId === address.id}
+                    checked={String(selectedAddressId) === String(address.id)}
                     onChange={() => setSelectedAddressId(address.id)}
                     className="mt-1 text-indigo-600 focus:ring-indigo-500"
                   />

@@ -13,7 +13,7 @@ class AddressSerializer(serializers.ModelSerializer):
 
 
 class ShopperSerializer(serializers.ModelSerializer):
-    addresses = AddressSerializer(many=True, read_only=True)
+    addresses = AddressSerializer(source="shopper_profile.addresses", many=True, read_only=True)
     customer_id = serializers.SerializerMethodField()
     merchant_id = serializers.SerializerMethodField()
     total_orders = serializers.SerializerMethodField()
