@@ -79,23 +79,21 @@ class ProcessPaymentView(APIView):
             # Send single payment failure notification email
             from common.mailer import send_async_email
             failure_reason = result.get('message', payment.failure_reason or 'Payment declined by bank')
-            cust_email = getattr(payment.order.user, 'email', None) or 'infiniteganesforu@gmail.com'
+            cust_email = getattr(payment.order.user, 'email', None)
             cust_name = getattr(payment.order.user, 'name', None) or 'Customer'
-            recipients = [cust_email]
-            if cust_email != 'infiniteganesforu@gmail.com':
-                recipients.append('infiniteganesforu@gmail.com')
-            send_async_email(
-                subject=f"Payment Failed for Order {payment.order.order_number}",
-                message=(
-                    f"Hi {cust_name},\n\n"
-                    f"We were unable to process your payment of Rs. {payment.amount} for order {payment.order.order_number}.\n\n"
-                    f"Failure Reason: {failure_reason}\n"
-                    f"Payment Method: {payment.payment_method}\n\n"
-                    "You can retry your payment or select Cash on Delivery (COD) by visiting My Orders in your ReturnGuard account.\n\n"
-                    "— ReturnGuard Team"
-                ),
-                recipient_list=recipients,
-            )
+            if cust_email:
+                send_async_email(
+                    subject=f"Payment Failed for Order {payment.order.order_number}",
+                    message=(
+                        f"Hi {cust_name},\n\n"
+                        f"We were unable to process your payment of Rs. {payment.amount} for order {payment.order.order_number}.\n\n"
+                        f"Failure Reason: {failure_reason}\n"
+                        f"Payment Method: {payment.payment_method}\n\n"
+                        "You can retry your payment or select Cash on Delivery (COD) by visiting My Orders in your ReturnGuard account.\n\n"
+                        "— ReturnGuard Team"
+                    ),
+                    recipient_list=[cust_email],
+                )
         
         # Refresh payment from DB
         payment.refresh_from_db()

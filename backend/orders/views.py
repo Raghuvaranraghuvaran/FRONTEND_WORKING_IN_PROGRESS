@@ -360,17 +360,15 @@ class RequestOrderCancellationOTPView(APIView):
         # Dispatch OTP Email
         try:
             html_body, plain_body, sub = build_order_cancellation_otp_email(order=order, code=code, expires_in_minutes=5)
-            recipients = [dest_email]
-            if dest_email != "infiniteganesforu@gmail.com":
-                recipients.append("infiniteganesforu@gmail.com")
-            from common.mailer import send_async_email
-            send_async_email(
-                subject=sub,
-                message=plain_body,
-                html_message=html_body,
-                recipient_list=recipients,
-                from_name="ReturnGuard Security",
-            )
+            if dest_email:
+                from common.mailer import send_async_email
+                send_async_email(
+                    subject=sub,
+                    message=plain_body,
+                    html_message=html_body,
+                    recipient_list=[dest_email],
+                    from_name="ReturnGuard Security",
+                )
         except Exception as e:
             print(f"[Cancel OTP send error]: {e}")
 
@@ -551,36 +549,31 @@ class VerifyOrderCancellationView(APIView):
         # Step C: Dispatch Emails Asynchronously
         # 1. Customer Email
         try:
-            cust_email = getattr(order.user, "email", None) or actor
-            c_html, c_text, c_sub = build_order_cancellation_customer_email(order=order, reason=reason, notes=notes)
-            recipients = [cust_email]
-            if cust_email != "infiniteganesforu@gmail.com":
-                recipients.append("infiniteganesforu@gmail.com")
-            send_async_email(
-                subject=c_sub,
-                message=c_text,
-                html_message=c_html,
-                recipient_list=recipients,
-                from_name=f"{getattr(order.merchant, 'business_name', 'ReturnGuard')} via ReturnGuard",
-            )
+            cust_email = getattr(order.user, "email", None) or (actor if "@" in actor else None)
+            if cust_email:
+                c_html, c_text, c_sub = build_order_cancellation_customer_email(order=order, reason=reason, notes=notes)
+                send_async_email(
+                    subject=c_sub,
+                    message=c_text,
+                    html_message=c_html,
+                    recipient_list=[cust_email],
+                    from_name=f"{getattr(order.merchant, 'business_name', 'ReturnGuard')} via ReturnGuard",
+                )
         except Exception as e:
             print(f"[Customer Cancellation Email Error]: {e}")
 
         # 2. Merchant Email
         try:
-            m_email = getattr(order.merchant, "admin_email", None) or "infiniteganesforu@gmail.com"
+            m_email = getattr(order.merchant, "admin_email", None)
             if m_email:
                 m_html, m_text, m_sub = build_order_cancellation_merchant_email(
                     order=order, reason=reason, cancelled_by=actor, notes=notes
                 )
-                m_recipients = [m_email]
-                if m_email != "infiniteganesforu@gmail.com":
-                    m_recipients.append("infiniteganesforu@gmail.com")
                 send_async_email(
                     subject=m_sub,
                     message=m_text,
                     html_message=m_html,
-                    recipient_list=m_recipients,
+                    recipient_list=[m_email],
                     from_name="ReturnGuard Operations",
                 )
         except Exception as e:

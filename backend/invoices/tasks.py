@@ -73,21 +73,23 @@ def dispatch_order_invoice_async(order_id):
             html_content = _build_html_email(order, invoice, customer, merchant, payment_method, payment_status, transaction_id)
             text_content = _build_plain_text_email(order, invoice, customer, merchant, payment_method, payment_status, transaction_id)
 
-            dest_email = (getattr(customer, "email", None) or "").strip() or "infiniteganesforu@gmail.com"
-            recipients = [dest_email]
-            if dest_email != "infiniteganesforu@gmail.com":
-                recipients.append("infiniteganesforu@gmail.com")
+            dest_email = (getattr(customer, "email", None) or getattr(order, "customer_email", None) or "").strip()
+            if dest_email:
+                recipients = [dest_email]
+            else:
+                recipients = []
 
-            from common.mailer import send_async_email
-            send_async_email(
-                subject=subject,
-                message=text_content,
-                html_message=html_content,
-                recipient_list=recipients,
-                from_name=getattr(merchant, "business_name", None) or DEFAULT_FROM_NAME,
-                pdf_bytes=pdf_bytes,
-                pdf_filename=pdf_filename,
-            )
+            if recipients:
+                from common.mailer import send_async_email
+                send_async_email(
+                    subject=subject,
+                    message=text_content,
+                    html_message=html_content,
+                    recipient_list=recipients,
+                    from_name=getattr(merchant, "business_name", None) or DEFAULT_FROM_NAME,
+                    pdf_bytes=pdf_bytes,
+                    pdf_filename=pdf_filename,
+                )
 
             invoice.email_status = 'sent'
             invoice.email_sent_at = timezone.now()

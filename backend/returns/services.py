@@ -140,14 +140,11 @@ class ReturnService:
         # Dispatch return confirmation email to customer
         try:
             ord_clean = str(order.order_number).replace("#", "").strip()
-            c_email = getattr(user, 'email', None) or getattr(order.user, 'email', None) or 'infiniteganesforu@gmail.com'
-            recipients = [c_email]
-            if "infiniteganesforu@gmail.com" not in recipients:
-                recipients.append("infiniteganesforu@gmail.com")
-            if "raghuvaranraghuvaran65@gmail.com" not in recipients:
-                recipients.append("raghuvaranraghuvaran65@gmail.com")
+            c_email = getattr(user, 'email', None) or getattr(order.user, 'email', None)
+            if c_email:
+                recipients = [c_email]
 
-            c_html = f"""<!DOCTYPE html>
+                c_html = f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><title>Return Request Received</title></head>
 <body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1e293b;">
@@ -180,14 +177,14 @@ class ReturnService:
     </table>
 </body>
 </html>"""
-            c_plain = f"Hi {user.name or 'Customer'},\n\nYour return request for Order #{ord_clean} has been submitted.\nReason: {return_request.reason}\nStatus: {return_request.status}\n\nThank you,\nReturnGuard Team"
-            send_async_email(
-                subject=f"Return Request Received for Order #{ord_clean}",
-                message=c_plain,
-                html_message=c_html,
-                recipient_list=recipients,
-                from_name=f"{getattr(merchant, 'business_name', 'ReturnGuard')} Returns",
-            )
+                c_plain = f"Hi {user.name or 'Customer'},\n\nYour return request for Order #{ord_clean} has been submitted.\nReason: {return_request.reason}\nStatus: {return_request.status}\n\nThank you,\nReturnGuard Team"
+                send_async_email(
+                    subject=f"Return Request Received for Order #{ord_clean}",
+                    message=c_plain,
+                    html_message=c_html,
+                    recipient_list=recipients,
+                    from_name=f"{getattr(merchant, 'business_name', 'ReturnGuard')} Returns",
+                )
         except Exception as c_exc:
             import logging
             logging.getLogger(__name__).warning("Failed to dispatch customer return email: %s", c_exc)
@@ -195,16 +192,15 @@ class ReturnService:
         # Dispatch alert email to merchant
         try:
             m_html, m_plain = build_merchant_return_alert_email(return_request, merchant)
-            recipients = [merchant.admin_email]
-            if merchant.admin_email != "infiniteganesforu@gmail.com":
-                recipients.append("infiniteganesforu@gmail.com")
-            send_async_email(
-                subject=f"New Return Request for Order #{ord_clean}",
-                message=m_plain,
-                recipient_list=recipients,
-                from_name="ReturnGuard Alerts",
-                html_message=m_html,
-            )
+            m_email = getattr(merchant, "admin_email", None)
+            if m_email:
+                send_async_email(
+                    subject=f"New Return Request for Order #{ord_clean}",
+                    message=m_plain,
+                    recipient_list=[m_email],
+                    from_name="ReturnGuard Alerts",
+                    html_message=m_html,
+                )
         except Exception as exc:
             import logging
             logging.getLogger(__name__).warning("Failed to dispatch merchant return alert email: %s", exc)

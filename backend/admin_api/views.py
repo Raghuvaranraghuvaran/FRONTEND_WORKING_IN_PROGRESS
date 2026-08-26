@@ -291,16 +291,14 @@ class ReviewReturnView(APIView):
                     merchant=merchant,
                     notes=notes,
                 )
-                recipients = [user_email]
-                if user_email != "infiniteganesforu@gmail.com":
-                    recipients.append("infiniteganesforu@gmail.com")
-                send_async_email(
-                    subject=c_subject,
-                    message=c_plain,
-                    recipient_list=recipients,
-                    from_name=f"{merchant.business_name} via ReturnGuard",
-                    html_message=c_html,
-                )
+                if user_email:
+                    send_async_email(
+                        subject=c_subject,
+                        message=c_plain,
+                        recipient_list=[user_email],
+                        from_name=f"{merchant.business_name} via ReturnGuard",
+                        html_message=c_html,
+                    )
             except Exception as exc:
                 import logging
                 logging.getLogger(__name__).warning("Failed to dispatch return decision email to %s: %s", user_email, exc)
@@ -376,16 +374,14 @@ class UpdateOrderStatusView(APIView):
 
             try:
                 c_html, c_plain = build_delivery_confirmation_email(order)
-                recipients = [order.user.email]
-                if order.user.email != "infiniteganesforu@gmail.com":
-                    recipients.append("infiniteganesforu@gmail.com")
-                send_async_email(
-                    subject=f"Delivered: Your Order #{order.order_number} Has Arrived!",
-                    message=c_plain,
-                    recipient_list=recipients,
-                    from_name=f"{merchant.business_name} via ReturnGuard",
-                    html_message=c_html,
-                )
+                if order.user and order.user.email:
+                    send_async_email(
+                        subject=f"Delivered: Your Order #{order.order_number} Has Arrived!",
+                        message=c_plain,
+                        recipient_list=[order.user.email],
+                        from_name=f"{merchant.business_name} via ReturnGuard",
+                        html_message=c_html,
+                    )
             except Exception as exc:
                 import logging
                 logging.getLogger(__name__).warning("Failed to dispatch delivery confirmation email: %s", exc)

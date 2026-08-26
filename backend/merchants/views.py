@@ -121,17 +121,14 @@ def _send_merchant_welcome_email(dest_email, merchant_username, password, busine
         "— The ReturnGuard Team"
     )
 
-    recipients = [dest_email]
-    if dest_email != "infiniteganesforu@gmail.com":
-        recipients.append("infiniteganesforu@gmail.com")
-
-    send_async_email(
-        subject=subject,
-        message=message,
-        html_message=html_body,
-        recipient_list=recipients,
-        from_name="ReturnGuard Merchant Support",
-    )
+    if dest_email:
+        send_async_email(
+            subject=subject,
+            message=message,
+            html_message=html_body,
+            recipient_list=[dest_email],
+            from_name="ReturnGuard Merchant Support",
+        )
 
 
 class MerchantRegisterView(APIView):
