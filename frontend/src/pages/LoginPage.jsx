@@ -19,6 +19,13 @@ function IconLock() {
     </svg>
   )
 }
+function IconMail() {
+  return (
+    <svg style={{ width: 15, height: 15, flexShrink: 0, color: '#6b7280' }} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+      <rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+    </svg>
+  )
+}
 function IconGoogle() {
   return (
     <svg style={{ width: 16, height: 16, flexShrink: 0 }} viewBox="0 0 24 24">
@@ -160,6 +167,8 @@ export default function LoginPage() {
           height: 46px !important;
           padding: 0 14px !important;
           background: #ffffff !important;
+          background-image: none !important;
+          background-repeat: no-repeat !important;
           border: 1.5px solid rgba(0,0,0,0.14) !important;
           border-radius: 10px !important;
           box-sizing: border-box !important;
@@ -168,6 +177,7 @@ export default function LoginPage() {
           margin-bottom: 16px !important;
           position: relative !important;
           overflow: hidden !important;
+          cursor: text !important;
           transition: border-color .15s, box-shadow .15s !important;
         }
         .rg-field:focus-within {
@@ -183,6 +193,8 @@ export default function LoginPage() {
           outline: none !important;
           box-shadow: none !important;
           background: transparent !important;
+          background-image: none !important;
+          background-repeat: no-repeat !important;
           font-size: 14px !important;
           font-weight: 500 !important;
           color: #0f172a !important;
@@ -190,11 +202,20 @@ export default function LoginPage() {
           margin: 0 !important;
           box-sizing: border-box !important;
           font-family: inherit !important;
+          cursor: text !important;
+          caret-color: ${A} !important;
+          pointer-events: auto !important;
+          user-select: text !important;
+          -webkit-user-select: text !important;
+          position: relative !important;
+          z-index: 5 !important;
         }
         .rg-input::placeholder { color: #9ca3af !important; }
         .rg-tab-btn:hover { background: rgba(111,92,240,0.12) !important; }
-        .rg-field, .rg-field * { background-image: none !important; }
-        .rg-field > *:not(input):not(button):not(svg) { display: none !important; visibility: hidden !important; }
+        .rg-field, .rg-field *, .rg-input, .rg-input * {
+          background-image: none !important;
+          background-repeat: no-repeat !important;
+        }
       `}</style>
 
       {/* ── Full-screen background image ──────────────────────────────────── */}
@@ -275,8 +296,18 @@ export default function LoginPage() {
                     <div className="rg-field" style={{ ...field, borderColor: 'rgba(0,0,0,0.12)', marginBottom: 18 }}>
                       <input
                         className="rg-input"
-                        type="email"
-                        autoComplete="email"
+                        type="text"
+                        inputMode="email"
+                        autoComplete="off"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck="false"
+                        data-lpignore="true"
+                        data-form-type="other"
+                        data-1p-ignore="true"
+                        data-tempmail-ignore="true"
+                        data-disable-tempmail="true"
+                        data-tempmail="false"
                         required
                         placeholder="you@example.com"
                         value={resetEmail}
@@ -431,28 +462,56 @@ export default function LoginPage() {
             {/* ── Password tab ─────────────────────────────────────────── */}
             {activeTab === 'pw' && (
               <form onSubmit={submitPassword}>
-                <label style={lbl}>Email Address</label>
-                <div className="rg-field" style={{ borderColor: focusedField === 'email' ? A : 'rgba(0,0,0,0.14)', boxShadow: focusedField === 'email' ? `0 0 0 3px ${A}22` : 'none' }}>
+                <label style={lbl} htmlFor="shopper-login-email">Email Address</label>
+                <div 
+                  onClick={() => document.getElementById('shopper-login-email')?.focus()}
+                  style={{
+                    width: '100%',
+                    height: '46px',
+                    padding: '0 14px',
+                    background: '#ffffff',
+                    border: `1.5px solid ${focusedField === 'email' ? A : 'rgba(0,0,0,0.14)'}`,
+                    borderRadius: '10px',
+                    boxSizing: 'border-box',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '16px',
+                    boxShadow: focusedField === 'email' ? `0 0 0 3px ${A}22` : 'none',
+                    transition: 'border-color .15s, box-shadow .15s',
+                    cursor: 'text',
+                  }}
+                >
+                  <IconMail />
                   <input
-                    className="rg-input"
+                    id="shopper-login-email"
                     type="email"
-                    name="auth_user_login"
-                    autoComplete="username"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck="false"
-                    data-lpignore="true"
-                    data-form-type="other"
-                    data-1p-ignore="true"
-                    data-tempmail-ignore="true"
-                    data-bwignore="true"
-                    data-disable-tempmail="true"
+                    name="shopper_email"
+                    autoComplete="email"
                     required
                     placeholder="you@example.com"
                     value={form.email}
                     onChange={e => setForm({ ...form, email: e.target.value })}
                     onFocus={() => setFocusedField('email')}
                     onBlur={() => setFocusedField('')}
+                    style={{
+                      border: 'none',
+                      outline: 'none',
+                      background: 'transparent',
+                      color: '#0f172a',
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      width: '100%',
+                      height: '100%',
+                      minWidth: 0,
+                      flex: 1,
+                      padding: '0 2px',
+                      margin: 0,
+                      cursor: 'text',
+                      caretColor: A,
+                      pointerEvents: 'auto',
+                      userSelect: 'text',
+                    }}
                   />
                 </div>
 
@@ -533,33 +592,58 @@ export default function LoginPage() {
             {activeTab === 'otp' && (!otpSent ? (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label style={{ ...lbl, marginBottom: 0 }}>Email Address</label>
+                  <label style={{ ...lbl, marginBottom: 0 }} htmlFor="shopper-otp-email">Email Address</label>
                   <span style={{ fontSize: 11.5, color: '#6b7280' }}>Passwordless login</span>
                 </div>
-                <div className="rg-field" style={{ borderColor: focusedField === 'otp_email' ? A : 'rgba(0,0,0,0.14)', boxShadow: focusedField === 'otp_email' ? `0 0 0 3px ${A}22` : 'none', marginBottom: 18 }}>
+                <div 
+                  onClick={() => document.getElementById('shopper-otp-email')?.focus()}
+                  style={{
+                    width: '100%',
+                    height: '46px',
+                    padding: '0 14px',
+                    background: '#ffffff',
+                    border: `1.5px solid ${focusedField === 'otp_email' ? A : 'rgba(0,0,0,0.14)'}`,
+                    borderRadius: '10px',
+                    boxSizing: 'border-box',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '18px',
+                    boxShadow: focusedField === 'otp_email' ? `0 0 0 3px ${A}22` : 'none',
+                    transition: 'border-color .15s, box-shadow .15s',
+                    cursor: 'text',
+                  }}
+                >
+                  <IconMail />
                   <input
-                    className="rg-input"
-                    type="text"
-                    inputMode="email"
-                    name="rg_clean_otp_email"
-                    id="rg_clean_otp_email"
-                    autoComplete="off"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck="false"
-                    data-lpignore="true"
-                    data-form-type="other"
-                    data-1p-ignore="true"
-                    data-tempmail-ignore="true"
-                    data-dashlane-ignore="true"
-                    data-bwignore="true"
-                    data-disable-tempmail="true"
+                    id="shopper-otp-email"
+                    type="email"
+                    name="shopper_otp_email"
+                    autoComplete="email"
                     required
                     placeholder="Enter your email address"
                     value={otpEmail}
                     onChange={e => setOtpEmail(e.target.value)}
                     onFocus={() => setFocusedField('otp_email')}
                     onBlur={() => setFocusedField('')}
+                    style={{
+                      border: 'none',
+                      outline: 'none',
+                      background: 'transparent',
+                      color: '#0f172a',
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      width: '100%',
+                      height: '100%',
+                      minWidth: 0,
+                      flex: 1,
+                      padding: '0 2px',
+                      margin: 0,
+                      cursor: 'text',
+                      caretColor: A,
+                      pointerEvents: 'auto',
+                      userSelect: 'text',
+                    }}
                   />
                 </div>
                 <motion.button type="button" disabled={submitting || !otpEmail.trim()} onClick={sendOTP}
@@ -689,11 +773,13 @@ const field = {
   borderRadius: 10, padding: '0 14px', marginBottom: 14,
   height: 46, boxSizing: 'border-box',
   position: 'relative', overflow: 'hidden',
+  backgroundImage: 'none', backgroundRepeat: 'no-repeat',
   transition: 'border-color .15s, box-shadow .15s',
 }
 const inp = {
   background: 'transparent', border: 'none', outline: 'none',
   color: '#0f172a', fontSize: 14, width: '100%',
+  backgroundImage: 'none', backgroundRepeat: 'no-repeat',
 }
 const btn = (bg) => ({
   width: '100%', height: 46, border: 'none', padding: '0', borderRadius: 10,

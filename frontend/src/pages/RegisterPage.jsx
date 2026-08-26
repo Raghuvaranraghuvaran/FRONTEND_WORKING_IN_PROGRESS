@@ -210,12 +210,18 @@ export default function RegisterPage() {
                 <Mail style={{ width: 16, height: 16, flexShrink: 0, color: '#6b7280' }} />
                 <input
                   className="rg-input"
-                  type="email"
+                  type="text"
+                  inputMode="email"
                   required
                   placeholder="you@example.com"
                   value={form.email}
                   onChange={update('email')}
-                  autoComplete="email"
+                  autoComplete="off"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  data-tempmail="false"
+                  data-tempmail-ignore="true"
+                  data-disable-tempmail="true"
                 />
               </div>
 

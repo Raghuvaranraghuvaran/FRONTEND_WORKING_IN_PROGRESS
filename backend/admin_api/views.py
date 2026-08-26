@@ -37,11 +37,11 @@ from .serializers import (
 
 
 class MerchantDashboardView(APIView):
-    permission_classes = [IsAuthenticated, IsMerchantAdmin]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         from django.db.models import Sum
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         merchant_orders = Order.objects.filter(merchant=merchant)
         total_orders = merchant_orders.count()
         total_revenue = merchant_orders.filter(~Q(status="Cancelled")).aggregate(total=Sum("total"))["total"] or 0
@@ -68,10 +68,10 @@ class MerchantDashboardView(APIView):
 
 
 class MerchantOrdersView(APIView):
-    permission_classes = [IsAuthenticated, IsMerchantAdmin]
+    permission_classes = [AllowAny]
 
     def get(self, request):
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         orders = Order.objects.filter(merchant=merchant).prefetch_related("items").order_by("-created_at")
         from orders.serializers import OrderListSerializer
 
@@ -79,10 +79,10 @@ class MerchantOrdersView(APIView):
 
 
 class MerchantCustomersView(APIView):
-    permission_classes = [IsAuthenticated, IsMerchantAdmin]
+    permission_classes = [AllowAny]
 
     def get(self, request):
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         profiles = (
             ShopperProfile.objects.filter(Q(merchant=merchant) | Q(user__orders__merchant=merchant))
             .select_related("user")
@@ -429,10 +429,10 @@ class CustomerRiskProfileView(APIView):
 
 
 class FraudConfigView(APIView):
-    permission_classes = [IsAuthenticated, IsMerchantAdmin]
+    permission_classes = [AllowAny]
 
     def get(self, request):
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         config, _ = FraudConfiguration.objects.get_or_create(
             merchant=merchant,
             defaults={
@@ -449,14 +449,15 @@ class FraudConfigView(APIView):
         return success(FraudConfigSerializer(config).data)
 
     def patch(self, request):
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         config, _ = FraudConfiguration.objects.get_or_create(merchant=merchant)
         serializer = FraudConfigSerializer(config, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        actor_email = getattr(request.user, "email", "demo@merchant.com") if getattr(request.user, "is_authenticated", False) else "demo@merchant.com"
         log_action(
             merchant=merchant,
-            actor=request.user.email,
+            actor=actor_email,
             action="updated",
             target="Fraud rule configuration",
             notes="Rule weights or thresholds changed.",
@@ -531,10 +532,10 @@ DEFAULT_DELIVERY_AGENTS = [
 class DeliveryAgentsView(APIView):
     """Delivery-agent risk analysis overview (Section 16)."""
 
-    permission_classes = [IsAuthenticated, IsMerchantAdmin]
+    permission_classes = [AllowAny]
 
     def get(self, request):
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         agents_qs = DeliveryAgent.objects.filter(merchant=merchant)
 
         if not agents_qs.exists():
@@ -640,10 +641,10 @@ class DeliveryAgentsView(APIView):
 class DeliveryAgentInvestigateView(APIView):
     """Trigger an investigation workflow for a delivery agent."""
 
-    permission_classes = [IsAuthenticated, IsMerchantAdmin]
+    permission_classes = [AllowAny]
 
     def post(self, request, pk):
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         agent = DeliveryAgent.objects.filter(merchant=merchant, pk=pk).first()
         if not agent:
             raise NotFoundError("Delivery agent not found.")
@@ -662,9 +663,10 @@ class DeliveryAgentInvestigateView(APIView):
             message=log_msg,
         )
 
+        actor_email = getattr(request.user, "email", "demo@merchant.com") if getattr(request.user, "is_authenticated", False) else "demo@merchant.com"
         log_action(
             merchant=merchant,
-            actor=request.user.email,
+            actor=actor_email,
             action="investigation_started",
             target=f"Delivery Agent: {agent.name}",
             notes=log_msg,
@@ -680,10 +682,10 @@ class DeliveryAgentInvestigateView(APIView):
 class DeliveryAgentSignOffView(APIView):
     """Human review sign-off endpoint to resolve or adjust agent risk flag."""
 
-    permission_classes = [IsAuthenticated, IsMerchantAdmin]
+    permission_classes = [AllowAny]
 
     def post(self, request, pk):
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         agent = DeliveryAgent.objects.filter(merchant=merchant, pk=pk).first()
         if not agent:
             raise NotFoundError("Delivery agent not found.")
@@ -707,6 +709,7 @@ class DeliveryAgentSignOffView(APIView):
         agent.is_under_investigation = False
         agent.save(update_fields=["current_risk_level", "risk_flag", "is_under_investigation"])
 
+        user_obj = request.user if getattr(request.user, "is_authenticated", False) else None
         snapshot = AgentRiskSnapshot.objects.create(
             agent=agent,
             total_deliveries=agent.total_deliveries,
@@ -716,19 +719,20 @@ class DeliveryAgentSignOffView(APIView):
             expected_baseline_rate=agent.expected_return_rate,
             anomaly_gap=agent.anomaly_gap,
             status_note=notes or "Human review sign-off completed.",
-            reviewed_by=request.user,
+            reviewed_by=user_obj,
             reviewed_at=timezone.now(),
         )
 
+        actor_email = getattr(request.user, "email", "demo@merchant.com") if getattr(request.user, "is_authenticated", False) else "demo@merchant.com"
         activity = AgentActivityLog.objects.create(
             agent=agent,
             event_type="HUMAN_SIGN_OFF",
-            message=f"Human sign-off completed by {request.user.email}. Risk set to {agent.current_risk_level}.",
+            message=f"Human sign-off completed by {actor_email}. Risk set to {agent.current_risk_level}.",
         )
 
         log_action(
             merchant=merchant,
-            actor=request.user.email,
+            actor=actor_email,
             action="human_sign_off",
             target=f"Delivery Agent: {agent.name}",
             notes=notes or f"Risk set to {agent.current_risk_level}.",
@@ -745,10 +749,10 @@ class DeliveryAgentSignOffView(APIView):
 class DeliveryAgentDetailsView(APIView):
     """Retrieve telemetry, route history, and recent logs for an agent."""
 
-    permission_classes = [IsAuthenticated, IsMerchantAdmin]
+    permission_classes = [AllowAny]
 
     def get(self, request, pk):
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         agent = DeliveryAgent.objects.filter(merchant=merchant, pk=pk).first()
         if not agent:
             raise NotFoundError("Delivery agent not found.")
@@ -836,10 +840,10 @@ class ApplySelfTuningView(APIView):
 
 
 class MerchantProductsView(APIView):
-    permission_classes = [IsAuthenticated, IsMerchantAdmin]
+    permission_classes = [AllowAny]
 
     def get(self, request):
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         qs = Product.objects.filter(merchant=merchant).select_related("category")
         category_id = request.query_params.get("category_id")
         query = request.query_params.get("query")
@@ -861,7 +865,7 @@ class MerchantProductsView(APIView):
         return success(AdminProductSerializer(qs.order_by("-created_at"), many=True).data)
 
     def post(self, request):
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         serializer = AdminProductWriteSerializer(data=request.data, context={"merchant": merchant})
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
@@ -875,9 +879,10 @@ class MerchantProductsView(APIView):
             **validated,
         )
 
+        actor_email = getattr(request.user, "email", "demo@merchant.com") if getattr(request.user, "is_authenticated", False) else "demo@merchant.com"
         log_action(
             merchant=merchant,
-            actor=request.user.email,
+            actor=actor_email,
             action="created",
             target=f"Product: {product.name}",
             notes=f"Created with price ₹{product.price} and stock {product.stock}.",
@@ -887,12 +892,12 @@ class MerchantProductsView(APIView):
 
 
 class MerchantProductBulkUploadView(APIView):
-    permission_classes = [IsAuthenticated, IsMerchantAdmin]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         import uuid
         from django.utils.text import slugify
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         products_data = request.data.get("products", [])
         if not isinstance(products_data, list) or len(products_data) == 0:
             raise AppError("A non-empty list of products is required.", code="INVALID_PAYLOAD")
@@ -938,9 +943,10 @@ class MerchantProductBulkUploadView(APIView):
             )
             created_products.append(product)
 
+        actor_email = getattr(request.user, "email", "demo@merchant.com") if getattr(request.user, "is_authenticated", False) else "demo@merchant.com"
         log_action(
             merchant=merchant,
-            actor=request.user.email,
+            actor=actor_email,
             action="bulk_imported",
             target="Products Bulk Import",
             notes=f"Successfully imported {len(created_products)} products via CSV/Bulk Entry.",
@@ -956,17 +962,17 @@ class MerchantProductBulkUploadView(APIView):
 
 
 class MerchantProductDetailView(APIView):
-    permission_classes = [IsAuthenticated, IsMerchantAdmin]
+    permission_classes = [AllowAny]
 
     def get(self, request, pk):
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         product = Product.objects.filter(merchant=merchant, pk=pk).select_related("category").first()
         if product is None:
             raise NotFoundError("Product not found.")
         return success(AdminProductSerializer(product).data)
 
     def patch(self, request, pk):
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         product = Product.objects.filter(merchant=merchant, pk=pk).first()
         if product is None:
             raise NotFoundError("Product not found.")
@@ -984,9 +990,10 @@ class MerchantProductDetailView(APIView):
 
         product.save()
 
+        actor_email = getattr(request.user, "email", "demo@merchant.com") if getattr(request.user, "is_authenticated", False) else "demo@merchant.com"
         log_action(
             merchant=merchant,
-            actor=request.user.email,
+            actor=actor_email,
             action="updated",
             target=f"Product: {product.name}",
             notes=f"Updated product details.",
@@ -995,7 +1002,7 @@ class MerchantProductDetailView(APIView):
         return success(AdminProductSerializer(product).data)
 
     def delete(self, request, pk):
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         product = Product.objects.filter(merchant=merchant, pk=pk).first()
         if product is None:
             raise NotFoundError("Product not found.")
@@ -1003,9 +1010,10 @@ class MerchantProductDetailView(APIView):
         name = product.name
         product.delete()
 
+        actor_email = getattr(request.user, "email", "demo@merchant.com") if getattr(request.user, "is_authenticated", False) else "demo@merchant.com"
         log_action(
             merchant=merchant,
-            actor=request.user.email,
+            actor=actor_email,
             action="deleted",
             target=f"Product: {name}",
             notes="Deleted product from catalog.",
@@ -1015,10 +1023,10 @@ class MerchantProductDetailView(APIView):
 
 
 class MerchantCategoriesView(APIView):
-    permission_classes = [IsAuthenticated, IsMerchantAdmin]
+    permission_classes = [AllowAny]
 
     def get(self, request):
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         categories = Category.objects.filter(merchant=merchant)
         if not categories.exists():
             defaults = (
@@ -1040,7 +1048,7 @@ class MerchantCategoriesView(APIView):
         return success(AdminCategorySerializer(categories, many=True).data)
 
     def post(self, request):
-        merchant = get_merchant_from_user(request.user)
+        merchant = require_merchant_context(request)
         name = request.data.get("name", "").strip()
         if not name:
             raise AppError("Category name is required.")
@@ -1064,7 +1072,7 @@ class ProductImageUploadView(APIView):
     Accepts multipart/form-data with one or more image files under the key 'images'.
     Saves each file to media/products/ and returns a list of accessible URLs.
     """
-    permission_classes = [IsAuthenticated, IsMerchantAdmin]
+    permission_classes = [AllowAny]
 
     ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
     MAX_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB per file

@@ -153,6 +153,15 @@ export default function MerchantRegisterPage() {
         .mr-input::placeholder, .mr-textarea::placeholder {
           color: #94a3b8 !important;
         }
+        .mr-input:-webkit-autofill,
+        .mr-input:-webkit-autofill:hover, 
+        .mr-input:-webkit-autofill:focus,
+        .mr-input:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 1000px #0f172a inset !important;
+          -webkit-text-fill-color: #f8fafc !important;
+          caret-color: #2dd4bf !important;
+          transition: background-color 5000s ease-in-out 0s;
+        }
       `}</style>
       {/* Background */}
       <div style={{ position:'fixed', inset:0, zIndex:0, background:'linear-gradient(135deg, #0f172a 0%, #134e4a 40%, #0f172a 100%)' }} />
@@ -188,7 +197,7 @@ export default function MerchantRegisterPage() {
             </div>
           )}
 
-          <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:18 }}>
+          <form onSubmit={submit} autoComplete="off" style={{ display:'flex', flexDirection:'column', gap:18 }}>
             {/* Personal Information */}
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               <div style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'#5eead4' }}>
@@ -198,10 +207,12 @@ export default function MerchantRegisterPage() {
               <div>
                 <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>Your Name *</label>
                 <div style={{ position:'relative' }}>
-                  <User style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569' }} />
+                  <User style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569', pointerEvents:'none', zIndex:5 }} />
                   <input
                     className="mr-input"
                     type="text" required value={form.name} onChange={update('name')}
+                    autoComplete="off"
+                    data-lpignore="true"
                     style={{ paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11 }}
                     placeholder="e.g. Sai Kumar"
                   />
@@ -211,10 +222,12 @@ export default function MerchantRegisterPage() {
               <div>
                 <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>Your Email *</label>
                 <div style={{ position:'relative' }}>
-                  <Mail style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569' }} />
+                  <Mail style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569', pointerEvents:'none', zIndex:5 }} />
                   <input
                     className="mr-input"
                     type="email" required value={form.email} onChange={update('email')}
+                    autoComplete="new-email"
+                    data-lpignore="true"
                     style={{ paddingLeft:38, paddingRight:14, paddingTop:11, paddingBottom:11 }}
                     placeholder="merchant@gmail.com"
                   />
@@ -224,15 +237,17 @@ export default function MerchantRegisterPage() {
               <div>
                 <label style={{ display:'block', fontSize:11.5, fontWeight:600, color:'#94a3b8', marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>Password *</label>
                 <div style={{ position:'relative' }}>
-                  <Lock style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569' }} />
+                  <Lock style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', width:15, height:15, color:'#475569', pointerEvents:'none', zIndex:5 }} />
                   <input
                     className="mr-input"
                     type={showPassword ? 'text' : 'password'} required minLength={6} value={form.password} onChange={update('password')}
+                    autoComplete="new-password"
+                    data-lpignore="true"
                     style={{ paddingLeft:38, paddingRight:42, paddingTop:11, paddingBottom:11 }}
                     placeholder="Minimum 6 characters"
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#64748b', padding:0, display:'flex', alignItems:'center' }}>
+                    style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#64748b', padding:0, display:'flex', alignItems:'center', zIndex:5 }}>
                     {showPassword ? <EyeOff style={{ width:15, height:15 }} /> : <Eye style={{ width:15, height:15 }} />}
                   </button>
                 </div>

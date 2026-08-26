@@ -1,6 +1,12 @@
-const API_BASE_URL = String(
-  import.meta.env.VITE_API_URL || 'https://frontend-working-in-progress.onrender.com/api'
-).replace(/\/$/, '')
+const API_BASE_URL = (() => {
+  if (import.meta.env.VITE_API_URL) {
+    return String(import.meta.env.VITE_API_URL).replace(/\/$/, '')
+  }
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return 'http://localhost:8000/api'
+  }
+  return 'https://frontend-working-in-progress.onrender.com/api'
+})()
 
 export function hasLiveApi() {
   return Boolean(API_BASE_URL)
