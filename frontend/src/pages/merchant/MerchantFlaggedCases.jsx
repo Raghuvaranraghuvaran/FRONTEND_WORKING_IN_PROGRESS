@@ -318,28 +318,26 @@ export default function MerchantFlaggedCases() {
     try {
       if (['approve', 'reject', 'product_returned', 'refund_processed'].includes(actionType)) {
         const returnId = selected.id || selected.order_number
-        const updatedReturn = await api.reviewReturn({
+        await api.reviewReturn({
           returnId,
           action: actionType,
           notes: decisionNotes,
         })
-
-        setSelected((prev) => prev ? { ...prev, status: updatedReturn.status, outcome: updatedReturn.outcome } : prev)
-        load()
-        return
+      } else {
+        await api.performMerchantAction({
+          customerId: custId,
+          action: actionType,
+          notes: decisionNotes,
+        })
       }
 
-      await api.performMerchantAction({
-        customerId: custId,
-        action: actionType,
-        notes: decisionNotes,
-      })
-
-      const updated = await api.getCustomerReview(custId).catch(() => null)
-      if (updated) setCustomerReview(updated)
-      load()
+      await load()
+      // Automatically close the panel after decision is executed
+      setSelected(null)
     } catch (err) {
       console.warn('Action sync notice:', err)
+      await load()
+      setSelected(null)
     } finally {
       setActionLoading(false)
     }
@@ -560,9 +558,19 @@ export default function MerchantFlaggedCases() {
                       Customer: <strong>{selected.customer_name}</strong> ({selected.customer_email || 'customer@example.com'})
                     </p>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs text-slate-500">Order Amount</span>
-                    <p className="text-lg font-extrabold text-slate-900">₹{selected.order_total || selected.total || 6499}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <span className="text-xs text-slate-500">Order Amount</span>
+                      <p className="text-lg font-extrabold text-slate-900">₹{selected.order_total || selected.total || 6499}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(null)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer"
+                      title="Close review panel"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
 
