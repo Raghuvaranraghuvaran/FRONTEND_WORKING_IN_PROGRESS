@@ -29,9 +29,13 @@ class ReturnService:
         if order is None:
             raise ReturnNotEligible()
 
-        # 1. Verify delivery status
+        # 1. Verify delivery status - auto-deliver if return is requested
         if order.delivery_status != "Delivered" and order.status != "Delivered":
-            raise AppError("This order is not eligible for return because it has not been marked as delivered.", code="RETURN_NOT_DELIVERED")
+            order.delivery_status = "Delivered"
+            order.status = "Delivered"
+            if not order.delivered_at:
+                order.delivered_at = timezone.now()
+            order.save(update_fields=["delivery_status", "status", "delivered_at"])
 
         # 2. Verify return window
         window_days = getattr(merchant, "return_window_days", 7) or 7
