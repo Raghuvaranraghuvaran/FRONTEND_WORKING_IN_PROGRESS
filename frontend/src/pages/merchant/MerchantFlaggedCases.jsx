@@ -16,7 +16,8 @@ import {
   ExternalLink,
   MessageSquare,
   AlertTriangle,
-  FileText
+  FileText,
+  X
 } from 'lucide-react'
 
 const ESCALATION_STEPS = [
