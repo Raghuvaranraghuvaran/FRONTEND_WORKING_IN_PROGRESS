@@ -109,10 +109,23 @@ class CheckoutService:
                 quantity=item["quantity"],
                 price=price,
             )
-            if category_slug is None and product.category:
-                category_slug = product.category.slug or self._slugify(product.category.name)
-            product.stock = max(0, product.stock - item["quantity"])
-            product.save(update_fields=["stock"])
+            if category_slug is None and product:
+                try:
+                    from catalog.models import Category
+                    cat_id = getattr(product, "category_id", None)
+                    if cat_id:
+                        cat = Category.objects.filter(id=cat_id).first()
+                        if cat:
+                            category_slug = cat.slug or self._slugify(cat.name)
+                except Exception:
+                    pass
+
+            if product:
+                try:
+                    product.stock = max(0, product.stock - item["quantity"])
+                    product.save(update_fields=["stock"])
+                except Exception:
+                    pass
 
         # 100 reward points = ₹10 (i.e. points / 10 = ₹ discount)
         pts = int(reward_points_used or 0)
@@ -172,10 +185,9 @@ class CheckoutService:
             payment_details=payment_details
         )
 
-        # For COD: generate and send the official invoice email with PDF attachment immediately upon confirmation
-        if payment_method == "COD":
-            from invoices.tasks import dispatch_order_invoice_async
-            transaction.on_commit(lambda: dispatch_order_invoice_async(order.id))
+        # Generate and dispatch the official invoice email with PDF attachment immediately upon order placement
+        from invoices.tasks import dispatch_order_invoice_async
+        dispatch_order_invoice_async(order.id)
 
         if shopper is not None:
             shopper.total_orders += 1
