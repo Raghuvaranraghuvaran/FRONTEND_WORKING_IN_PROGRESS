@@ -4,13 +4,28 @@ from .models import Order, OrderItem
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+    title = serializers.CharField(source="name", read_only=True)
+
     class Meta:
         model = OrderItem
-        fields = ("product_id", "name", "quantity", "price")
+        fields = ("id", "product_id", "name", "title", "quantity", "price", "image")
+
+    def get_image(self, obj):
+        if obj.product and obj.product.image:
+            return obj.product.image
+        from catalog.models import Product
+        if obj.product_id:
+            p = Product.objects.filter(id=obj.product_id).first()
+            if p and p.image:
+                return p.image
+        return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=400&q=80"
 
 
 class OrderListSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    customer_name = serializers.SerializerMethodField()
+    customer_email = serializers.CharField(source="user.email", read_only=True)
     invoice = serializers.SerializerMethodField()
     is_delivered = serializers.SerializerMethodField()
     can_track = serializers.SerializerMethodField()
@@ -24,6 +39,7 @@ class OrderListSerializer(serializers.ModelSerializer):
             "merchant_id",
             "user_id",
             "customer_name",
+            "customer_email",
             "items",
             "subtotal",
             "discount",
@@ -53,6 +69,13 @@ class OrderListSerializer(serializers.ModelSerializer):
             "tracking_events",
             "invoice",
         )
+
+    def get_customer_name(self, obj):
+        if obj.customer_name:
+            return obj.customer_name
+        if obj.user:
+            return obj.user.name or (obj.user.email.split("@")[0] if obj.user.email else "Valued Customer")
+        return "Valued Customer"
 
     def get_is_delivered(self, obj):
         st = str(getattr(obj, "delivery_status", "") or getattr(obj, "status", "")).strip().lower()
