@@ -320,11 +320,14 @@ class AddressListView(APIView):
         if profile is None:
             from common.exceptions import AppError
 
-            raise AppError("Shopper profile required.", code="SHOPPER_PROFILE_REQUIRED")
         serializer = AddressSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(shopper=profile)
-        return success(serializer.data, status=status.HTTP_201_CREATED)
+        line = serializer.validated_data.get("line", "").strip()
+        existing = profile.addresses.filter(line__iexact=line).first()
+        if existing:
+            return success(AddressSerializer(existing).data, status=status.HTTP_200_OK)
+        instance = serializer.save(shopper=profile)
+        return success(AddressSerializer(instance).data, status=status.HTTP_201_CREATED)
 
 
 class AddressDetailView(APIView):
