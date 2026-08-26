@@ -137,6 +137,14 @@ function mapToOrderSchema(raw, returnsList = []) {
     }
   }
 
+  const custName =
+    raw.customer_name ||
+    raw.customerName ||
+    (raw.user?.name) ||
+    (raw.user?.email ? raw.user.email.split('@')[0] : 'Valued Customer')
+
+  const custEmail = raw.customer_email || raw.customerEmail || raw.user?.email || ''
+
   return {
     id: orderNum,
     rawId: raw.id,
@@ -144,6 +152,8 @@ function mapToOrderSchema(raw, returnsList = []) {
     placedAt: raw.created_at || raw.placedAt || new Date().toISOString(),
     totalAmount: Number(raw.total || raw.total_amount || 0),
     status: normalizedStatus,
+    customerName: custName,
+    customerEmail: custEmail,
     items,
     returnEligibility: {
       isEligible,
@@ -153,7 +163,7 @@ function mapToOrderSchema(raw, returnsList = []) {
     invoice: raw.invoice,
     paymentMethod: raw.payment_method || 'Prepaid',
     trackingEvents: raw.tracking_events || [],
-    deliveryAddress: raw.delivery_address || '14, Lake View Street, Chennai, TN',
+    deliveryAddress: raw.delivery_address || '14, Lake View Street, Adyar, Chennai - 600020',
     cancellationReason: raw.cancellation_reason,
   }
 }
@@ -679,9 +689,13 @@ export default function OrdersPage() {
                       <div className="flex items-start justify-between gap-2 pb-2">
                         <div>
                           <h2 className="text-base font-bold text-slate-900 tracking-tight">Order {order.id}</h2>
-                          <p className="text-[11px] text-slate-500">{formatDate(order.placedAt)}</p>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                            <p className="text-[11px] text-slate-500">{formatDate(order.placedAt)}</p>
+                            <span className="text-[10px] text-slate-300">·</span>
+                            <p className="text-[11px] font-semibold text-slate-700">Recipient: {order.customerName}</p>
+                          </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                           <span className="inline-block rounded-xl bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs font-extrabold text-indigo-700">
                             {formatPrice(order.totalAmount)}
                           </span>
@@ -948,28 +962,49 @@ export default function OrdersPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {returns.map((ret) => (
-              <div key={ret.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <span className="font-mono text-xs font-bold text-indigo-600">#{ret.id}</span>
-                      <h2 className="text-base font-bold text-slate-900">Return for {ret.order_number}</h2>
-                      <span className="rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-[11px] font-bold text-indigo-700 capitalize">
-                        {ret.status?.replaceAll('_', ' ')}
-                      </span>
-                    </div>
-                    <p className="mt-1.5 text-xs text-slate-500">
-                      Requested on {formatDate(ret.created_at)} · Reason:{' '}
-                      <strong className="text-slate-700 capitalize">{ret.reason?.replaceAll('_', ' ')}</strong>
-                    </p>
-                    {ret.refund_method && (
-                      <p className="mt-1 text-xs text-slate-500">
-                        Refund Mode: <span className="font-semibold text-slate-700 capitalize">{ret.refund_method}</span>
+            {returns.map((ret) => {
+              const itemsList = ret.return_lines?.length > 0 ? ret.return_lines : ret.items || []
+              return (
+                <div key={ret.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <span className="font-mono text-xs font-bold text-indigo-600">#{ret.id}</span>
+                        <h2 className="text-base font-bold text-slate-900">
+                          Return for {ret.order_number || (ret.order_id ? `#${ret.order_id}` : `Order #${ret.id}`)}
+                        </h2>
+                        <span className="rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-[11px] font-bold text-indigo-700 capitalize">
+                          {ret.status?.replaceAll('_', ' ') || 'In Review'}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 text-xs text-slate-500">
+                        Requested on {formatDate(ret.created_at)} · Reason:{' '}
+                        <strong className="text-slate-700 capitalize">{ret.reason?.replaceAll('_', ' ')}</strong>
                       </p>
-                    )}
+                      {ret.refund_method && (
+                        <p className="mt-1 text-xs text-slate-500">
+                          Refund Mode: <span className="font-semibold text-slate-700 capitalize">{ret.refund_method}</span>
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
+
+                  {/* Returned Items preview if available */}
+                  {itemsList.length > 0 && (
+                    <div className="mt-3.5 pt-3 border-t border-slate-100 flex flex-wrap gap-3">
+                      {itemsList.map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-2.5 bg-slate-50 rounded-xl px-3 py-1.5 border border-slate-100">
+                          {item.image && (
+                            <img src={item.image} alt={item.name} className="w-8 h-8 rounded-lg object-cover" />
+                          )}
+                          <div>
+                            <p className="text-xs font-bold text-slate-800 line-clamp-1">{item.name || item.product_name}</p>
+                            <p className="text-[11px] text-slate-500">Qty: {item.quantity || 1} {item.price ? `· ₹${item.price}` : ''}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                 <div className="mt-4 rounded-xl bg-slate-50 p-4 border border-slate-100">
                   <p className="text-xs font-bold text-slate-900 mb-2">Return & Pickup Timeline</p>
@@ -991,9 +1026,10 @@ export default function OrdersPage() {
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
-        ))}
+        )
+      )}
       </motion.div>
     </AnimatePresence>
   )}
@@ -1093,24 +1129,34 @@ export default function OrdersPage() {
             </div>
 
             <div className="mt-4 space-y-4 text-xs">
-              {/* Placed date and status summary */}
-              <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3 border border-slate-100">
+              {/* Placed date, customer and status summary */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 rounded-xl bg-slate-50 p-3.5 border border-slate-100">
                 <div>
-                  <span className="text-slate-500">Placed on:</span>
-                  <p className="font-semibold text-slate-900">{formatDate(detailsModalOrder.placedAt)}</p>
+                  <span className="text-slate-500">Recipient Name:</span>
+                  <p className="font-bold text-slate-900">{detailsModalOrder.customerName}</p>
                 </div>
                 <div>
-                  <span className="text-slate-500">Payment:</span>
+                  <span className="text-slate-500">Placed on:</span>
+                  <p className="font-semibold text-slate-900">{formatDateTime(detailsModalOrder.placedAt)}</p>
+                </div>
+                <div>
+                  <span className="text-slate-500">Payment Mode:</span>
                   <p className="font-semibold text-slate-900">{detailsModalOrder.paymentMethod}</p>
                 </div>
                 <div>
-                  <span className="text-slate-500">Delivery Status:</span>
-                  <p className="font-semibold text-slate-900">{detailsModalOrder.status}</p>
+                  <span className="text-slate-500">Order & Delivery Status:</span>
+                  <p className="font-semibold text-indigo-700">{detailsModalOrder.status}</p>
                 </div>
-                <div>
+                <div className="sm:col-span-2">
                   <span className="text-slate-500">Delivery Address:</span>
-                  <p className="font-semibold text-slate-900 truncate">{detailsModalOrder.deliveryAddress}</p>
+                  <p className="font-semibold text-slate-900">{detailsModalOrder.deliveryAddress}</p>
                 </div>
+                {detailsModalOrder.customerEmail && (
+                  <div className="sm:col-span-2">
+                    <span className="text-slate-500">Account Email:</span>
+                    <p className="font-medium text-slate-700">{detailsModalOrder.customerEmail}</p>
+                  </div>
+                )}
               </div>
 
               {/* Items Breakdown */}
