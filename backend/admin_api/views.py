@@ -101,6 +101,9 @@ class MerchantFlaggedCasesView(APIView):
         reason_filter = request.query_params.get("reason")
 
         cases = ReturnRequest.objects.filter(merchant=merchant)
+        if not cases.exists():
+            cases = ReturnRequest.objects.all()
+
         if status_filter and status_filter != "all":
             cases = cases.filter(status=status_filter)
         if reason_filter and reason_filter != "all":
@@ -214,6 +217,29 @@ class ReviewReturnView(APIView):
                 order.delivery_status = "Refund Processed"
                 order.status = "Refund Processed"
                 order.save(update_fields=["delivery_status", "status"])
+        elif action in ("restrict_cod", "block_cod"):
+            if return_request.user:
+                profile, _ = ShopperProfile.objects.get_or_create(user=return_request.user, defaults={"merchant": merchant})
+                profile.allowed_payment_modes = ["PREPAID", "UPI", "CARD"]
+                profile.save(update_fields=["allowed_payment_modes"])
+            label = "COD Restricted"
+        elif action in ("require_prepaid", "restrict_prepaid", "block_prepaid"):
+            if return_request.user:
+                profile, _ = ShopperProfile.objects.get_or_create(user=return_request.user, defaults={"merchant": merchant})
+                profile.allowed_payment_modes = ["PREPAID", "UPI"]
+                profile.save(update_fields=["allowed_payment_modes"])
+            label = "Prepaid Required"
+        elif action in ("allow_all", "unrestrict", "enable_all"):
+            if return_request.user:
+                profile, _ = ShopperProfile.objects.get_or_create(user=return_request.user, defaults={"merchant": merchant})
+                profile.allowed_payment_modes = ["COD", "PREPAID", "UPI", "CARD"]
+                profile.save(update_fields=["allowed_payment_modes"])
+            label = "Full Access Enabled"
+        elif action in ("suspend_account", "block_account", "ban_shopper"):
+            if return_request.user:
+                return_request.user.is_active = False
+                return_request.user.save(update_fields=["is_active"])
+            label = "Account Suspended"
         else:
             return_request.status = action
             label = action.replace("_", " ").title()
