@@ -21,9 +21,7 @@ export default function CheckoutPage() {
   // --- All React state hooks strictly at the top level ---
   const [paymentMethod, setPaymentMethod] = useState('COD')
   const [paymentDetails, setPaymentDetails] = useState({})
-  const [selectedAddressId, setSelectedAddressId] = useState(
-    shopper?.addresses?.[0]?.id || DEFAULT_PRIMARY_ADDRESS.id
-  )
+  const [addressChoice, setAddressChoice] = useState('default') // 'default' | 'custom'
   const [customAddress, setCustomAddress] = useState('')
   const [altPhone, setAltPhone] = useState('')
   const [step, setStep] = useState('checkout')
@@ -39,18 +37,13 @@ export default function CheckoutPage() {
   const [rewardPointsInput, setRewardPointsInput] = useState('')
   const [prepaidBonusApplied, setPrepaidBonusApplied] = useState(false)
 
-  const addresses = (shopper?.addresses && shopper.addresses.length > 0)
-    ? shopper.addresses
-    : [DEFAULT_PRIMARY_ADDRESS]
-
-  useEffect(() => {
+  const defaultAddress = useMemo(() => {
     if (shopper?.addresses && shopper.addresses.length > 0) {
-      const found = shopper.addresses.some((a) => a.id === selectedAddressId)
-      if (!found && selectedAddressId !== 'custom') {
-        setSelectedAddressId(shopper.addresses[0].id)
-      }
+      const primary = shopper.addresses.find((a) => a.is_primary)
+      return primary || shopper.addresses[0]
     }
-  }, [shopper, selectedAddressId])
+    return DEFAULT_PRIMARY_ADDRESS
+  }, [shopper?.addresses])
 
   const availableRewardPoints = shopper?.reward_points ?? 1000
   const subtotal = (cart || []).reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0)
@@ -77,10 +70,9 @@ export default function CheckoutPage() {
   const prepaidDiscount = prepaidBonusApplied && paymentMethod !== 'COD' ? 50 : 0
   const finalTotal = Math.max(0, remainingBeforePoints - rewardDiscount - prepaidDiscount)
 
-  const selectedAddress = addresses.find((a) => String(a.id) === String(selectedAddressId))
-  const baseAddressLine = selectedAddressId === 'custom'
+  const baseAddressLine = addressChoice === 'custom'
     ? customAddress.trim()
-    : (selectedAddress ? selectedAddress.line : (addresses?.[0]?.line || DEFAULT_PRIMARY_ADDRESS.line))
+    : (defaultAddress?.line || DEFAULT_PRIMARY_ADDRESS.line)
 
   const deliveryAddressLine = altPhone.trim()
     ? `${baseAddressLine} (Alt Phone: ${altPhone.trim()})`
@@ -134,7 +126,7 @@ export default function CheckoutPage() {
     e.preventDefault()
     setError('')
 
-    if (selectedAddressId === 'custom' && !customAddress.trim()) {
+    if (addressChoice === 'custom' && !customAddress.trim()) {
       setError('Please enter your alternate delivery address.')
       return
     }
@@ -158,9 +150,9 @@ export default function CheckoutPage() {
 
     setSubmitting(true)
     try {
-      if (shopper && customAddress && selectedAddressId === 'custom') {
+      if (shopper && customAddress && addressChoice === 'custom') {
         try {
-          await api.addAddress({ line: customAddress, label: 'Home' })
+          await api.addAddress({ line: customAddress.trim(), label: 'Home' })
         } catch {
           // address save optional
         }
@@ -594,64 +586,59 @@ export default function CheckoutPage() {
             </div>
 
             <div className="space-y-3">
-              {/* Default Registered Address */}
-              {addresses.map((address, idx) => (
-                <label
-                  key={address.id}
-                  className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
-                    selectedAddressId === address.id
-                      ? 'border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-500'
-                      : 'border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="address"
-                    value={address.id}
-                    checked={String(selectedAddressId) === String(address.id)}
-                    onChange={() => setSelectedAddressId(address.id)}
-                    className="mt-1 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-bold text-slate-900">{address.label || 'Registered Address'}</p>
-                      {idx === 0 && (
-                        <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200 uppercase tracking-wider">
-                          Default
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1 text-sm text-slate-600 leading-relaxed">{address.line}</p>
-                  </div>
-                </label>
-              ))}
-
-              {/* Alternate Address Option */}
+              {/* Option 1: Single Default Delivery Address */}
               <label
                 className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
-                  selectedAddressId === 'custom'
+                  addressChoice === 'default'
                     ? 'border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-500'
                     : 'border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 <input
                   type="radio"
-                  name="address"
+                  name="address_choice"
+                  value="default"
+                  checked={addressChoice === 'default'}
+                  onChange={() => setAddressChoice('default')}
+                  className="mt-1 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-slate-900">{defaultAddress.label || 'Home'}</p>
+                    <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200 uppercase tracking-wider">
+                      Default
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-600 leading-relaxed">{defaultAddress.line}</p>
+                </div>
+              </label>
+
+              {/* Option 2: Alternate / New Address */}
+              <label
+                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
+                  addressChoice === 'custom'
+                    ? 'border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-500'
+                    : 'border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="address_choice"
                   value="custom"
-                  checked={selectedAddressId === 'custom'}
-                  onChange={() => setSelectedAddressId('custom')}
-                  className="mt-1 text-indigo-600 focus:ring-indigo-500"
+                  checked={addressChoice === 'custom'}
+                  onChange={() => setAddressChoice('custom')}
+                  className="mt-1 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                 />
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                       <span>➕</span> Deliver to Alternate / New Address
                     </p>
-                    <span className="text-[11px] text-indigo-600 font-semibold">Custom</span>
+                    <span className="text-[11px] text-indigo-600 font-semibold">New Address</span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">Specify a different shipping address or recipient contact number.</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Specify a different delivery address or recipient contact number.</p>
 
-                  {selectedAddressId === 'custom' && (
+                  {addressChoice === 'custom' && (
                     <div className="mt-3 space-y-2.5">
                       <div>
                         <label className="block text-[11px] font-semibold text-slate-700 mb-1">
