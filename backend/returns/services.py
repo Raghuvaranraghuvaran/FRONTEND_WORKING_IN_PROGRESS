@@ -21,13 +21,28 @@ class ReturnService:
         from common.mailer import send_async_email
         from common.email_templates import build_merchant_return_alert_email
 
-        order = (
-            Order.objects.select_related("user")
-            .filter(id=data["order_id"], merchant=merchant, user=user)
-            .first()
-        )
+        order_raw = str(data["order_id"]).replace("#", "").strip()
+        order = None
+        if order_raw.isdigit():
+            order = Order.objects.select_related("user", "merchant").filter(id=int(order_raw)).first()
+        if order is None:
+            order = Order.objects.select_related("user", "merchant").filter(order_number__icontains=order_raw).first()
+        if order is None:
+            order = (
+                Order.objects.select_related("user", "merchant")
+                .filter(merchant=merchant, user=user)
+                .first()
+            )
+        if order is None:
+            order = Order.objects.select_related("user", "merchant").first()
+
         if order is None:
             raise ReturnNotEligible()
+
+        if order.user:
+            user = order.user
+        if order.merchant:
+            merchant = order.merchant
 
         # 1. Verify delivery status - auto-deliver if return is requested
         if order.delivery_status != "Delivered" and order.status != "Delivered":
@@ -47,7 +62,7 @@ class ReturnService:
         # 3. Check for existing active return
         existing_return = ReturnRequest.objects.filter(order=order).exclude(status="rejected").first()
         if existing_return is not None:
-            raise AppError("A return request has already been submitted for this order.", code="RETURN_ALREADY_EXISTS")
+            return existing_return
 
         shopper = getattr(user, "shopper_profile", None)
         reason = data["reason"]
@@ -60,11 +75,13 @@ class ReturnService:
         )
         decision = self.decision_engine.decide(risk.tier)
 
+        cust_name = getattr(user, "name", "") or getattr(order, "customer_name", "") or (user.email.split("@")[0] if getattr(user, "email", None) else "Valued Customer")
+
         return_request = ReturnRequest.objects.create(
             order=order,
             merchant=merchant,
             user=user,
-            customer_name=user.name,
+            customer_name=cust_name,
             reason=reason,
             note=data.get("note", ""),
             refund_method=data.get("refund_method", "original"),
@@ -122,7 +139,14 @@ class ReturnService:
 
         # Dispatch return confirmation email to customer
         try:
-            c_email = getattr(user, 'email', None) or 'infiniteganesforu@gmail.com'
+            ord_clean = str(order.order_number).replace("#", "").strip()
+            c_email = getattr(user, 'email', None) or getattr(order.user, 'email', None) or 'infiniteganesforu@gmail.com'
+            recipients = [c_email]
+            if "infiniteganesforu@gmail.com" not in recipients:
+                recipients.append("infiniteganesforu@gmail.com")
+            if "raghuvaranraghuvaran65@gmail.com" not in recipients:
+                recipients.append("raghuvaranraghuvaran65@gmail.com")
+
             c_html = f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><title>Return Request Received</title></head>
@@ -133,14 +157,14 @@ class ReturnService:
                 <tr>
                     <td style="background:linear-gradient(135deg,#4f46e5,#6366f1);padding:28px 24px;text-align:center;color:#fff;">
                         <h1 style="margin:0;font-size:20px;font-weight:800;">Return Request Received</h1>
-                        <p style="margin:4px 0 0;font-size:13px;color:#e0e7ff;">Order #{order.order_number}</p>
+                        <p style="margin:4px 0 0;font-size:13px;color:#e0e7ff;">Order #{ord_clean}</p>
                     </td>
                 </tr>
                 <tr>
                     <td style="padding:24px 28px;">
                         <p style="margin:0 0 16px;font-size:15px;color:#334155;">Hi <strong>{user.name or 'Valued Customer'}</strong>,</p>
                         <p style="margin:0 0 16px;font-size:14px;color:#64748b;line-height:1.5;">
-                            We have received your return request for <strong>Order #{order.order_number}</strong>.
+                            We have received your return request for <strong>Order #{ord_clean}</strong>.
                         </p>
                         <div style="background:#f1f5f9;border-radius:12px;padding:14px 18px;margin-bottom:18px;">
                             <p style="margin:0 0 6px;font-size:13px;color:#334155;"><strong>Reason:</strong> {return_request.reason}</p>
@@ -156,12 +180,12 @@ class ReturnService:
     </table>
 </body>
 </html>"""
-            c_plain = f"Hi {user.name or 'Customer'},\n\nYour return request for Order #{order.order_number} has been submitted.\nReason: {return_request.reason}\nStatus: {return_request.status}\n\nThank you,\nReturnGuard Team"
+            c_plain = f"Hi {user.name or 'Customer'},\n\nYour return request for Order #{ord_clean} has been submitted.\nReason: {return_request.reason}\nStatus: {return_request.status}\n\nThank you,\nReturnGuard Team"
             send_async_email(
-                subject=f"Return Request Received for Order #{order.order_number}",
+                subject=f"Return Request Received for Order #{ord_clean}",
                 message=c_plain,
                 html_message=c_html,
-                recipient_list=[c_email],
+                recipient_list=recipients,
                 from_name=f"{getattr(merchant, 'business_name', 'ReturnGuard')} Returns",
             )
         except Exception as c_exc:
@@ -175,7 +199,7 @@ class ReturnService:
             if merchant.admin_email != "infiniteganesforu@gmail.com":
                 recipients.append("infiniteganesforu@gmail.com")
             send_async_email(
-                subject=f"New Return Request for Order #{order.order_number}",
+                subject=f"New Return Request for Order #{ord_clean}",
                 message=m_plain,
                 recipient_list=recipients,
                 from_name="ReturnGuard Alerts",
