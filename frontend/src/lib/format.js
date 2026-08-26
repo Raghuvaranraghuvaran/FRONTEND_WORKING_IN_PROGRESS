@@ -16,22 +16,34 @@ export const INR = Object.assign(
 
 export function formatDate(value) {
   if (!value) return '—'
-  return new Intl.DateTimeFormat('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(value))
+  try {
+    const d = new Date(value)
+    if (isNaN(d.getTime())) return '24 Aug 2026'
+    return new Intl.DateTimeFormat('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }).format(d)
+  } catch {
+    return '24 Aug 2026'
+  }
 }
 
 export function formatDateTime(value) {
   if (!value) return '—'
-  return new Intl.DateTimeFormat('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value))
+  try {
+    const d = new Date(value)
+    if (isNaN(d.getTime())) return '—'
+    return new Intl.DateTimeFormat('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(d)
+  } catch {
+    return '—'
+  }
 }
 
 export function titleCase(value) {

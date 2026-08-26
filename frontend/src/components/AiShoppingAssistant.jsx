@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
+  Bot,
   Sparkles,
   ShoppingBag,
   X,
@@ -389,12 +390,16 @@ export default function AiShoppingAssistant() {
                 setIsOpen(true)
                 setShowBadge(false)
               }}
-              className="relative flex h-14 w-14 items-center justify-center rounded-2xl shadow-2xl transition-all duration-300 cursor-pointer bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-600 text-white ring-4 ring-indigo-400/20 hover:shadow-indigo-500/25"
+              style={{
+                background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                color: '#ffffff',
+              }}
+              className="relative flex h-14 w-14 items-center justify-center rounded-2xl shadow-2xl transition-all duration-300 cursor-pointer text-white ring-4 ring-indigo-400/30 hover:shadow-indigo-500/40"
               aria-label="Open AI Assistant"
             >
-              <div className="relative">
+              <div className="relative flex items-center justify-center">
                 <Sparkles className="h-6 w-6 text-white animate-pulse" />
-                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-emerald-400 ring-2 ring-indigo-600" />
+                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-400 ring-2 ring-indigo-600" />
               </div>
             </motion.button>
           </div>
@@ -419,7 +424,7 @@ export default function AiShoppingAssistant() {
             <div className="relative flex items-center justify-between border-b border-slate-800/90 bg-gradient-to-r from-slate-900 via-indigo-950/70 to-slate-900 px-4 py-3.5 sm:px-5">
               <div className="flex items-center gap-3">
                 <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/20 ring-1 ring-white/20">
-                  <Sparkles className="h-5 w-5" />
+                  <Sparkles className="h-5 w-5 text-white" />
                   <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-slate-900" />
                 </div>
                 <div>

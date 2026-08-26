@@ -20,8 +20,38 @@ input, button, select, textarea {
   outline: none;
 }
 
+input, textarea {
+  cursor: text !important;
+  caret-color: #4f46e5 !important;
+  pointer-events: auto !important;
+  user-select: text !important;
+}
+
 input:focus-visible, input:focus, input:active {
   outline: none;
+}
+
+/* ── Block browser extensions (TempMail, Autofill) from injecting repeated background icons ── */
+input, input.rg-input, .rg-field, .rg-input, .ml-field, .ml-input {
+  background-image: none !important;
+  background-repeat: no-repeat !important;
+}
+
+input::-webkit-credentials-auto-fill-button,
+[class*="tempmail" i]:not(input),
+[id*="tempmail" i]:not(input),
+[class*="temp-mail" i]:not(input),
+[data-tempmail-icon],
+img[src*="tempmail" i],
+svg[class*="tempmail" i],
+button[class*="tempmail" i],
+a[class*="tempmail" i] {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .font-mono-num {

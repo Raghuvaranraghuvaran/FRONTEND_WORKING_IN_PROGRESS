@@ -219,18 +219,7 @@ export default function MerchantLayout() {
 
         {/* Main Routed Page Content */}
         <main className="flex-1 min-w-0 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, scale: 0.968, y: 8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.982, y: -6 }}
-              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-              className="h-full w-full"
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
+          <Outlet />
         </main>
       </div>
     </div>
