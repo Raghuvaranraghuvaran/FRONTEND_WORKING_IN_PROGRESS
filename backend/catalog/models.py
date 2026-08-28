@@ -18,6 +18,16 @@ class Category(TimestampedModel):
         verbose_name_plural = "categories"
         unique_together = ("merchant", "name")
 
+    # ── Return Policy per Category (CP26) ───────────────
+    return_window_days = models.PositiveIntegerField(default=7)
+    refund_allowed = models.BooleanField(default=True)
+    replacement_allowed = models.BooleanField(default=True)
+    exchange_allowed = models.BooleanField(default=True)
+    proof_required = models.BooleanField(default=False)
+    inspection_required = models.BooleanField(default=False)
+    non_returnable = models.BooleanField(default=False)
+    max_replacements = models.PositiveIntegerField(default=1, help_text="Max replacements per order (CP24)")
+
     def save(self, *args, **kwargs):
         if not self.id:
             import uuid
@@ -53,6 +63,15 @@ class Product(TimestampedModel):
     return_window_days = models.PositiveIntegerField(default=30)
     rating = models.DecimalField(max_digits=3, decimal_places=1, default=4.5)
     review_count = models.PositiveIntegerField(default=0)
+
+    # ── Return Rate Tracking (CP27) ─────────────────────
+    total_returns_count = models.PositiveIntegerField(default=0,
+        help_text="Number of times this product has been returned")
+    total_sold_count = models.PositiveIntegerField(default=0,
+        help_text="Number of times this product has been sold")
+    # Accessories shipped with this product (for CP18 verification)
+    included_accessories = models.JSONField(default=list,
+        help_text="List of accessories included with this product, e.g. ['Charger', 'Cable', 'Manual']")
 
     def save(self, *args, **kwargs):
         if not self.id:

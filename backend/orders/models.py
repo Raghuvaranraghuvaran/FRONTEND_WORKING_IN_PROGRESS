@@ -75,6 +75,11 @@ class Order(TimestampedModel):
     cancellation_notes = models.TextField(blank=True, default="")
     tracking_events = models.JSONField(default=list)
 
+    # ── Risk Checkpoint Fields ──────────────────────────
+    # CP25: Open-Box / Delivery-Time Verification
+    open_box_delivery = models.BooleanField(default=False)
+    customer_accepted_open_box = models.BooleanField(default=False)
+
     def __str__(self):
         return self.order_number
 
@@ -94,6 +99,14 @@ class OrderItem(models.Model):
     is_final_sale = models.BooleanField(
         default=False, help_text="Non-returnable item"
     )
+
+    # ── Product Verification Fields (CP17b) ─────────────
+    serial_number = models.CharField(max_length=128, blank=True, default="",
+        help_text="Serial number recorded at time of shipment")
+    imei_number = models.CharField(max_length=64, blank=True, default="",
+        help_text="IMEI number for mobile devices")
+    barcode = models.CharField(max_length=128, blank=True, default="",
+        help_text="Barcode scanned at shipment")
 
     def __str__(self):
         return f"{self.name} x{self.quantity}"

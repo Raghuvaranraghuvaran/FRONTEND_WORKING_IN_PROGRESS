@@ -15,6 +15,7 @@ import OrdersPage from './pages/OrdersPage'
 import ReturnRequestPage from './pages/ReturnRequestPage'
 import ProfilePage from './pages/ProfilePage'
 import WishlistPage from './pages/WishlistPage'
+import NotificationsPage from './pages/NotificationsPage'
 import HelpPage from './pages/HelpPage'
 import ReturnTrackingPage from './pages/ReturnTrackingPage'
 import PaymentSuccessPage from './pages/PaymentSuccessPage'
@@ -27,6 +28,7 @@ import MerchantProducts from './pages/merchant/MerchantProducts'
 import MerchantOrders from './pages/merchant/MerchantOrders'
 import MerchantCustomers from './pages/merchant/MerchantCustomers'
 import MerchantFlaggedCases from './pages/merchant/MerchantFlaggedCases'
+import MerchantFlaggedCaseDetail from './pages/merchant/MerchantFlaggedCaseDetail'
 import MerchantAuditLog from './pages/merchant/MerchantAuditLog'
 import MerchantAnalytics from './pages/merchant/MerchantAnalytics'
 import MerchantSettings from './pages/merchant/MerchantSettings'
@@ -89,6 +91,7 @@ function AppRoutes() {
         <Route path="/track-return" element={<RequireShopper><OrdersPage /></RequireShopper>} />
         <Route path="/returns/:returnId/track" element={<RequireShopper><ReturnTrackingPage /></RequireShopper>} />
         <Route path="/orders/:orderId/return" element={<RequireShopper><ReturnRequestPage /></RequireShopper>} />
+        <Route path="/notifications" element={<RequireShopper><NotificationsPage /></RequireShopper>} />
         <Route path="/profile" element={<RequireShopper><ProfilePage /></RequireShopper>} />
       </Route>
 
@@ -114,6 +117,7 @@ function AppRoutes() {
         <Route path="orders" element={<MerchantOrders />} />
         <Route path="customers" element={<MerchantCustomers />} />
         <Route path="flagged-cases" element={<MerchantFlaggedCases />} />
+        <Route path="flagged-cases/:caseId" element={<MerchantFlaggedCaseDetail />} />
         <Route path="audit-log" element={<MerchantAuditLog />} />
         <Route path="analytics" element={<MerchantAnalytics />} />
         <Route path="onboarding" element={<MerchantOnboarding />} />

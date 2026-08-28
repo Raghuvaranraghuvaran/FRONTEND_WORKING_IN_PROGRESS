@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
-import React from 'react'
+import { api } from '../mock/api'
+import React, { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 
 // ── Sidebar nav item ──────────────────────────────────────────────────────────
@@ -53,9 +54,17 @@ function SidebarItem({ to, icon, label, active, badge, onClick }) {
 }
 
 export default function ShopperSidebar({ onClose }) {
-  const { wishlist } = useApp()
+  const { wishlist, shopper } = useApp()
   const location = useLocation()
   const wishlistCount = wishlist?.length || 0
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0)
+
+  useEffect(() => {
+    api.getNotifications(shopper?.id).then((notifs) => {
+      const unread = (notifs || []).filter((n) => !n.read).length
+      setUnreadNotifCount(unread)
+    }).catch(() => {})
+  }, [shopper, location.pathname])
 
   const handleNav = () => {
     if (onClose) onClose()
@@ -119,6 +128,12 @@ export default function ShopperSidebar({ onClose }) {
           to="/wishlist" icon="❤️" label="Wishlist"
           active={location.pathname === '/wishlist'}
           badge={wishlistCount}
+          onClick={handleNav}
+        />
+        <SidebarItem
+          to="/notifications" icon="🔔" label="Notifications"
+          active={location.pathname === '/notifications'}
+          badge={unreadNotifCount}
           onClick={handleNav}
         />
         <SidebarItem

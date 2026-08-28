@@ -42,6 +42,7 @@ class ReturnRequestSerializer(serializers.ModelSerializer):
             "user_id",
             "customer_name",
             "customer_email",
+            "type",
             "reason",
             "note",
             "refund_method",
@@ -54,6 +55,7 @@ class ReturnRequestSerializer(serializers.ModelSerializer):
             "verification_method",
             "risk_context",
             "signals",
+            "checkpoint_signals",
             "return_lines",
             "pickup_slot",
             "proof_image_url",
@@ -62,6 +64,29 @@ class ReturnRequestSerializer(serializers.ModelSerializer):
             "created_at",
             "reviewed_by",
             "reviewed_at",
+            # Shopper-submitted verification
+            "shopper_serial_number",
+            "shopper_imei_number",
+            "shopper_reported_condition",
+            # Agent verification
+            "returned_serial_number",
+            "returned_imei_number",
+            "serial_mismatch",
+            "imei_mismatch",
+            "product_condition",
+            "packaging_condition",
+            "accessories_expected",
+            "accessories_returned",
+            "accessories_missing",
+            "quantity_claimed",
+            "quantity_received",
+            "is_product_swap_detected",
+            "swap_details",
+            "original_reason",
+            "reason_changed",
+            "verified_by",
+            "verified_at",
+            "verification_notes",
         )
 
     def get_timeline(self, obj):
@@ -71,6 +96,7 @@ class ReturnRequestSerializer(serializers.ModelSerializer):
 class CreateReturnSerializer(serializers.Serializer):
     order_id = serializers.CharField()
     reason = serializers.CharField()
+    type = serializers.CharField(required=False, default="REFUND")
     note = serializers.CharField(required=False, allow_blank=True, default="")
     proof_image_url = serializers.CharField(required=False, allow_blank=True, default="")
     refund_method = serializers.CharField(required=False, default="original")
@@ -81,6 +107,35 @@ class CreateReturnSerializer(serializers.Serializer):
         child=serializers.DictField(), required=False, default=list
     )
     pickup_slot = serializers.CharField(required=False, allow_blank=True, default="")
+    # Shopper-submitted verification fields
+    serial_number = serializers.CharField(required=False, allow_blank=True, default="")
+    imei_number = serializers.CharField(required=False, allow_blank=True, default="")
+    product_condition = serializers.CharField(required=False, default="unknown")
+    quantity = serializers.IntegerField(required=False, default=1)
+
+
+class ProductVerificationSerializer(serializers.Serializer):
+    """Serializer for agent/warehouse product verification submission."""
+    returned_serial_number = serializers.CharField(required=False, allow_blank=True, default="")
+    returned_imei_number = serializers.CharField(required=False, allow_blank=True, default="")
+    product_condition = serializers.ChoiceField(
+        choices=["unused", "used", "damaged", "soiled", "tampered", "tag_removed", "unknown"],
+        default="unknown"
+    )
+    packaging_condition = serializers.ChoiceField(
+        choices=["original_intact", "original_damaged", "different_box", "no_packaging", "not_inspected"],
+        default="not_inspected"
+    )
+    accessories_returned = serializers.ListField(
+        child=serializers.CharField(), required=False, default=list
+    )
+    quantity_received = serializers.IntegerField(required=False, default=None)
+    is_product_swap_detected = serializers.BooleanField(required=False, default=False)
+    swap_details = serializers.CharField(required=False, allow_blank=True, default="")
+    verification_notes = serializers.CharField(required=False, allow_blank=True, default="")
+    verification_images = serializers.ListField(
+        child=serializers.CharField(), required=False, default=list
+    )
 
 
 class DoorstepProofSerializer(serializers.ModelSerializer):

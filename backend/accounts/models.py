@@ -61,6 +61,31 @@ class ShopperProfile(models.Model):
     device_reuse_flag = models.BooleanField(default=False)
     joined_at = models.DateTimeField(auto_now_add=True)
 
+    # ── Risk Checkpoint Tracking Fields ──────────────────
+    # CP1: Frequent Size Exchanges
+    size_exchange_count = models.PositiveIntegerField(default=0)
+    # CP5: High-Value Item Returns — average order value baseline
+    avg_order_value = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    # CP8: Same Product Repeatedly Returned
+    same_product_return_count = models.PositiveIntegerField(default=0)
+    # CP9: Frequent Damage Claims
+    damage_claim_count = models.PositiveIntegerField(default=0)
+    # CP10: Damage Claim Without Evidence
+    damage_no_evidence_count = models.PositiveIntegerField(default=0)
+    # CP11: Return Reason Inconsistency
+    reason_change_count = models.PositiveIntegerField(default=0)
+    # CP14: High Refund-to-Order Ratio
+    total_refund_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_purchase_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    # CP16: Previous Rejected Returns
+    rejected_return_count = models.PositiveIntegerField(default=0)
+    # CP17a: Unusual Order Quantity — normal average items per order
+    avg_items_per_order = models.DecimalField(max_digits=6, decimal_places=2, default=1)
+    # CP23: Duplicate Return Requests
+    duplicate_return_request_count = models.PositiveIntegerField(default=0)
+    # CP24: Repeated Replacement count
+    replacement_count = models.PositiveIntegerField(default=0)
+
     def __str__(self):
         return f"{self.user.email} shopper profile"
 

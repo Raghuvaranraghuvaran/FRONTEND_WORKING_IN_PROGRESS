@@ -198,7 +198,7 @@ export default function MerchantLayout() {
 
         
         {/* Desktop Fixed Left Sidebar */}
-        <aside className="hidden lg:block w-60 shrink-0 border-r border-slate-200 bg-white min-h-[calc(100vh-4rem)]">
+        <aside className="hidden lg:block w-60 shrink-0 border-r border-slate-200 bg-white sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
           <MerchantSidebar />
         </aside>
 

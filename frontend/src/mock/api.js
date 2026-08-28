@@ -298,66 +298,336 @@ function findShopperByEmail(email) {
 function computeRisk(input = {}) {
   let score = 10
   const signals = []
+  const checkpoints = []
 
+  // Check category return policy (CP26)
+  const categoryId = input.categoryId || (input.returnLines?.[0]?.product_id && store.products.find((p) => p.id === input.returnLines[0].product_id)?.category_id) || null
+  const catObj = store.categories?.find(c => c.id === categoryId)
+  
+  // ── TYPE A: ELIGIBILITY CHECK ──
+  const isNonReturnable = catObj?.non_returnable || false
+  const refundAllowed = catObj?.refund_allowed !== false
+  const returnType = input.type || 'REFUND'
+  let eligible = true
+  const eligReasons = []
+
+  if (isNonReturnable) {
+    eligible = false
+    eligReasons.push('Category is non-returnable')
+  }
+  if (returnType === 'REFUND' && !refundAllowed) {
+    eligible = false
+    eligReasons.push('Refunds not allowed for this category')
+  }
+
+  checkpoints.push({
+    id: 'CP26',
+    name: 'Return Policy Eligibility',
+    tier_type: 'A',
+    score_delta: eligible ? 0 : 100,
+    severity: eligible ? 'pass' : 'critical',
+    signals: eligible ? ['Product and category returnable under 7-day policy'] : eligReasons,
+  })
+
+  if (!eligible) {
+    return {
+      score: 100,
+      tier: 'Critical',
+      signals: eligReasons,
+      checkpoints,
+      recommended_action: 'reject',
+    }
+  }
+
+  // ── TYPE B: PRODUCT VERIFICATION ──
+  // CP17b: Serial / IMEI Mismatch
+  let serialDelta = 0
+  const serialSigs = []
+  if (input.serial_mismatch || (input.returned_serial_number && input.original_serial && input.returned_serial_number.toUpperCase() !== input.original_serial.toUpperCase())) {
+    serialDelta = 50
+    serialSigs.push(`⚠️ CRITICAL: Serial number mismatch — '${input.returned_serial_number}' vs '${input.original_serial}'`)
+  }
+  checkpoints.push({
+    id: 'CP17b',
+    name: 'Serial & IMEI Verification',
+    tier_type: 'B',
+    score_delta: serialDelta,
+    severity: serialDelta >= 40 ? 'critical' : 'pass',
+    signals: serialSigs.length ? serialSigs : ['Serial/IMEI numbers match outbound delivery'],
+  })
+  score += serialDelta
+  signals.push(...serialSigs)
+
+  // CP21: Product Swap
+  let swapDelta = 0
+  const swapSigs = []
+  if (input.is_product_swap_detected) {
+    swapDelta = 50
+    swapSigs.push(`⚠️ CRITICAL: Product swap detected — ${input.swap_details || 'different product returned'}`)
+  }
+  checkpoints.push({
+    id: 'CP21',
+    name: 'Product Swap Detection',
+    tier_type: 'B',
+    score_delta: swapDelta,
+    severity: swapDelta >= 40 ? 'critical' : 'pass',
+    signals: swapSigs.length ? swapSigs : ['Returned product SKU matches original'],
+  })
+  score += swapDelta
+  signals.push(...swapSigs)
+
+  // CP19: Product Condition
+  let condDelta = 0
+  const condSigs = []
+  const condition = input.product_condition || input.shopper_reported_condition || 'unused'
+  if (condition === 'tampered') {
+    condDelta = 20
+    condSigs.push('Product tampered / warranty seal broken')
+  } else if (condition === 'soiled') {
+    condDelta = 15
+    condSigs.push('Product soiled / visible stains or odor')
+  } else if (condition === 'tag_removed') {
+    condDelta = 12
+    condSigs.push('Return security tag removed')
+  } else if (condition === 'used') {
+    condDelta = 10
+    condSigs.push('Product shows signs of wear / usage')
+  }
+  checkpoints.push({
+    id: 'CP19',
+    name: 'Product Condition Inspection',
+    tier_type: 'B',
+    score_delta: condDelta,
+    severity: condDelta >= 15 ? 'high' : condDelta > 0 ? 'medium' : 'pass',
+    signals: condSigs.length ? condSigs : ['Product in pristine, unused condition with original tags'],
+  })
+  score += condDelta
+  signals.push(...condSigs)
+
+  // CP20: Packaging Condition
+  let packDelta = 0
+  const packSigs = []
+  const packaging = input.packaging_condition || 'original_intact'
+  if (packaging === 'different_box') {
+    packDelta = 20
+    packSigs.push('Returned in wrong/different packaging')
+  } else if (packaging === 'no_packaging') {
+    packDelta = 15
+    packSigs.push('No original packaging included')
+  } else if (packaging === 'original_damaged') {
+    packDelta = 5
+    packSigs.push('Original packaging damaged')
+  }
+  checkpoints.push({
+    id: 'CP20',
+    name: 'Packaging Condition',
+    tier_type: 'B',
+    score_delta: packDelta,
+    severity: packDelta >= 15 ? 'high' : packDelta > 0 ? 'low' : 'pass',
+    signals: packSigs.length ? packSigs : ['Original packaging intact'],
+  })
+  score += packDelta
+  signals.push(...packSigs)
+
+  // CP18: Missing Accessories
+  let accDelta = 0
+  const accSigs = []
+  const missingAcc = input.accessories_missing || []
+  if (missingAcc.length > 0) {
+    accDelta = 15
+    accSigs.push(`Missing accessories: ${missingAcc.join(', ')}`)
+  }
+  checkpoints.push({
+    id: 'CP18',
+    name: 'Accessories Verification',
+    tier_type: 'B',
+    score_delta: accDelta,
+    severity: accDelta > 0 ? 'high' : 'pass',
+    signals: accSigs.length ? accSigs : ['All box accessories returned'],
+  })
+  score += accDelta
+  signals.push(...accSigs)
+
+  // CP22: Quantity Mismatch
+  let qtyDelta = 0
+  const qtySigs = []
+  if (input.quantity_received !== undefined && input.quantity_claimed && input.quantity_received < input.quantity_claimed) {
+    qtyDelta = 20
+    qtySigs.push(`Quantity mismatch — claimed ${input.quantity_claimed}, received ${input.quantity_received}`)
+  }
+  checkpoints.push({
+    id: 'CP22',
+    name: 'Return Quantity Verification',
+    tier_type: 'B',
+    score_delta: qtyDelta,
+    severity: qtyDelta > 0 ? 'high' : 'pass',
+    signals: qtySigs.length ? qtySigs : ['Claimed quantity matches received items'],
+  })
+  score += qtyDelta
+  signals.push(...qtySigs)
+
+  // ── TYPE C: CUSTOMER BEHAVIOR SIGNALS ──
+  const shopper = session.shopper ? findShopperByEmail(session.shopper.email) : null
+  const ordersCount = shopper?.total_orders || 1
+  const returnsCount = shopper?.total_returns || 0
+  const returnRate = returnsCount / ordersCount
+
+  // CP1-3: Size Exchanges & Multiple Sizes (Bracketing)
+  let sizeDelta = 0
+  const sizeSigs = []
+  const variantCount = input.returnLines?.length || 1
+  if (variantCount >= 3) {
+    sizeDelta += 15
+    sizeSigs.push(`Multiple variants/sizes ordered in single order (${variantCount} items) — bracketing pattern`)
+  }
+  if (shopper?.size_exchange_count && shopper.size_exchange_count >= 2) {
+    sizeDelta += 10
+    sizeSigs.push(`Frequent size exchange history (${shopper.size_exchange_count} exchanges)`)
+  }
+  checkpoints.push({
+    id: 'CP1-3',
+    name: 'Size Exchanges & Bracketing',
+    tier_type: 'C',
+    score_delta: sizeDelta,
+    severity: sizeDelta >= 15 ? 'high' : sizeDelta > 0 ? 'medium' : 'pass',
+    signals: sizeSigs.length ? sizeSigs : ['Normal sizing purchase pattern'],
+  })
+  score += sizeDelta
+  signals.push(...sizeSigs)
+
+  // CP4: Wardrobing Detection
+  let wardrobingDelta = 0
+  const wardrobingSigs = []
+  if (categoryId === 'cat_ethnic' && input.reason === 'changed_mind') {
+    wardrobingDelta = 25
+    wardrobingSigs.push('Festive ethnic item returned with changed mind reason (potential wardrobing)')
+  }
+  checkpoints.push({
+    id: 'CP4',
+    name: 'Wardrobing Detection',
+    tier_type: 'C',
+    score_delta: wardrobingDelta,
+    severity: wardrobingDelta >= 20 ? 'high' : 'pass',
+    signals: wardrobingSigs.length ? wardrobingSigs : ['No wardrobing indicators detected'],
+  })
+  score += wardrobingDelta
+  signals.push(...wardrobingSigs)
+
+  // CP5: High Value Return & Manual Verification Gate
+  let hvDelta = 0
+  const hvSigs = []
+  const orderTotal = Number(input.orderTotal || input.total || 0)
+  if (orderTotal >= 5000) {
+    hvDelta = 30
+    hvSigs.push(`🚨 High-value claim (₹${orderTotal.toLocaleString('en-IN')} ≥ ₹5,000 threshold) — Mandatory Physical Verification Required`)
+  } else if (orderTotal >= 3000) {
+    hvDelta = 10
+    hvSigs.push(`Above-average order value return (₹${orderTotal.toLocaleString('en-IN')})`)
+  }
+  checkpoints.push({
+    id: 'CP5',
+    name: 'High-Value Item Return Ratio',
+    tier_type: 'C',
+    score_delta: hvDelta,
+    severity: hvDelta >= 25 ? 'critical' : hvDelta > 0 ? 'medium' : 'pass',
+    signals: hvSigs.length ? hvSigs : ['Return value is within normal purchase baseline (< ₹3,000)'],
+  })
+  score += hvDelta
+  signals.push(...hvSigs)
+
+  // CP9-10: Damage Claims & Photo Evidence
+  let damageDelta = 0
+  const damageSigs = []
+  if (input.reason === 'damaged' || input.reason === 'broken') {
+    if (!input.images || input.images.length === 0) {
+      damageDelta = 20
+      damageSigs.push('Damage claim submitted without unboxing/photo evidence')
+    } else {
+      damageDelta = 5
+      damageSigs.push('Damage claim with photo proof provided')
+    }
+  }
+  checkpoints.push({
+    id: 'CP9-10',
+    name: 'Damage Claims & Evidence Proof',
+    tier_type: 'C',
+    score_delta: damageDelta,
+    severity: damageDelta >= 15 ? 'high' : damageDelta > 0 ? 'low' : 'pass',
+    signals: damageSigs.length ? damageSigs : ['Non-damage return reason'],
+  })
+  score += damageDelta
+  signals.push(...damageSigs)
+
+  // CP14: Refund-to-Order Ratio
+  let refundDelta = 0
+  const refundSigs = []
+  if (returnRate > 0.4) {
+    refundDelta = 25
+    refundSigs.push(`High refund ratio (${(returnRate * 100).toFixed(0)}% return rate across ${ordersCount} orders)`)
+  } else if (returnRate > 0.2) {
+    refundDelta = 12
+    refundSigs.push(`Elevated return frequency (${(returnRate * 100).toFixed(0)}%)`)
+  } else {
+    refundDelta = -5
+    refundSigs.push('Low customer return frequency')
+  }
+  checkpoints.push({
+    id: 'CP14',
+    name: 'Refund-to-Order Ratio & Frequency',
+    tier_type: 'C',
+    score_delta: refundDelta,
+    severity: refundDelta >= 20 ? 'high' : refundDelta > 0 ? 'medium' : 'pass',
+    signals: refundSigs,
+  })
+  score += refundDelta
+  signals.push(...refundSigs)
+
+  // CP27: Customer vs Product Return Rate
+  checkpoints.push({
+    id: 'CP27',
+    name: 'Customer vs Product Return Benchmark',
+    tier_type: 'C',
+    score_delta: 0,
+    severity: 'pass',
+    signals: ['Product category baseline return rate (7.8%) within normal bounds'],
+  })
+
+  // CP28: Customer Tenure & Account Loyalty
+  let tenureDelta = 0
+  const tenureSigs = []
+  if (shopper && ordersCount >= 5 && returnRate < 0.2) {
+    tenureDelta = -8
+    tenureSigs.push('Established loyal shopper with positive delivery history')
+  }
+  checkpoints.push({
+    id: 'CP28',
+    name: 'Customer Tenure & Loyalty',
+    tier_type: 'C',
+    score_delta: tenureDelta,
+    severity: 'pass',
+    signals: tenureSigs.length ? tenureSigs : ['Standard customer account profile'],
+  })
+  score += tenureDelta
+  if (tenureSigs.length) signals.push(...tenureSigs)
+
+  // Payment Method check (COD)
   if (input.paymentMethod === 'COD') {
     score += 5
     signals.push('COD order')
   }
 
-  const shopper = session.shopper ? findShopperByEmail(session.shopper.email) : null
-  if (shopper) {
-    const returnRate = shopper.total_orders ? shopper.total_returns / shopper.total_orders : 0
-    if (returnRate > 0.4) {
-      score += 32
-      signals.push('High return frequency')
-    } else if (returnRate > 0.2) {
-      score += 16
-      signals.push('Elevated return frequency')
-    } else {
-      score -= 5
-      signals.push('Low return frequency')
-    }
-
-    if (shopper.total_cod_refusals > 0) {
-      score += 18
-      signals.push('COD refusal history')
-    }
-
-    if (shopper.device_reuse_flag) {
-      score += 22
-      signals.push('Device reuse')
-    }
-
-    if (shopper.risk_tier === 'Low') {
-      score -= 8
-      signals.push('Known low-risk customer')
-    }
-  }
-
-  const category = (input.categoryId && store.products.find((p) => p.id === input.categoryId)?.category_id) || null
-  if (category === 'cat_ethnic') {
-    score += 14
-    signals.push('Festive category')
-  }
-
-  if (input.reason) {
-    const reasonWeights = {
-      changed_mind: 12,
-      wrong_size: 4,
-      damaged: 2,
-      wrong_product: 6,
-      missing_item: 4,
-      quality: 5,
-      not_as_described: 8,
-      other: 10,
-    }
-    score += reasonWeights[input.reason] || 6
-    signals.push('Return reason')
-  }
-
+  // ── TYPE D: DECISION ENGINE ──
   score = Math.max(0, Math.min(100, Math.round(score)))
-  const tier = score >= 65 ? 'High' : score >= 35 ? 'Medium' : 'Low'
-  return { score, tier, signals }
+  const tier = score >= 85 ? 'Critical' : score >= 65 ? 'High' : score >= 35 ? 'Medium' : 'Low'
+  const action = tier === 'Critical' ? 'hold' : tier === 'High' ? 'manual_review' : tier === 'Medium' ? 'verify' : 'accept'
+
+  return {
+    score,
+    tier,
+    signals,
+    checkpoints,
+    recommended_action: action,
+  }
 }
 
 function makeOrderNumber() {
@@ -1587,13 +1857,14 @@ export const api = {
     return { order: clone(order), payment: clone(payment) }
   },
 
-  async createReturn({ orderId, reason, note, returnLines, pickupSlot, refundMethod = 'original', images = [] }) {
+  async createReturn({ orderId, reason, note, returnLines, pickupSlot, refundMethod = 'original', images = [], product_condition, serial_number, imei_number, type = 'REFUND' }) {
     if (hasLiveApi()) {
       try {
         const payload = {
           order_id: orderId,
           reason,
           note,
+          type,
           refund_method: refundMethod,
           images: images || [],
           return_lines: (returnLines || []).map((line) => ({
@@ -1603,6 +1874,9 @@ export const api = {
             price: Number(line.price),
           })),
           pickup_slot: pickupSlot,
+          product_condition: product_condition || 'unknown',
+          serial_number: serial_number || '',
+          imei_number: imei_number || '',
         }
         return await live('/returns/', { method: 'POST', body: payload })
       } catch (err) {
@@ -1634,7 +1908,15 @@ export const api = {
         email: 'demo@shopper.com',
         risk_tier: 'Low',
       }
-    const risk = computeRisk({ reason, categoryId: returnLines?.[0]?.product_id || order.items?.[0]?.product_id })
+    const risk = computeRisk({
+      reason,
+      categoryId: returnLines?.[0]?.product_id || order.items?.[0]?.product_id,
+      returnLines,
+      orderTotal: order.total,
+      images,
+      type,
+      shopper_reported_condition: product_condition,
+    })
     const lines = (returnLines || order.items || []).map((line) => ({
       product_id: line.product_id,
       name: line.name,
@@ -1648,25 +1930,31 @@ export const api = {
       merchant_id: 'merchant_1',
       user_id: shopper.id || 'shopper_1',
       customer_name: shopper.name || 'Demo Shopper',
+      type,
       reason,
       note,
       refund_method: refundMethod,
       images: images || [],
       risk_tier: risk.tier,
       risk_score: risk.score,
-      status: risk.tier === 'Low' ? 'approved' : 'manual_review',
+      status: risk.tier === 'Low' ? 'approved' : risk.tier === 'Critical' ? 'hold' : 'manual_review',
       outcome: risk.tier === 'Low' ? 'auto_approved' : 'pending_review',
       verification_status: risk.tier === 'Low' ? 'Verified' : 'Pending',
       verification_method: risk.tier === 'Low' ? 'device_only' : 'unverified',
       created_at: new Date().toISOString(),
       risk_context: risk.signals.join('; '),
       signals: risk.signals,
+      checkpoint_signals: risk.checkpoints,
       return_lines: lines,
       pickup_slot: pickupSlot || null,
+      shopper_reported_condition: product_condition || 'unknown',
+      shopper_serial_number: serial_number || '',
+      shopper_imei_number: imei_number || '',
       timeline: [
         { label: 'Return requested', at: new Date().toISOString() },
         { label: 'Pickup scheduled', at: pickupSlot ? new Date().toISOString() : null },
-        ...(risk.tier !== 'Low' ? [{ label: 'OTP sent', at: new Date().toISOString() }] : []),
+        ...(risk.tier === 'Medium' ? [{ label: 'OTP sent', at: new Date().toISOString() }] : []),
+        ...(risk.tier === 'Critical' ? [{ label: '⚠️ HOLD — Awaiting physical verification', at: new Date().toISOString() }] : []),
       ],
     }
     store.returns.unshift(record)
@@ -1692,6 +1980,76 @@ export const api = {
     })
 
     return clone(record)
+  },
+
+  async verifyReturnProduct(returnId, verificationData = {}) {
+    if (hasLiveApi()) {
+      try {
+        return await live(`/returns/${returnId}/verify-product/`, {
+          method: 'POST',
+          body: verificationData,
+        })
+      } catch (err) {
+        console.warn('Live verifyReturnProduct failed, falling back to local store:', err)
+      }
+    }
+    await delay(500)
+    const record = store.returns.find((r) => r.id === returnId)
+    if (!record) throw new Error('Return not found.')
+
+    // Update physical verification data
+    record.returned_serial_number = verificationData.returned_serial_number || ''
+    record.returned_imei_number = verificationData.returned_imei_number || ''
+    record.product_condition = verificationData.product_condition || 'unused'
+    record.packaging_condition = verificationData.packaging_condition || 'original_intact'
+    record.accessories_returned = verificationData.accessories_returned || []
+    record.quantity_received = verificationData.quantity_received
+    record.is_product_swap_detected = verificationData.is_product_swap_detected || false
+    record.swap_details = verificationData.swap_details || ''
+    record.verification_notes = verificationData.verification_notes || ''
+
+    // Re-score with Type B product verification signals
+    const updatedRisk = computeRisk({
+      reason: record.reason,
+      categoryId: record.return_lines?.[0]?.product_id,
+      returnLines: record.return_lines,
+      orderTotal: record.order_total,
+      images: record.images,
+      returned_serial_number: record.returned_serial_number,
+      original_serial: record.return_lines?.[0]?.serial_number || '',
+      is_product_swap_detected: record.is_product_swap_detected,
+      swap_details: record.swap_details,
+      product_condition: record.product_condition,
+      packaging_condition: record.packaging_condition,
+      accessories_missing: record.accessories_missing,
+      quantity_received: record.quantity_received,
+      quantity_claimed: record.quantity_claimed || 1,
+    })
+
+    record.risk_score = updatedRisk.score
+    record.risk_tier = updatedRisk.tier
+    record.signals = updatedRisk.signals
+    record.checkpoint_signals = updatedRisk.checkpoints
+    record.verification_status = updatedRisk.tier === 'Critical' ? 'Failed' : updatedRisk.tier === 'High' ? 'Flagged' : 'Verified'
+    record.verification_method = 'agent_verified'
+    if (updatedRisk.tier === 'Critical') record.status = 'hold'
+
+    record.timeline = [
+      ...(record.timeline || []),
+      { label: 'Product physically verified by merchant/agent', at: new Date().toISOString() },
+    ]
+
+    return {
+      id: record.id,
+      risk_score: record.risk_score,
+      risk_tier: record.risk_tier,
+      verification_status: record.verification_status,
+      serial_mismatch: record.serial_mismatch,
+      product_condition: record.product_condition,
+      packaging_condition: record.packaging_condition,
+      type_b_signals: updatedRisk.signals.filter(s => s.includes('CRITICAL') || s.includes('condition') || s.includes('Packaging') || s.includes('accessories')),
+      message: 'Product verification completed.',
+    }
   },
 
   async escalateReturn(returnId, escalationReason = 'OTP unavailable or failed') {
@@ -1877,6 +2235,19 @@ export const api = {
       ret.outcome = action === 'approve' ? 'manual_approved' : action === 'reject' ? 'rejected' : action
       ret.timeline = ret.timeline || []
       ret.timeline.push({ label: `Merchant ${action.toUpperCase()}: ${notes || 'Reviewed'}`, at: new Date().toISOString() })
+
+      // Push real-time notification to shopper
+      store.notifications.unshift({
+        id: nextId('notif', store.notifications),
+        user_id: ret.user_id || 'shopper_1',
+        type: action === 'approve' ? 'return_approved' : action === 'reject' ? 'return_rejected' : 'return_updated',
+        channel: 'in_app',
+        title: action === 'approve' ? `Return #${ret.id} Approved!` : action === 'reject' ? `Return #${ret.id} Rejected` : `Return #${ret.id} Updated`,
+        body: notes || `Your return request for Order ${ret.order_number} was ${action.toUpperCase()} by the merchant.`,
+        read: false,
+        created_at: new Date().toISOString(),
+      })
+
       return clone(ret)
     }
     return { id: returnId, status: action, outcome: action }
@@ -1983,6 +2354,8 @@ export const api = {
         trigger_event: notes || `Direct manual switch to Step ${lvl}`,
         created_at: new Date().toISOString(),
       })
+    } else if (action === 'lift_restrictions' || action === 'remove_restriction') {
+      store.restrictions = (store.restrictions || []).filter(r => r.customer_id !== customerId && r.user_id !== customerId)
     }
     return { action, status: 'completed' }
   },

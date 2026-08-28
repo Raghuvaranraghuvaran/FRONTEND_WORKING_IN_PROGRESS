@@ -4,6 +4,7 @@ from common.exceptions import ReturnNotEligible
 from fraud.models import RiskScoreEvent
 from fraud.services.decision_engine import DecisionEngine
 from fraud.services.risk_engine import RiskEngine
+from fraud.services.signal_extractors import check_return_eligibility
 from notifications.services import create_notification
 from orders.models import Order
 from .models import ReturnEvent, ReturnLine, ReturnRequest
@@ -33,14 +34,16 @@ class ReturnService:
                 .filter(merchant=merchant, user=user)
                 .first()
             )
-        if order is None:
-            order = Order.objects.select_related("user", "merchant").first()
 
         if order is None:
             raise ReturnNotEligible()
 
-        if order.user:
-            user = order.user
+        if user and user.is_authenticated and order.user and order.user_id != user.id:
+            raise ReturnNotEligible()
+
+        if not user or not user.is_authenticated:
+            if order.user:
+                user = order.user
         if order.merchant:
             merchant = order.merchant
 
@@ -59,23 +62,123 @@ class ReturnService:
             if delta.days > window_days:
                 raise AppError("This order is no longer eligible for return.", code="RETURN_WINDOW_EXPIRED")
 
-        # 3. Check for existing active return
+        # 3. Check for existing active return (CP23: track duplicates)
         existing_return = ReturnRequest.objects.filter(order=order).exclude(status="rejected").first()
         if existing_return is not None:
+            # CP23: Increment duplicate count on shopper profile
+            shopper = getattr(user, "shopper_profile", None)
+            if shopper:
+                shopper.duplicate_return_request_count = (shopper.duplicate_return_request_count or 0) + 1
+                shopper.save(update_fields=["duplicate_return_request_count"])
             return existing_return
 
         shopper = getattr(user, "shopper_profile", None)
         reason = data["reason"]
+        return_type = data.get("type", "REFUND")
         category_slug = self._first_category_slug(order)
 
+        # Resolve category and product for eligibility + scoring
+        first_item = order.items.select_related("product__category", "variant").first()
+        category = first_item.product.category if first_item and first_item.product else None
+        product = first_item.product if first_item else None
+
+        # ── TYPE A: ELIGIBILITY CHECK (pre-scoring gate) ──
+        replacement_count = 0
+        if shopper and return_type == "REPLACEMENT":
+            replacement_count = shopper.replacement_count or 0
+
+        eligible, elig_reasons = check_return_eligibility(
+            order=order,
+            order_item=first_item,
+            category=category,
+            return_type=return_type,
+            replacement_count=replacement_count,
+        )
+
+        if not eligible:
+            raise AppError(
+                "; ".join(elig_reasons),
+                code="RETURN_NOT_ELIGIBLE"
+            )
+
+        # ── Update shopper behavior counters ──
+        if shopper:
+            # CP9: Track damage claims
+            if reason in ("damaged", "broken", "scratched", "torn"):
+                shopper.damage_claim_count = (shopper.damage_claim_count or 0) + 1
+
+                # CP10: Check if evidence was provided
+                images = data.get("images") or []
+                if not images:
+                    shopper.damage_no_evidence_count = (shopper.damage_no_evidence_count or 0) + 1
+
+            # CP14: Update purchase/refund amounts
+            order_total = float(order.total or 0)
+            if order_total > 0:
+                shopper.total_purchase_amount = float(shopper.total_purchase_amount or 0) + order_total
+
+            # CP5: Update average order value
+            total_orders = (shopper.total_orders or 0) + 1
+            total_purchased = float(shopper.total_purchase_amount or 0)
+            if total_orders > 0:
+                shopper.avg_order_value = total_purchased / total_orders
+
+            # CP1: Track size exchanges
+            if return_type == "EXCHANGE" and data.get("exchange_variant"):
+                shopper.size_exchange_count = (shopper.size_exchange_count or 0) + 1
+
+            # CP24: Track replacements
+            if return_type == "REPLACEMENT":
+                shopper.replacement_count = (shopper.replacement_count or 0) + 1
+
+            shopper.save(update_fields=[
+                "damage_claim_count", "damage_no_evidence_count",
+                "total_purchase_amount", "avg_order_value",
+                "size_exchange_count", "replacement_count",
+            ])
+
+        # ── FULL 28-CHECKPOINT RISK SCORING ──
         risk = self.risk_engine.score(
+            merchant=merchant,
             shopper_profile=shopper,
             category_slug=category_slug,
             reason=reason,
+            order=order,
+            order_item=first_item,
+            return_request=None,  # Not created yet, some Type B checks happen post-creation
+            category=category,
+            product=product,
+            user=user,
+            return_type=return_type,
+            replacement_count=replacement_count,
+            payment_method=getattr(order, "payment_method", ""),
+            order_total=float(order.total or 0),
+            variant_count=order.items.count(),
+            order_date=order.created_at,
+            escalation_level=getattr(shopper, "escalation_level", 0) if shopper else 0,
         )
         decision = self.decision_engine.decide(risk.tier)
 
+        # Serialize checkpoint results
+        checkpoint_data = []
+        for cp in risk.checkpoints:
+            checkpoint_data.append({
+                "id": cp.checkpoint_id,
+                "name": cp.checkpoint_name,
+                "tier_type": cp.tier_type,
+                "score_delta": cp.score_delta,
+                "signals": cp.signals,
+                "severity": cp.severity,
+            })
+
         cust_name = getattr(user, "name", "") or getattr(order, "customer_name", "") or (user.email.split("@")[0] if getattr(user, "email", None) else "Valued Customer")
+
+        # Determine initial status based on tier
+        initial_status = "manual_review"
+        if risk.tier == "Low":
+            initial_status = "approved"
+        elif risk.tier == "Critical":
+            initial_status = "hold"
 
         return_request = ReturnRequest.objects.create(
             order=order,
@@ -83,18 +186,28 @@ class ReturnService:
             user=user,
             customer_name=cust_name,
             reason=reason,
+            type=return_type,
             note=data.get("note", ""),
             refund_method=data.get("refund_method", "original"),
             images=data.get("images") or [],
             risk_tier=risk.tier,
             risk_score=risk.score,
-            status="manual_review",
-            outcome="pending_review",
-            verification_status="Pending" if risk.tier in ("Medium", "High") else "Verified",
-            verification_method="unverified" if risk.tier in ("Medium", "High") else "device_only",
+            status=initial_status,
+            outcome="auto_approved" if risk.tier == "Low" else "pending_review",
+            verification_status="Pending" if risk.tier in ("Medium", "High", "Critical") else "Verified",
+            verification_method="unverified" if risk.tier in ("Medium", "High", "Critical") else "device_only",
             risk_context="; ".join(risk.signals) if risk.signals else "No material risk signals.",
             signals=risk.signals,
+            checkpoint_signals=checkpoint_data,
             pickup_slot=data.get("pickup_slot", ""),
+            # Shopper-submitted verification data
+            shopper_serial_number=data.get("serial_number", ""),
+            shopper_imei_number=data.get("imei_number", ""),
+            shopper_reported_condition=data.get("product_condition", "unknown"),
+            original_reason=reason,
+            quantity_claimed=data.get("quantity", 1) or 1,
+            # Pre-populate expected accessories from product
+            accessories_expected=getattr(product, "included_accessories", []) if product else [],
         )
 
         self._build_lines(return_request, order, data.get("return_lines") or [])
@@ -104,16 +217,25 @@ class ReturnService:
         order.status = "Return Requested"
         order.save(update_fields=["delivery_status", "status"])
 
+        # Update product return count (CP27)
+        if product:
+            product.total_returns_count = (product.total_returns_count or 0) + 1
+            product.save(update_fields=["total_returns_count"])
+
         ReturnEvent.objects.create(return_request=return_request, label="Return requested")
         if data.get("pickup_slot"):
             ReturnEvent.objects.create(return_request=return_request, label="Pickup scheduled")
         if risk.tier == "Medium":
             ReturnEvent.objects.create(return_request=return_request, label="OTP sent")
+        if risk.tier == "Critical":
+            ReturnEvent.objects.create(return_request=return_request, label="⚠️ HOLD — Awaiting product verification")
+        if risk.tier == "High":
+            ReturnEvent.objects.create(return_request=return_request, label="Flagged for manual review")
 
         if shopper is not None:
             shopper.total_returns += 1
-            if risk.tier == "High" and shopper.risk_tier != "High":
-                shopper.risk_tier = "High"
+            if risk.tier in ("High", "Critical") and shopper.risk_tier not in ("High", "Critical"):
+                shopper.risk_tier = risk.tier
             elif risk.tier == "Medium" and shopper.risk_tier == "Low":
                 shopper.risk_tier = "Medium"
             shopper.save(update_fields=["total_returns", "risk_tier"])

@@ -74,6 +74,9 @@ export default function ReturnRequestPage() {
   const [pickupSlot, setPickupSlot] = useState('tomorrow_morning')
   const [refundMethod, setRefundMethod] = useState('original')
   const [uploadedImages, setUploadedImages] = useState([])
+  const [shopperCondition, setShopperCondition] = useState('unused')
+  const [shopperSerial, setShopperSerial] = useState('')
+  const [shopperImei, setShopperImei] = useState('')
   const [result, setResult] = useState(null)
   const [otp, setOtp] = useState('')
   const [error, setError] = useState('')
@@ -270,6 +273,9 @@ export default function ReturnRequestPage() {
         images: uploadedImages,
         returnLines: selectedItems,
         pickupSlot,
+        product_condition: shopperCondition,
+        serial_number: shopperSerial,
+        imei_number: shopperImei,
       })
       setResult(record)
       if (record.risk_tier === 'Medium') {
@@ -456,6 +462,59 @@ export default function ReturnRequestPage() {
               className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               placeholder="Describe any defects, fit issues, or specific details for the merchant…"
             />
+          </div>
+
+          {/* Shopper Self-Reported Condition & Serial Check (Type B Shopper Input) */}
+          <div className="mt-5 border-t border-slate-100 pt-4 space-y-4">
+            <div>
+              <label className="text-xs font-bold uppercase text-slate-600 tracking-wider">Item Physical Condition</label>
+              <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { id: 'unused', label: 'Unused / Tags Attached', icon: '✨' },
+                  { id: 'used', label: 'Used / Tried On', icon: '👕' },
+                  { id: 'damaged', label: 'Damaged / Defective', icon: '⚠️' },
+                  { id: 'tag_removed', label: 'Tag Removed', icon: '🏷️' },
+                ].map((cond) => (
+                  <button
+                    key={cond.id}
+                    type="button"
+                    onClick={() => setShopperCondition(cond.id)}
+                    className={`p-2.5 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                      shopperCondition === cond.id
+                        ? 'border-indigo-600 bg-indigo-50/70 text-indigo-900 font-bold shadow-xs'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>{cond.icon}</span>
+                    <span>{cond.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Optional Device Serial / IMEI for electronics */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 uppercase">Device Serial Number (Optional / If applicable)</label>
+                <input
+                  type="text"
+                  value={shopperSerial}
+                  onChange={(e) => setShopperSerial(e.target.value)}
+                  placeholder="e.g. SN-8829-X"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 uppercase">Device IMEI Number (For phones)</label>
+                <input
+                  type="text"
+                  value={shopperImei}
+                  onChange={(e) => setShopperImei(e.target.value)}
+                  placeholder="e.g. 358920192837192"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+            </div>
           </div>
         </div>
 

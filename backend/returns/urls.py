@@ -8,4 +8,5 @@ urlpatterns = [
     path("<str:pk>/timeline/", views.ReturnTimelineView.as_view(), name="return-timeline"),
     path("<str:pk>/escalate/", views.EscalateReturnView.as_view(), name="return-escalate"),
     path("<str:pk>/proof/", views.ReturnProofView.as_view(), name="return-proof"),
+    path("<str:pk>/verify-product/", views.ProductVerificationView.as_view(), name="return-verify-product"),
 ]
