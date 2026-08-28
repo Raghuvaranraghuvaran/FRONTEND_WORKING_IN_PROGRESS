@@ -126,20 +126,38 @@ class OTPVerificationService:
 
         text_body = f"Hi {user.name or 'there'},\n\nYour ReturnGuard sign-in verification code is: {code}\n\nThis code expires in 5 minutes.\n\nThank you,\nReturnGuard Team"
 
-        from common.mailer import send_email_sync
-        send_email_sync(
-            subject=f"Your ReturnGuard verification code: {code}",
-            message=text_body,
-            html_message=html_body,
-            recipient_list=[user.email],
-            from_name="ReturnGuard Security",
-        )
+        # Try synchronous email first, with async fallback retry
+        email_sent = False
+        try:
+            from common.mailer import send_email_sync
+            email_sent = send_email_sync(
+                subject=f"Your ReturnGuard verification code: {code}",
+                message=text_body,
+                html_message=html_body,
+                recipient_list=[user.email],
+                from_name="ReturnGuard Security",
+                raise_on_failure=False,
+            )
+        except Exception as exc:
+            print(f"[ReturnGuard OTP] Sync email failed: {exc}", flush=True)
 
-        VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="sent")
+        if not email_sent:
+            print(f"[ReturnGuard OTP] Sync email failed for {user.email}. Scheduling async retry...", flush=True)
+            from common.mailer import send_async_email
+            send_async_email(
+                subject=f"Your ReturnGuard verification code: {code}",
+                message=text_body,
+                html_message=html_body,
+                recipient_list=[user.email],
+                from_name="ReturnGuard Security",
+            )
+
+        VerificationEvent.objects.create(customer=user, method=self.LOGIN_METHOD, status="sent" if email_sent else "queued")
         return {
             "sent": True,
             "challenge_id": challenge.id,
             "expires_in": self.TTL_SECONDS,
+            "email_queued": not email_sent,
         }
 
     def verify_login_otp(self, *, email, role, challenge_id, code):
@@ -228,21 +246,39 @@ class OTPVerificationService:
         print(f"[ReturnGuard Password Reset] Code: {code}")
         print("==========================================\n")
 
-        from common.mailer import send_async_email
-        send_async_email(
-            subject=f"ReturnGuard Password Reset Code: {code}",
-            message=(
-                f"Hi {user.name or 'there'},\n\n"
-                f"Your ReturnGuard password reset code is: {code}\n\n"
-                "This code will expire in 5 minutes. If you did not request this password reset, "
-                "you can safely ignore this email.\n\n"
-                "— ReturnGuard Security Team"
-            ),
-            recipient_list=[user.email],
-            from_name="ReturnGuard Security",
+        reset_msg = (
+            f"Hi {user.name or 'there'},\n\n"
+            f"Your ReturnGuard password reset code is: {code}\n\n"
+            "This code will expire in 5 minutes. If you did not request this password reset, "
+            "you can safely ignore this email.\n\n"
+            "— ReturnGuard Security Team"
         )
+        reset_subject = f"ReturnGuard Password Reset Code: {code}"
 
-        res = {"sent": True, "challenge_id": challenge.id, "expires_in": self.TTL_SECONDS}
+        email_sent = False
+        try:
+            from common.mailer import send_email_sync
+            email_sent = send_email_sync(
+                subject=reset_subject,
+                message=reset_msg,
+                recipient_list=[user.email],
+                from_name="ReturnGuard Security",
+                raise_on_failure=False,
+            )
+        except Exception as exc:
+            print(f"[ReturnGuard Password Reset] Sync email failed: {exc}", flush=True)
+
+        if not email_sent:
+            print(f"[ReturnGuard Password Reset] Sync email failed for {user.email}. Scheduling async retry...", flush=True)
+            from common.mailer import send_async_email
+            send_async_email(
+                subject=reset_subject,
+                message=reset_msg,
+                recipient_list=[user.email],
+                from_name="ReturnGuard Security",
+            )
+
+        res = {"sent": True, "challenge_id": challenge.id, "expires_in": self.TTL_SECONDS, "email_queued": not email_sent}
         if getattr(settings, "DEBUG", False):
             res["debug_code"] = code
         return res

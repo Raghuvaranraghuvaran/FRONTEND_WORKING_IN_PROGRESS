@@ -107,15 +107,11 @@ def _send_via_resend_http(subject, message, recipients, from_name=DEFAULT_FROM_N
         err_body = http_err.read().decode("utf-8", errors="ignore")
         print(f"[Email Dispatch] Resend API HTTP error {http_err.code}: {err_body}", flush=True)
         
-        # If Resend free sandbox restricts delivery to account owner (e.g. raghuvaranraghuvaran65@gmail.com)
+        # Resend free sandbox restricts delivery to account owner only.
+        # Do NOT silently redirect emails to the owner — that sends user OTP/invoice
+        # to the wrong person. Log the failure so the next strategy (Brevo/SMTP) is tried.
         if http_err.code == 403 and "only send testing emails to your own email address" in err_body:
-            match = re.search(r"\(([^)]+@resend\.dev|[^)]+@gmail\.com|[^)]+@[^)]+)\)", err_body)
-            owner_email = match.group(1).strip() if match else DEFAULT_VERIFIED_OWNER_EMAIL
-            print(f"[Email Dispatch] Resend sandbox mode: Delivering cleanly to verified account owner ({owner_email})...", flush=True)
-            try:
-                return _do_resend_post([owner_email])
-            except Exception as owner_err:
-                print(f"[Email Dispatch] Resend fallback error: {owner_err}", flush=True)
+            print(f"[Email Dispatch] Resend sandbox rejected delivery to {recipients}. Falling through to next strategy.", flush=True)
     except Exception as exc:
         print(f"[Email Dispatch] Resend API request error: {exc}", flush=True)
 
@@ -293,9 +289,9 @@ def _send_direct_smtp(subject, message, recipients, from_name=DEFAULT_FROM_NAME,
 def _dispatch_all_strategies(subject, message, recipients, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
     """
     Executes resilient waterfall delivery:
-    1. Resend HTTPS API (Port 443) - Primary & Verified
-    2. Brevo HTTPS API (Port 443) - Backup
-    3. Direct SMTP (Port 587 / Port 465) - Fallback
+    1. Brevo HTTPS API (Port 443) - Primary (sends to ANY recipient)
+    2. Resend HTTPS API (Port 443) - Backup (sandbox: owner email only)
+    3. Direct SMTP (Port 587 / Port 465) - Fallback (local dev only)
     """
     if isinstance(recipients, str):
         recipients = [recipients]
@@ -303,22 +299,22 @@ def _dispatch_all_strategies(subject, message, recipients, from_name=DEFAULT_FRO
     if not recipients:
         return True
 
-    resend_k = (os.getenv("RESEND_API_KEY") or getattr(settings, "RESEND_API_KEY", "")).strip()
     brevo_k = (os.getenv("BREVO_API_KEY") or getattr(settings, "BREVO_API_KEY", "") or os.getenv("SENDINBLUE_API_KEY", "")).strip()
+    resend_k = (os.getenv("RESEND_API_KEY") or getattr(settings, "RESEND_API_KEY", "")).strip()
     
-    print(f"\n[Email Dispatch] '{subject}' -> {recipients} | Resend={'YES' if resend_k else 'NO'}, Brevo={'YES' if brevo_k else 'NO'}", flush=True)
+    print(f"\n[Email Dispatch] '{subject}' -> {recipients} | Brevo={'YES' if brevo_k else 'NO'}, Resend={'YES' if resend_k else 'NO'}", flush=True)
 
-    # Step 1: Try Resend HTTPS API (Primary)
-    if resend_k:
-        if _send_via_resend_http(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
-            return True
-
-    # Step 2: Try Brevo HTTPS API (Backup)
+    # Step 1: Try Brevo HTTPS API (Primary — sends to any recipient)
     if brevo_k:
         if _send_via_brevo_http(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
             return True
 
-    # Step 3: Fall back to SMTP sockets
+    # Step 2: Try Resend HTTPS API (Backup — sandbox limited to owner email)
+    if resend_k:
+        if _send_via_resend_http(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
+            return True
+
+    # Step 3: Fall back to SMTP sockets (local dev only — blocked on cloud)
     if _send_direct_smtp(subject, message, recipients, from_name, from_addr, html_message, pdf_bytes, pdf_filename):
         return True
 
@@ -326,18 +322,28 @@ def _dispatch_all_strategies(subject, message, recipients, from_name=DEFAULT_FRO
     return False
 
 
-def send_email_sync(subject, message, recipient_list, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
+def send_email_sync(subject, message, recipient_list, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf", raise_on_failure=True):
     """
     Synchronously dispatches email before HTTP response.
+    When raise_on_failure=True (default), raises RuntimeError if all strategies fail.
     """
-    return _dispatch_all_strategies(subject, message, recipient_list, from_name, from_addr, html_message, pdf_bytes, pdf_filename)
+    success = _dispatch_all_strategies(subject, message, recipient_list, from_name, from_addr, html_message, pdf_bytes, pdf_filename)
+    if not success and raise_on_failure:
+        raise RuntimeError(f"All email delivery methods failed for {recipient_list}. Subject: {subject}")
+    return success
 
 
 def send_async_email(subject, message, recipient_list, from_name=DEFAULT_FROM_NAME, from_addr=None, html_message=None, pdf_bytes=None, pdf_filename="Invoice.pdf"):
     """
     Submits email to persistent ThreadPoolExecutor for background dispatch.
+    Logs failures so they are visible in production logs.
     """
-    _EMAIL_EXECUTOR.submit(
-        _dispatch_all_strategies,
-        subject, message, recipient_list, from_name, from_addr, html_message, pdf_bytes, pdf_filename
-    )
+    def _logged_dispatch():
+        try:
+            success = _dispatch_all_strategies(subject, message, recipient_list, from_name, from_addr, html_message, pdf_bytes, pdf_filename)
+            if not success:
+                print(f"[Email Dispatch] ASYNC FAILED: '{subject}' -> {recipient_list} (all strategies exhausted)", flush=True)
+        except Exception as exc:
+            print(f"[Email Dispatch] ASYNC EXCEPTION: '{subject}' -> {recipient_list}: {exc}", flush=True)
+
+    _EMAIL_EXECUTOR.submit(_logged_dispatch)

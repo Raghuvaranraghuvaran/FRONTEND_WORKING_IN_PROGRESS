@@ -18,3 +18,34 @@ services:
         value: "1"
       - key: PYTHON_VERSION
         value: "3.12.3"
+      # ── Email Delivery (Render blocks SMTP ports 587/465) ──
+      # Resend API (HTTPS port 443) — free tier: 100 emails/day
+      # Configure your key in Render dashboard environment variables
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        value: "onboarding@resend.dev"
+      # Brevo API (HTTPS port 443) — free tier: 300 emails/day
+      # Configure your key in Render dashboard environment variables
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_FROM_EMAIL
+        value: "infiniteganesforu@gmail.com"
+      # Fallback: Gmail SMTP (will fail on Render — only works locally)
+      - key: EMAIL_BACKEND
+        value: "django.core.mail.backends.smtp.EmailBackend"
+      - key: EMAIL_HOST
+        value: "smtp.gmail.com"
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: EMAIL_USE_TLS
+        value: "true"
+      - key: DEFAULT_FROM_EMAIL
+        value: "infiniteganesforu@gmail.com"
+      # Demo OTP (users can always enter 123456)
+      - key: DEMO_OTP
+        value: "123456"

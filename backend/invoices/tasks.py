@@ -98,6 +98,12 @@ def dispatch_order_invoice_async(order_id):
 
         except Exception as exc:
             logger.exception("Failed to dispatch invoice for order %s: %s", order_id, exc)
+            print(f"[Order Invoice] FAILED for order #{order_id}: {exc}. Scheduling Celery retry...", flush=True)
+            try:
+                from invoices.tasks import generate_and_send_invoice
+                generate_and_send_invoice.delay(order_id)
+            except Exception as retry_err:
+                logger.warning(f"Could not schedule Celery retry for order {order_id}: {retry_err}")
 
     import threading
     t = threading.Thread(target=_execute, daemon=True, name=f"invoice_order_{order_id}")
@@ -216,8 +222,11 @@ def send_invoice_email_task(self, invoice_id):
         except Exception:
             pass
 
-        retry_delay = min(60 * (5 ** self.request.retries), 3600)
-        raise self.retry(exc=exc, countdown=retry_delay)
+        retry_delay = min(120 * (2 ** self.request.retries), 3600)
+        try:
+            raise self.retry(exc=exc, countdown=retry_delay)
+        except Exception:
+            pass  # Max retries exhausted
 
 
 def _build_html_email(order, invoice, customer, merchant, payment_method, payment_status, transaction_id):

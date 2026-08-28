@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import React from 'react'
 
 const TIER_LABELS = {
   A: 'Eligibility Checks',
@@ -348,6 +349,50 @@ export default function RiskCheckpointsPipeline({ checkpoints = [], riskScore = 
           <span className={`rounded-xl border px-3 py-1.5 text-xs font-black uppercase tracking-wider ring-1 ${tierBadge.bg}`}>
             {effectiveTier} Risk
           </span>
+        </div>
+      </div>
+
+      {/* Visual Tier Flow Diagram */}
+      <div className="flex items-center justify-center gap-1 py-2">
+        {['A', 'B', 'C'].map((t, i) => {
+          const tierCheckpoints = allCheckpoints.filter(cp => cp.tier_type === t)
+          const tierFlagged = tierCheckpoints.filter(cp => cp.severity !== 'pass').length
+          const tierTotal = tierCheckpoints.length
+          const tierDelta = tierCheckpoints.reduce((s, cp) => s + (cp.score_delta || 0), 0)
+          const tierColors = { A: { bg: 'bg-emerald-100', border: 'border-emerald-300', text: 'text-emerald-800', bar: 'bg-emerald-500' }, B: { bg: 'bg-amber-100', border: 'border-amber-300', text: 'text-amber-800', bar: 'bg-amber-500' }, C: { bg: 'bg-rose-100', border: 'border-rose-300', text: 'text-rose-800', bar: 'bg-rose-500' } }
+          const tc = tierColors[t]
+          return (
+            <React.Fragment key={t}>
+              {i > 0 && <span className="text-slate-300 text-lg font-bold">→</span>}
+              <div className={`flex-1 rounded-xl border ${tc.border} ${tc.bg} p-2.5 text-center`}>
+                <div className="flex items-center justify-center gap-1.5">
+                  <span className="text-sm">{TIER_ICONS[t]}</span>
+                  <span className={`text-[11px] font-black ${tc.text}`}>Type {t}</span>
+                </div>
+                <div className="font-mono text-xs font-bold text-slate-600 mt-0.5">
+                  {tierDelta > 0 ? `+${tierDelta}` : tierDelta} pts
+                </div>
+                <div className="mt-1.5 h-1.5 rounded-full bg-white/60 overflow-hidden">
+                  <div className={`h-full ${tc.bar} rounded-full transition-all`} style={{ width: `${tierTotal > 0 ? ((tierTotal - tierFlagged) / tierTotal) * 100 : 100}%` }} />
+                </div>
+                <div className="text-[9px] font-bold text-slate-500 mt-0.5">
+                  {tierTotal - tierFlagged}/{tierTotal} passed
+                </div>
+              </div>
+            </React.Fragment>
+          )
+        })}
+        <span className="text-slate-300 text-lg font-bold">→</span>
+        <div className="flex-1 rounded-xl border border-indigo-300 bg-indigo-100 p-2.5 text-center">
+          <div className="flex items-center justify-center gap-1.5">
+            <span className="text-sm">⚖️</span>
+            <span className="text-[11px] font-black text-indigo-800">Type D</span>
+          </div>
+          <div className="font-mono text-xs font-bold text-slate-600 mt-0.5">Decision</div>
+          <div className="mt-1.5 h-1.5 rounded-full bg-indigo-300">
+            <div className="h-full bg-indigo-600 rounded-full w-full" />
+          </div>
+          <div className="text-[9px] font-bold text-slate-500 mt-0.5">Action assigned</div>
         </div>
       </div>
 

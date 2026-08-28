@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import React from 'react'
 import { useApp } from '../context/AppContext'
 import ProductSwapAlertCard from './ProductSwapAlertCard'
 
@@ -263,17 +264,49 @@ export default function ProductVerificationPanel({ returnData, onVerificationCom
   }
 
   // ── INSPECTION FORM VIEW ──
+  const inspectionSteps = [
+    { id: 'serial', label: 'Serial/IMEI', icon: '🔢', done: !!(form.returned_serial_number || form.returned_imei_number) },
+    { id: 'condition', label: 'Condition', icon: '📦', done: form.product_condition !== 'unknown' },
+    { id: 'packaging', label: 'Packaging', icon: '📦', done: form.packaging_condition !== 'not_inspected' },
+    { id: 'accessories', label: 'Accessories', icon: '🔌', done: form.accessories_returned.length > 0 },
+    { id: 'quantity', label: 'Quantity', icon: '📊', done: true },
+    { id: 'swap', label: 'Swap Check', icon: '🚨', done: true },
+  ]
+  const completedSteps = inspectionSteps.filter(s => s.done).length
+
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100/60 p-5 shadow-sm space-y-5">
       {/* Header */}
       <div className="border-b border-slate-200 pb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">🔍</span>
-          <h3 className="text-base font-extrabold text-slate-900">Physical Product Verification</h3>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🔍</span>
+              <h3 className="text-base font-extrabold text-slate-900">Physical Product Verification</h3>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Inspect the physically returned item and record findings below. This triggers Type B re-scoring.
+            </p>
+          </div>
+          <div className="text-right">
+            <span className="text-[10px] font-bold uppercase text-slate-400">Progress</span>
+            <div className="font-mono text-lg font-black text-indigo-700">{completedSteps}/{inspectionSteps.length}</div>
+          </div>
         </div>
-        <p className="text-xs text-slate-500 mt-0.5">
-          Inspect the physically returned item and record findings below. This triggers Type B re-scoring.
-        </p>
+        {/* Step Progress Bar */}
+        <div className="flex items-center gap-1 mt-3">
+          {inspectionSteps.map((step, i) => (
+            <React.Fragment key={step.id}>
+              {i > 0 && <div className={`flex-1 h-0.5 ${step.done ? 'bg-indigo-400' : 'bg-slate-200'}`} />}
+              <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold ${
+                step.done ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'
+              }`}>
+                <span>{step.done ? '✓' : step.icon}</span>
+                <span className="hidden sm:inline">{step.label}</span>
+              </div>
+            </React.Fragment>
+          ))}
+        </div>
       </div>
 
       {/* Original Product Identifiers */}

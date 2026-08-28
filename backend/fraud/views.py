@@ -269,6 +269,39 @@ def merchant_action(request, customer_id):
     result["profile"] = CustomerRiskProfileSerializer(profile).data
     result["escalation_level"] = profile.escalation_level
 
+    # Send email notification to customer for account actions
+    EMAIL_ACTIONS = {
+        "force_otp": "force_otp",
+        "require_prepaid": "block_cod",
+        "restrict_cod": "block_cod",
+        "suspend_account": "suspend",
+        "ban_shopper": "ban",
+        "block_account": "ban",
+        "remove_restriction": "restore",
+        "lift_restrictions": "restore",
+    }
+    if action in EMAIL_ACTIONS and customer and customer.email:
+        try:
+            from common.email_templates import build_account_action_email
+            from common.mailer import send_async_email
+            email_type = EMAIL_ACTIONS[action]
+            c_html, c_plain, c_subject = build_account_action_email(
+                customer=customer,
+                merchant=merchant,
+                action_type=email_type,
+                notes=notes,
+            )
+            send_async_email(
+                subject=c_subject,
+                message=c_plain,
+                recipient_list=[customer.email],
+                from_name=f"{merchant.business_name} via ReturnGuard",
+                html_message=c_html,
+            )
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("Failed to send account action email to %s: %s", customer.email, exc)
+
     return Response(result)
 
 

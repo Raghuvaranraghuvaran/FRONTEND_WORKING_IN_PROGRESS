@@ -1024,3 +1024,116 @@ def build_order_cancellation_merchant_email(order, reason, cancelled_by, notes="
     return html_content, plain_text, subject
 
 
+def build_account_action_email(customer, merchant, action_type, notes=""):
+    """
+    Email template for customer account actions: Force OTP, Block COD, Suspend, Ban, Restore.
+    """
+    customer_name = html.escape(str(customer.name or "Valued Customer"))
+    merchant_name = html.escape(str(merchant.business_name if merchant else "ReturnGuard"))
+
+    ACTION_MAP = {
+        "force_otp": {
+            "title": "SMS OTP Verification Now Required",
+            "icon": "📱",
+            "color": "#d97706",
+            "bg_color": "#fffbeb",
+            "border_color": "#fde68a",
+            "message": "For your account security, SMS/OTP verification is now required on all future checkouts.",
+            "action_detail": "You will receive a one-time password (OTP) on your registered email before each order is confirmed.",
+        },
+        "block_cod": {
+            "title": "Cash on Delivery Unavailable",
+            "icon": "💳",
+            "color": "#ea580c",
+            "bg_color": "#fff7ed",
+            "border_color": "#fed7aa",
+            "message": "Cash on Delivery (COD) has been temporarily restricted for your account.",
+            "action_detail": "Please use prepaid payment methods (UPI, Credit/Debit Card, Net Banking) for future orders.",
+        },
+        "suspend": {
+            "title": "Account Temporarily Suspended",
+            "icon": "🚫",
+            "color": "#dc2626",
+            "bg_color": "#fef2f2",
+            "border_color": "#fecaca",
+            "message": "Your account has been temporarily suspended due to unusual activity detected on recent orders.",
+            "action_detail": "You will not be able to place new orders until this suspension is reviewed. Please contact support if you believe this is an error.",
+        },
+        "ban": {
+            "title": "Account Permanently Restricted",
+            "icon": "⛔",
+            "color": "#991b1b",
+            "bg_color": "#fff1f2",
+            "border_color": "#fecdd3",
+            "message": "Your account has been permanently restricted due to repeated policy violations.",
+            "action_detail": "All pending orders and returns have been frozen. Please contact support for any outstanding matters.",
+        },
+        "restore": {
+            "title": "Account Restored to Normal",
+            "icon": "🟢",
+            "color": "#16a34a",
+            "bg_color": "#f0fdf4",
+            "border_color": "#bbf7d0",
+            "message": "Great news! All restrictions on your account have been lifted and your account is now fully active.",
+            "action_detail": "You can now place orders normally using all available payment methods.",
+        },
+    }
+
+    config = ACTION_MAP.get(action_type, {
+        "title": "Account Update",
+        "icon": "📋",
+        "color": "#4f46e5",
+        "bg_color": "#eef2ff",
+        "border_color": "#c7d2fe",
+        "message": f"An update has been made to your account by {merchant_name}.",
+        "action_detail": notes or "Please review your account status.",
+    })
+
+    subject = f"ReturnGuard: {config['title']}"
+
+    html_content = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1e293b;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:30px 15px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,.05);border:1px solid #e2e8f0;">
+<tr><td style="background:linear-gradient(135deg,{config['color']} 0%,{config['color']}dd 100%);padding:28px 24px;text-align:center;">
+<div style="font-size:32px;margin-bottom:8px;">{config['icon']}</div>
+<h1 style="margin:0;font-size:18px;font-weight:800;color:#fff;">{config['title']}</h1>
+</td></tr>
+<tr><td style="padding:28px 24px;">
+<p style="margin:0 0 16px;font-size:15px;color:#334155;">Hi <strong>{customer_name}</strong>,</p>
+<div style="background:{config['bg_color']};border:1px solid {config['border_color']};border-radius:12px;padding:16px;margin-bottom:20px;">
+<p style="margin:0;font-size:14px;color:{config['color']};font-weight:700;">{config['message']}</p>
+<p style="margin:8px 0 0;font-size:13px;color:#64748b;line-height:1.5;">{config['action_detail']}</p>
+</div>
+{"<p style='font-size:12px;color:#94a3b8;margin-top:8px;'><strong>Reason:</strong> " + html.escape(notes) + "</p>" if notes else ""}
+<p style="margin:0;font-size:13px;color:#64748b;line-height:1.5;">If you have questions about this action, please contact <strong>{merchant_name}</strong> support.</p>
+</td></tr>
+<tr><td style="background:#f8fafc;padding:18px 24px;border-top:1px solid #e2e8f0;text-align:center;">
+<p style="margin:0;font-size:11px;color:#94a3b8;line-height:1.4;">
+This is an automated notification from ReturnGuard.<br>© ReturnGuard · E-Commerce Return & Fraud Protection
+</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>
+"""
+
+    plain_text = f"""
+Hi {customer_name},
+
+{config['title']}
+{config['message']}
+{config['action_detail']}
+
+{"Reason: " + notes if notes else ""}
+
+— ReturnGuard Team
+"""
+
+    return html_content, plain_text, subject
+
+

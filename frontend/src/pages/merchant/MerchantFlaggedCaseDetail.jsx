@@ -95,6 +95,7 @@ export default function MerchantFlaggedCaseDetail() {
   const [restrictionDuration, setRestrictionDuration] = useState('30_days')
   const [updating, setUpdating] = useState(false)
   const [toastMessage, setToastMessage] = useState(null)
+  const [similarCases, setSimilarCases] = useState([])
 
   const showToast = (msg, type = 'success') => {
     setToastMessage({ msg, type })
@@ -120,6 +121,13 @@ export default function MerchantFlaggedCaseDetail() {
           setCurrentLevel(reviewData?.profile?.escalation_level || 0)
           setRestrictions(reviewData?.restrictions || [])
           setEscalationHistory(reviewData?.escalation_history || [])
+          // Load similar cases
+          const allReturns = await api.getMerchantReturns()
+          const similar = (allReturns || []).filter(r =>
+            String(r.id) !== String(found.id) &&
+            (r.user_id === found.user_id || r.order_number === found.order_number)
+          ).slice(0, 5)
+          setSimilarCases(similar)
         } catch (e) {
           console.warn('Customer review fallback:', e)
         }
@@ -264,6 +272,121 @@ export default function MerchantFlaggedCaseDetail() {
           <StatusBadge status={returnCase.status} />
         </div>
       </div>
+
+      {/* Risk Score Breakdown Chart */}
+      {(() => {
+        const checkpoints = returnCase.checkpoint_signals || []
+        const typeA = checkpoints.filter(c => c.tier_type === 'A').reduce((s, c) => s + (c.score_delta || 0), 0)
+        const typeB = checkpoints.filter(c => c.tier_type === 'B').reduce((s, c) => s + (c.score_delta || 0), 0)
+        const typeC = checkpoints.filter(c => c.tier_type === 'C').reduce((s, c) => s + (c.score_delta || 0), 0)
+        const total = Math.max(typeA + typeB + typeC, 1)
+        const score = returnCase.risk_score || 0
+        return (
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 mb-3 flex items-center gap-1.5">
+              <span>📊</span> Risk Score Breakdown
+            </h3>
+            <div className="flex items-center gap-6">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="font-mono text-3xl font-black text-slate-900">{score}</span>
+                  <span className="text-xs text-slate-500 font-bold">/ 100 pts</span>
+                  <RiskBadge tier={returnCase.risk_tier} />
+                </div>
+                {/* Horizontal stacked bar */}
+                <div className="h-4 rounded-full overflow-hidden bg-slate-100 flex border border-slate-200">
+                  {typeA > 0 && <div style={{ width: `${(typeA / total) * 100}%` }} className="bg-emerald-500 transition-all" title={`Type A: +${typeA} pts`} />}
+                  {typeB > 0 && <div style={{ width: `${(typeB / total) * 100}%` }} className="bg-amber-500 transition-all" title={`Type B: +${typeB} pts`} />}
+                  {typeC > 0 && <div style={{ width: `${(typeC / total) * 100}%` }} className="bg-rose-500 transition-all" title={`Type C: +${typeC} pts`} />}
+                </div>
+                <div className="flex items-center gap-4 mt-2">
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
+                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Policy ({typeA} pts)
+                  </span>
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
+                    <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Product ({typeB} pts)
+                  </span>
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
+                    <span className="h-2.5 w-2.5 rounded-full bg-rose-500" /> Behavior ({typeC} pts)
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Timeline Visualization */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+        <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 mb-4 flex items-center gap-1.5">
+          <span>⏳</span> Return Timeline
+        </h3>
+        <div className="relative">
+          {(() => {
+            const steps = [
+              { label: 'Return Requested', time: returnCase.created_at, done: true, icon: '📝' },
+              { label: 'Pickup Scheduled', time: returnCase.pickup_slot, done: returnCase.status !== 'pending', icon: '🚚' },
+              { label: 'Product Inspection', time: returnCase.verification_status === 'Verified' ? returnCase.updated_at : null, done: !!returnCase.verification_status, icon: '🔍' },
+              { label: 'Risk Evaluation', time: returnCase.risk_score ? returnCase.updated_at : null, done: !!returnCase.risk_score, icon: '⚖️' },
+              { label: 'Merchant Decision', time: ['approved', 'rejected', 'hold'].includes(returnCase.status) ? returnCase.updated_at : null, done: ['approved', 'rejected', 'hold'].includes(returnCase.status), icon: '✅' },
+            ]
+            return (
+              <div className="flex items-start gap-0">
+                {steps.map((step, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center relative">
+                    {/* Connector line */}
+                    {i > 0 && (
+                      <div className={`absolute top-4 right-1/2 w-full h-0.5 ${step.done ? 'bg-indigo-400' : 'bg-slate-200'}`} />
+                    )}
+                    {/* Step circle */}
+                    <div className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm ${
+                      step.done
+                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                        : 'bg-white border-slate-300 text-slate-400'
+                    }`}>
+                      {step.done ? '✓' : step.icon}
+                    </div>
+                    <span className={`text-[10px] font-bold mt-1.5 text-center ${step.done ? 'text-slate-900' : 'text-slate-400'}`}>
+                      {step.label}
+                    </span>
+                    {step.time && (
+                      <span className="text-[9px] text-slate-400 font-mono mt-0.5">
+                        {formatDate(step.time)}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
+        </div>
+      </div>
+
+      {/* Similar Cases */}
+      {similarCases.length > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-5 shadow-xs">
+          <h3 className="text-xs font-extrabold uppercase tracking-wider text-amber-900 mb-3 flex items-center gap-1.5">
+            <span>🔗</span> Similar Cases ({similarCases.length})
+          </h3>
+          <div className="space-y-2">
+            {similarCases.map(c => (
+              <Link
+                key={c.id}
+                to={`/merchant/flagged-cases/${c.id}`}
+                className="flex items-center justify-between p-3 rounded-xl border border-amber-200 bg-white hover:border-amber-400 transition-all no-underline"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-xs font-black text-amber-700">#{c.id}</span>
+                  <span className="text-xs font-bold text-slate-900">Order {c.order_number}</span>
+                  <RiskBadge tier={c.risk_tier} />
+                  <StatusBadge status={c.status} />
+                </div>
+                <span className="text-xs text-slate-500">{formatDate(c.created_at)}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Main Case Summary Banner */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -577,6 +700,51 @@ export default function MerchantFlaggedCaseDetail() {
           {/* TAB 3: CUSTOMER BEHAVIOR PROFILE */}
           {activeTab === 'behavior' && (
             <div className="space-y-4">
+              {/* Customer Lifetime Value Card */}
+              <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50/70 to-violet-50/40 p-5 shadow-xs">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-lg">💎</span>
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-indigo-900">Customer Lifetime Value</h4>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-indigo-400">Total Revenue</span>
+                    <p className="font-mono text-xl font-black text-indigo-900 mt-0.5">
+                      ₹{((behavior?.total_orders ?? 10) * (behavior?.avg_order_value || 2850)).toLocaleString('en-IN')}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-indigo-400">Avg Order Value</span>
+                    <p className="font-mono text-xl font-black text-indigo-900 mt-0.5">
+                      ₹{(behavior?.avg_order_value || 2850).toLocaleString('en-IN')}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-indigo-400">Refund Amount</span>
+                    <p className="font-mono text-xl font-black text-rose-700 mt-0.5">
+                      ₹{((behavior?.total_returns ?? 2) * (behavior?.avg_order_value || 2850)).toLocaleString('en-IN')}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-indigo-400">Net Value</span>
+                    <p className={`font-mono text-xl font-black mt-0.5 ${
+                      ((behavior?.total_orders ?? 10) - (behavior?.total_returns ?? 2)) * (behavior?.avg_order_value || 2850) > 0
+                        ? 'text-emerald-700' : 'text-rose-700'
+                    }`}>
+                      ₹{(((behavior?.total_orders ?? 10) - (behavior?.total_returns ?? 2)) * (behavior?.avg_order_value || 2850)).toLocaleString('en-IN')}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-[10px] text-indigo-500 mt-3 font-semibold">
+                  💡 {((behavior?.return_rate || 0.2) * 100).toFixed(0)}% return rate — {
+                    (behavior?.return_rate || 0.2) < 0.15 ? 'Loyal customer. Consider leniency.' :
+                    (behavior?.return_rate || 0.2) < 0.3 ? 'Moderate risk. Monitor patterns.' :
+                    'High-risk customer. Apply stricter verification.'
+                  }
+                </p>
+              </div>
+
+              {/* Behavior Stats */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
                   <p className="text-2xl font-black text-slate-900">{behavior?.total_orders ?? 10}</p>
@@ -595,6 +763,27 @@ export default function MerchantFlaggedCaseDetail() {
                   <p className="text-xs text-slate-500 font-bold">Violations</p>
                 </div>
               </div>
+
+              {/* Return History List */}
+              {behavior?.recent_returns?.length > 0 && (
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+                  <h4 className="text-xs font-extrabold uppercase text-slate-800 tracking-wider mb-3">📜 Recent Return History</h4>
+                  <div className="space-y-2">
+                    {behavior.recent_returns.map((ret, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50 text-xs">
+                        <div className="flex items-center gap-3">
+                          <RiskBadge tier={ret.risk_tier} />
+                          <span className="font-bold text-slate-900 capitalize">{ret.reason?.replace(/_/g, ' ')}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono font-bold text-slate-700">₹{(ret.value || 0).toLocaleString()}</span>
+                          <StatusBadge status={ret.status} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -652,129 +841,81 @@ export default function MerchantFlaggedCaseDetail() {
       </AnimatePresence>
 
       {/* Bottom Merchant Authority Decision Bar */}
-      <div className="rounded-2xl border-2 border-indigo-200 bg-white p-6 shadow-md space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <span>⚖️</span> Merchant Decision
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Review signals and execute your final decision below.
+              </p>
+            </div>
+            <span className="text-xs font-bold text-white bg-white/10 px-3 py-1 rounded-lg border border-white/20">
+              Status: <strong className="uppercase">{returnCase.status}</strong>
+            </span>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Custom Notes */}
           <div>
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <span>⚖️</span> Merchant Final Authority & Decision
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Review physical findings and checkpoint signals, then execute final decision:
-            </p>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">Decision Notes</label>
+            <input
+              type="text"
+              placeholder="Add notes for this decision..."
+              value={decisionNotes}
+              onChange={(e) => setDecisionNotes(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+            />
           </div>
-          <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-lg">
-            Current Status: <strong className="uppercase text-slate-900">{returnCase.status}</strong>
-          </span>
-        </div>
 
-        {/* Quick Decision Chips (10 Canonical Templates) */}
-        <div>
-          <span className="text-[10px] font-bold uppercase text-slate-400 mb-1.5 block">
-            ⚡ Quick Decision Templates (Click to apply & execute):
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: '✓ Approved: Photo proof verified & authentic', status: 'approved', color: 'hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-800' },
-              { label: '✓ Approved: Within 7-day return policy', status: 'approved', color: 'hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-800' },
-              { label: '✓ Approved: Size replacement authorized', status: 'approved', color: 'hover:border-blue-400 hover:bg-blue-50 hover:text-blue-800' },
-              { label: '🎁 Approved: Store credit + 5% bonus', status: 'approved', color: 'hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-800' },
-              { label: '⚠️ Hold: Serial/IMEI verification required', status: 'hold', color: 'hover:border-amber-400 hover:bg-amber-50 hover:text-amber-800' },
-              { label: '⚠️ Hold: Product swap / replica inspection', status: 'hold', color: 'hover:border-amber-400 hover:bg-amber-50 hover:text-amber-800' },
-              { label: '✕ Rejected: Item tag removed / worn', status: 'rejected', color: 'hover:border-rose-400 hover:bg-rose-50 hover:text-rose-800' },
-              { label: '✕ Rejected: Outside 7-day return window', status: 'rejected', color: 'hover:border-rose-400 hover:bg-rose-50 hover:text-rose-800' },
-              { label: '✕ Rejected: Physical proof mismatch', status: 'rejected', color: 'hover:border-rose-400 hover:bg-rose-50 hover:text-rose-800' },
-              { label: '🚨 Rejected: Repeated wardrobing / fraud flag', status: 'rejected', color: 'hover:border-red-500 hover:bg-red-50 hover:text-red-900' },
-            ].map((chip, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => {
-                  setSelectedReason(chip.label)
-                  setDecisionNotes(chip.label)
-                  handleDecision(chip.status, chip.label)
-                }}
-                className={`rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 transition-all cursor-pointer shadow-2xs ${chip.color}`}
-              >
-                {chip.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Custom Notes & Actions */}
-        <div className="space-y-3 pt-2">
-          <input
-            type="text"
-            placeholder="Add custom decision notes or customer communication message..."
-            value={decisionNotes}
-            onChange={(e) => setDecisionNotes(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-          />
-
-          {/* Restriction Checkbox & Primary Authority Action Buttons */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pt-1 border-t border-slate-100">
-            <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={applyingRestriction}
-                onChange={(e) => setApplyingRestriction(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-              />
-              <span>Apply customer restriction alongside decision</span>
-            </label>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {/* 1. Approve Original Payment */}
+          {/* Primary Decision Buttons - Clear Visual Hierarchy */}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Primary Decision</label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
               <button
                 type="button"
                 disabled={updating}
                 onClick={() => handleDecision('approved', 'Approved for original payment refund')}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 text-xs font-black shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+                className="flex flex-col items-center gap-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-3 text-xs font-bold shadow-sm transition-all active:scale-[0.97] cursor-pointer border border-emerald-600"
               >
-                <Check className="h-4 w-4" /> Approve (Refund)
+                <Check className="h-5 w-5" /> <span>Approve Refund</span>
               </button>
-
-              {/* 2. Approve Store Credit */}
               <button
                 type="button"
                 disabled={updating}
                 onClick={() => handleDecision('approved', 'Approved with Store Credit (+5% bonus value)')}
-                className="flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2.5 text-xs font-black shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+                className="flex flex-col items-center gap-1.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white px-3 py-3 text-xs font-bold shadow-sm transition-all active:scale-[0.97] cursor-pointer border border-blue-600"
               >
-                <Coins className="h-4 w-4" /> Store Credit (+5%)
+                <Coins className="h-5 w-5" /> <span>Store Credit +5%</span>
               </button>
-
-              {/* 3. Issue Replacement */}
               <button
                 type="button"
                 disabled={updating}
                 onClick={() => handleDecision('approved', 'Replacement item dispatched (Size / Variant swap)')}
-                className="flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2.5 text-xs font-black shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+                className="flex flex-col items-center gap-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-3 text-xs font-bold shadow-sm transition-all active:scale-[0.97] cursor-pointer border border-indigo-600"
               >
-                <Package className="h-4 w-4" /> Issue Replacement
+                <Package className="h-5 w-5" /> <span>Replacement</span>
               </button>
-
-              {/* 4. Put on Hold */}
               <button
                 type="button"
                 disabled={updating}
                 onClick={() => handleDecision('hold', 'Case placed on HOLD awaiting warehouse physical inspection')}
-                className="flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-2.5 text-xs font-black shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+                className="flex flex-col items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-3 py-3 text-xs font-bold shadow-sm transition-all active:scale-[0.97] cursor-pointer border border-amber-600"
               >
-                <AlertTriangle className="h-4 w-4" /> Put on Hold
+                <AlertTriangle className="h-5 w-5" /> <span>Hold</span>
               </button>
-
-              {/* 5. Reject Return */}
               <button
                 type="button"
                 disabled={updating}
                 onClick={() => handleDecision('rejected', 'Rejected: Policy violation / physical proof mismatch')}
-                className="flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2.5 text-xs font-black shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+                className="flex flex-col items-center gap-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white px-3 py-3 text-xs font-bold shadow-sm transition-all active:scale-[0.97] cursor-pointer border border-rose-600"
               >
-                <X className="h-4 w-4" /> Reject Return
+                <X className="h-5 w-5" /> <span>Reject</span>
               </button>
-
-              {/* 6. Restrict Customer Account */}
               <button
                 type="button"
                 disabled={updating}
@@ -782,84 +923,36 @@ export default function MerchantFlaggedCaseDetail() {
                   setApplyingRestriction(true)
                   handleDecision('rejected', 'Rejected & customer account restricted for repeated fraud')
                 }}
-                className="flex items-center gap-1.5 rounded-xl bg-red-800 hover:bg-red-900 text-white px-3.5 py-2.5 text-xs font-black shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+                className="flex flex-col items-center gap-1.5 rounded-xl bg-red-700 hover:bg-red-800 text-white px-3 py-3 text-xs font-bold shadow-sm transition-all active:scale-[0.97] cursor-pointer border border-red-800"
               >
-                <ShieldAlert className="h-4 w-4" /> Reject & Restrict COD
+                <ShieldAlert className="h-5 w-5" /> <span>Reject + Restrict</span>
               </button>
             </div>
           </div>
 
-          {/* Customer Account Sanctions & Enforcement Bar (Suspend, Ban, Block COD, Lift) */}
-          <div className="mt-3 pt-3 border-t border-slate-200/80 bg-slate-50/80 p-3.5 rounded-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-              <span className="text-[11px] font-black uppercase text-slate-800 tracking-wider flex items-center gap-1.5">
-                <span>🛡️</span> Customer Account Sanctions & Interventions:
+          {/* Restriction Checkbox */}
+          <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer select-none bg-slate-50 rounded-xl px-4 py-2.5 border border-slate-200">
+            <input
+              type="checkbox"
+              checked={applyingRestriction}
+              onChange={(e) => setApplyingRestriction(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            <span>Apply customer restriction alongside this decision</span>
+          </label>
+
+          {/* Customer Account Actions - Clearly Separated */}
+          <div className="border-t border-slate-200 pt-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+              <span className="text-xs font-black uppercase text-slate-800 tracking-wider">
+                🛡️ Customer Account Actions
               </span>
-              <span className="text-[11px] text-slate-500 font-medium">
+              <span className="text-xs text-slate-500">
                 Target: <strong className="text-slate-900">{returnCase.customer_name}</strong> (Level {currentLevel})
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Suspend Account */}
-              <button
-                type="button"
-                onClick={async () => {
-                  if (returnCase.user_id) {
-                    await api.performMerchantAction({
-                      customerId: returnCase.user_id,
-                      action: 'suspend_account',
-                      notes: `Account suspended by merchant during review of Return #${returnCase.id}`,
-                    })
-                    showToast(`🚫 Account for ${returnCase.customer_name} has been SUSPENDED`, 'error')
-                    loadCase()
-                  }
-                }}
-                className="flex items-center gap-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 text-white px-3 py-1.5 text-xs font-black shadow-2xs transition-all cursor-pointer"
-              >
-                <span>🚫</span> Suspend Account
-              </button>
-
-              {/* Permanent Ban */}
-              <button
-                type="button"
-                onClick={async () => {
-                  if (returnCase.user_id) {
-                    await api.performMerchantAction({
-                      customerId: returnCase.user_id,
-                      action: 'set_escalation_level',
-                      escalation_level: 5,
-                      notes: `Permanent account cancellation (Step 5 Ban) on Return #${returnCase.id}`,
-                    })
-                    showToast(`⛔ Permanent BAN issued for ${returnCase.customer_name}`, 'error')
-                    loadCase()
-                  }
-                }}
-                className="flex items-center gap-1.5 rounded-lg bg-slate-950 hover:bg-black text-rose-300 border border-rose-900 px-3 py-1.5 text-xs font-black shadow-2xs transition-all cursor-pointer"
-              >
-                <span>⛔</span> Permanent Ban (Step 5)
-              </button>
-
-              {/* Force Prepaid Only */}
-              <button
-                type="button"
-                onClick={async () => {
-                  if (returnCase.user_id) {
-                    await api.performMerchantAction({
-                      customerId: returnCase.user_id,
-                      action: 'require_prepaid',
-                      notes: `Forced prepaid-only (COD blocked) on Return #${returnCase.id}`,
-                    })
-                    showToast(`💳 COD blocked. Customer must pay online for future orders`, 'success')
-                    loadCase()
-                  }
-                }}
-                className="flex items-center gap-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 text-xs font-bold shadow-2xs transition-all cursor-pointer"
-              >
-                <span>💳</span> Restrict to Prepaid (Block COD)
-              </button>
-
-              {/* Force Checkout OTP */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
               <button
                 type="button"
                 onClick={async () => {
@@ -874,23 +967,71 @@ export default function MerchantFlaggedCaseDetail() {
                     loadCase()
                   }
                 }}
-                className="flex items-center gap-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 px-3 py-1.5 text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                className="flex flex-col items-center gap-1 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 px-3 py-2.5 text-xs font-bold transition-all cursor-pointer"
               >
-                <span>📱</span> Force Checkout OTP (Step 1)
+                <span className="text-base">📱</span> Force OTP
               </button>
-
-              {/* Flag Device */}
+              <button
+                type="button"
+                onClick={async () => {
+                  if (returnCase.user_id) {
+                    await api.performMerchantAction({
+                      customerId: returnCase.user_id,
+                      action: 'require_prepaid',
+                      notes: `Forced prepaid-only (COD blocked) on Return #${returnCase.id}`,
+                    })
+                    showToast(`💳 COD blocked. Customer must pay online for future orders`, 'success')
+                    loadCase()
+                  }
+                }}
+                className="flex flex-col items-center gap-1 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-900 px-3 py-2.5 text-xs font-bold transition-all cursor-pointer"
+              >
+                <span className="text-base">💳</span> Block COD
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (returnCase.user_id) {
+                    await api.performMerchantAction({
+                      customerId: returnCase.user_id,
+                      action: 'suspend_account',
+                      notes: `Account suspended by merchant during review of Return #${returnCase.id}`,
+                    })
+                    showToast(`🚫 Account for ${returnCase.customer_name} has been SUSPENDED`, 'error')
+                    loadCase()
+                  }
+                }}
+                className="flex flex-col items-center gap-1 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-900 px-3 py-2.5 text-xs font-bold transition-all cursor-pointer"
+              >
+                <span className="text-base">🚫</span> Suspend
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (returnCase.user_id) {
+                    await api.performMerchantAction({
+                      customerId: returnCase.user_id,
+                      action: 'set_escalation_level',
+                      escalation_level: 5,
+                      notes: `Permanent account cancellation (Step 5 Ban) on Return #${returnCase.id}`,
+                    })
+                    showToast(`⛔ Permanent BAN issued for ${returnCase.customer_name}`, 'error')
+                    loadCase()
+                  }
+                }}
+                className="flex flex-col items-center gap-1 rounded-xl bg-slate-900 hover:bg-black text-white border border-slate-950 px-3 py-2.5 text-xs font-bold transition-all cursor-pointer"
+              >
+                <span className="text-base">⛔</span> Permanent Ban
+              </button>
               <button
                 type="button"
                 onClick={() => {
-                  showToast(`🛡️ Device token device_${returnCase.user_id || '9021'} added to Suspicious Hardware Blacklist`, 'success')
+                  showToast(`🛡️ Device token added to Suspicious Hardware Blacklist`, 'success')
                 }}
-                className="flex items-center gap-1.5 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-950 border border-purple-300 px-3 py-1.5 text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                className="flex flex-col items-center gap-1 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-900 px-3 py-2.5 text-xs font-bold transition-all cursor-pointer"
               >
-                <span>🛡️</span> Flag Device Token
+                <span className="text-base">🛡️</span> Flag Device
               </button>
-
-              {/* Lift All Restrictions */}
               <button
                 type="button"
                 onClick={async () => {
@@ -910,37 +1051,34 @@ export default function MerchantFlaggedCaseDetail() {
                     loadCase()
                   }
                 }}
-                className="flex items-center gap-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-950 border border-emerald-300 px-3 py-1.5 text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                className="flex flex-col items-center gap-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-900 px-3 py-2.5 text-xs font-bold transition-all cursor-pointer"
               >
-                <span>🟢</span> Restore Account (Lift Bans)
+                <span className="text-base">🟢</span> Restore Account
               </button>
             </div>
           </div>
 
-          {/* Quick Ops & Utility Actions Bar */}
-          <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[10px] font-bold uppercase text-slate-400">
-              🛠️ Operational Tools & Direct Interventions:
-            </span>
+          {/* Utility Actions */}
+          <div className="border-t border-slate-100 pt-4">
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => showToast(`📲 SMS OTP verification triggered to customer (${returnCase.customer_name})`, 'success')}
-                className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer shadow-2xs"
+                onClick={() => showToast(`📲 SMS OTP verification triggered`, 'success')}
+                className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 transition-colors cursor-pointer flex items-center gap-1.5"
               >
                 📱 Send SMS OTP
               </button>
               <button
                 type="button"
-                onClick={() => showToast(`🚚 Warehouse pickup scheduled for ${returnCase.pickup_slot || 'Tomorrow'}`, 'success')}
-                className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer shadow-2xs"
+                onClick={() => showToast(`🚚 Warehouse pickup scheduled`, 'success')}
+                className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 transition-colors cursor-pointer flex items-center gap-1.5"
               >
                 🚚 Dispatch Pickup
               </button>
               <button
                 type="button"
-                onClick={() => showToast(`💬 SMS & In-app notification sent to ${returnCase.customer_name}`, 'success')}
-                className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer shadow-2xs"
+                onClick={() => showToast(`💬 Notification sent to ${returnCase.customer_name}`, 'success')}
+                className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 transition-colors cursor-pointer flex items-center gap-1.5"
               >
                 💬 Message Shopper
               </button>
@@ -954,11 +1092,11 @@ export default function MerchantFlaggedCaseDetail() {
                   a.href = url
                   a.download = `Case_Audit_Return_${returnCase.id}.json`
                   a.click()
-                  showToast('📄 Audit dossier JSON downloaded', 'success')
+                  showToast('📄 Audit dossier downloaded', 'success')
                 }}
-                className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-bold text-indigo-700 transition-colors cursor-pointer shadow-2xs"
+                className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-3 py-2 text-xs font-semibold text-indigo-600 transition-colors cursor-pointer flex items-center gap-1.5"
               >
-                📄 Export Dossier (JSON)
+                📄 Export Dossier
               </button>
             </div>
           </div>

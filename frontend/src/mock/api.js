@@ -296,7 +296,7 @@ function findShopperByEmail(email) {
 }
 
 function computeRisk(input = {}) {
-  let score = 10
+  let score = 10  // base score (matches backend)
   const signals = []
   const checkpoints = []
 
@@ -339,8 +339,11 @@ function computeRisk(input = {}) {
     }
   }
 
-  // ── TYPE B: PRODUCT VERIFICATION ──
-  // CP17b: Serial / IMEI Mismatch
+  // ══════════════════════════════════════════
+  // ── TYPE B: PRODUCT VERIFICATION (CP17b, CP18-22) ──
+  // ══════════════════════════════════════════
+
+  // CP17b: Serial / IMEI Mismatch (CRITICAL +50)
   let serialDelta = 0
   const serialSigs = []
   if (input.serial_mismatch || (input.returned_serial_number && input.original_serial && input.returned_serial_number.toUpperCase() !== input.original_serial.toUpperCase())) {
@@ -358,7 +361,7 @@ function computeRisk(input = {}) {
   score += serialDelta
   signals.push(...serialSigs)
 
-  // CP21: Product Swap
+  // CP21: Product Swap (CRITICAL +50)
   let swapDelta = 0
   const swapSigs = []
   if (input.is_product_swap_detected) {
@@ -376,22 +379,21 @@ function computeRisk(input = {}) {
   score += swapDelta
   signals.push(...swapSigs)
 
-  // CP19: Product Condition
+  // CP19: Product Condition (UNUSED=0, USED=10, SOILED=15, TAMPERED=20)
   let condDelta = 0
   const condSigs = []
   const condition = input.product_condition || input.shopper_reported_condition || 'unused'
-  if (condition === 'tampered') {
-    condDelta = 20
-    condSigs.push('Product tampered / warranty seal broken')
-  } else if (condition === 'soiled') {
-    condDelta = 15
-    condSigs.push('Product soiled / visible stains or odor')
-  } else if (condition === 'tag_removed') {
-    condDelta = 12
-    condSigs.push('Return security tag removed')
-  } else if (condition === 'used') {
-    condDelta = 10
-    condSigs.push('Product shows signs of wear / usage')
+  const conditionScores = { unused: 0, used: 10, damaged: 5, soiled: 15, tampered: 20, tag_removed: 12, unknown: 0 }
+  condDelta = conditionScores[condition] || 0
+  if (condDelta > 0) {
+    const label = condition.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    condSigs.push(`Product condition: ${label}`)
+  }
+  // Condition mismatch between shopper claim and verified
+  const shopperCond = input.shopper_reported_condition || 'unknown'
+  if (shopperCond !== 'unknown' && condition !== 'unknown' && shopperCond !== condition) {
+    condDelta += 10
+    condSigs.push(`Condition mismatch — shopper claimed '${shopperCond}', verified as '${condition}'`)
   }
   checkpoints.push({
     id: 'CP19',
@@ -404,19 +406,15 @@ function computeRisk(input = {}) {
   score += condDelta
   signals.push(...condSigs)
 
-  // CP20: Packaging Condition
+  // CP20: Packaging Condition (DIFFERENT_BOX=20, NO_PACKAGING=15, ORIGINAL_DAMAGED=5)
   let packDelta = 0
   const packSigs = []
   const packaging = input.packaging_condition || 'original_intact'
-  if (packaging === 'different_box') {
-    packDelta = 20
-    packSigs.push('Returned in wrong/different packaging')
-  } else if (packaging === 'no_packaging') {
-    packDelta = 15
-    packSigs.push('No original packaging included')
-  } else if (packaging === 'original_damaged') {
-    packDelta = 5
-    packSigs.push('Original packaging damaged')
+  const packScores = { original_intact: 0, original_damaged: 5, different_box: 20, no_packaging: 15, not_inspected: 0 }
+  packDelta = packScores[packaging] || 0
+  if (packDelta > 0) {
+    const label = packaging.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    packSigs.push(`Packaging issue: ${label}`)
   }
   checkpoints.push({
     id: 'CP20',
@@ -433,9 +431,17 @@ function computeRisk(input = {}) {
   let accDelta = 0
   const accSigs = []
   const missingAcc = input.accessories_missing || []
+  const expectedAcc = input.accessories_expected || []
   if (missingAcc.length > 0) {
-    accDelta = 15
-    accSigs.push(`Missing accessories: ${missingAcc.join(', ')}`)
+    const totalExpected = expectedAcc.length || missingAcc.length + 1
+    const ratio = missingAcc.length / totalExpected
+    if (ratio > 0.5) {
+      accDelta = 15
+      accSigs.push(`Major accessories missing: ${missingAcc.join(', ')} (${missingAcc.length}/${totalExpected})`)
+    } else {
+      accDelta = 7
+      accSigs.push(`Minor accessories missing: ${missingAcc.join(', ')}`)
+    }
   }
   checkpoints.push({
     id: 'CP18',
@@ -448,7 +454,7 @@ function computeRisk(input = {}) {
   score += accDelta
   signals.push(...accSigs)
 
-  // CP22: Quantity Mismatch
+  // CP22: Quantity Mismatch (+20)
   let qtyDelta = 0
   const qtySigs = []
   if (input.quantity_received !== undefined && input.quantity_claimed && input.quantity_received < input.quantity_claimed) {
@@ -466,7 +472,9 @@ function computeRisk(input = {}) {
   score += qtyDelta
   signals.push(...qtySigs)
 
-  // ── TYPE C: CUSTOMER BEHAVIOR SIGNALS ──
+  // ══════════════════════════════════════════
+  // ── TYPE C: CUSTOMER BEHAVIOR SIGNALS (CP1-16, CP23, CP25, CP27-28) ──
+  // ══════════════════════════════════════════
   const shopper = session.shopper ? findShopperByEmail(session.shopper.email) : null
   const ordersCount = shopper?.total_orders || 1
   const returnsCount = shopper?.total_returns || 0
@@ -476,14 +484,13 @@ function computeRisk(input = {}) {
   let sizeDelta = 0
   const sizeSigs = []
   const variantCount = input.returnLines?.length || 1
-  if (variantCount >= 3) {
-    sizeDelta += 15
-    sizeSigs.push(`Multiple variants/sizes ordered in single order (${variantCount} items) — bracketing pattern`)
-  }
-  if (shopper?.size_exchange_count && shopper.size_exchange_count >= 2) {
-    sizeDelta += 10
-    sizeSigs.push(`Frequent size exchange history (${shopper.size_exchange_count} exchanges)`)
-  }
+  const exchangeCount = shopper?.size_exchange_count || 0
+  const exchangeRate = exchangeCount / ordersCount
+  if (exchangeRate > 0.5) { sizeDelta += 15; sizeSigs.push('Extreme size exchange pattern') }
+  else if (exchangeRate > 0.3) { sizeDelta += 10; sizeSigs.push('Very frequent size exchanges') }
+  else if (exchangeRate > 0.15) { sizeDelta += 5; sizeSigs.push('Repeated size exchanges') }
+  if (variantCount >= 4) { sizeDelta += 10; sizeSigs.push(`Multiple sizes ordered (4+ variants — bracketing pattern)`) }
+  else if (variantCount === 3) { sizeDelta += 5; sizeSigs.push(`Multiple sizes ordered (3 variants)`) }
   checkpoints.push({
     id: 'CP1-3',
     name: 'Size Exchanges & Bracketing',
@@ -495,13 +502,18 @@ function computeRisk(input = {}) {
   score += sizeDelta
   signals.push(...sizeSigs)
 
-  // CP4: Wardrobing Detection
+  // CP4: Wardrobing Detection (+20/+30/+35)
   let wardrobingDelta = 0
   const wardrobingSigs = []
-  if (categoryId === 'cat_ethnic' && input.reason === 'changed_mind') {
-    wardrobingDelta = 25
-    wardrobingSigs.push('Festive ethnic item returned with changed mind reason (potential wardrobing)')
-  }
+  const fashionCats = ['cat_ethnic', 'cat_daily']
+  let wardrobingIndicators = 0
+  if (categoryId && fashionCats.includes(categoryId)) wardrobingIndicators++
+  if (input.reason && ['changed_mind', 'changed mind', 'not needed'].includes(input.reason)) wardrobingIndicators++
+  if (returnsCount >= 5) wardrobingIndicators++
+  if ((shopper?.damage_claim_count || 0) >= 2) wardrobingIndicators++
+  if (wardrobingIndicators >= 4) { wardrobingDelta = 35; wardrobingSigs.push('Strong wardrobing pattern — previous condition issues') }
+  else if (wardrobingIndicators >= 3) { wardrobingDelta = 30; wardrobingSigs.push('Repeated wardrobing pattern detected') }
+  else if (wardrobingIndicators >= 2) { wardrobingDelta = 20; wardrobingSigs.push('Potential wardrobing pattern') }
   checkpoints.push({
     id: 'CP4',
     name: 'Wardrobing Detection',
@@ -513,16 +525,19 @@ function computeRisk(input = {}) {
   score += wardrobingDelta
   signals.push(...wardrobingSigs)
 
-  // CP5: High Value Return & Manual Verification Gate
+  // CP5: High Value Return (+5/+10/+15/+25)
   let hvDelta = 0
   const hvSigs = []
   const orderTotal = Number(input.orderTotal || input.total || 0)
+  const avgOrderVal = Number(shopper?.avg_order_value || 0)
   if (orderTotal >= 5000) {
-    hvDelta = 30
+    hvDelta = 25
     hvSigs.push(`🚨 High-value claim (₹${orderTotal.toLocaleString('en-IN')} ≥ ₹5,000 threshold) — Mandatory Physical Verification Required`)
-  } else if (orderTotal >= 3000) {
-    hvDelta = 10
-    hvSigs.push(`Above-average order value return (₹${orderTotal.toLocaleString('en-IN')})`)
+  } else if (avgOrderVal > 0) {
+    const ratio = orderTotal / avgOrderVal
+    if (ratio >= 5) { hvDelta = 15; hvSigs.push(`Very high-value return (₹${orderTotal.toLocaleString('en-IN')} — ${ratio.toFixed(1)}× normal)`) }
+    else if (ratio >= 3) { hvDelta = 10; hvSigs.push(`High-value return (₹${orderTotal.toLocaleString('en-IN')} — ${ratio.toFixed(1)}× normal)`) }
+    else if (ratio >= 2) { hvDelta = 5; hvSigs.push(`Above-average return value (₹${orderTotal.toLocaleString('en-IN')} — ${ratio.toFixed(1)}× normal)`) }
   }
   checkpoints.push({
     id: 'CP5',
@@ -538,15 +553,14 @@ function computeRisk(input = {}) {
   // CP9-10: Damage Claims & Photo Evidence
   let damageDelta = 0
   const damageSigs = []
-  if (input.reason === 'damaged' || input.reason === 'broken') {
-    if (!input.images || input.images.length === 0) {
-      damageDelta = 20
-      damageSigs.push('Damage claim submitted without unboxing/photo evidence')
-    } else {
-      damageDelta = 5
-      damageSigs.push('Damage claim with photo proof provided')
-    }
-  }
+  const damageCount = shopper?.damage_claim_count || 0
+  const damageNoEvCount = shopper?.damage_no_evidence_count || 0
+  if (damageCount >= 4) { damageDelta += 25; damageSigs.push(`Frequent damage claims (${damageCount} total) — proof required`) }
+  else if (damageCount >= 3) { damageDelta += 15; damageSigs.push(`Repeated damage claims (${damageCount} total)`) }
+  else if (damageCount >= 2) { damageDelta += 5; damageSigs.push(`Multiple damage claims (${damageCount} total)`) }
+  // CP10: Damage without evidence
+  if (damageNoEvCount >= 3) { damageDelta += 20; damageSigs.push(`Multiple damage claims without evidence (${damageNoEvCount} times)`) }
+  else if (damageNoEvCount >= 2) { damageDelta += 10; damageSigs.push(`Repeated damage claims without evidence (${damageNoEvCount} times)`) }
   checkpoints.push({
     id: 'CP9-10',
     name: 'Damage Claims & Evidence Proof',
@@ -558,14 +572,17 @@ function computeRisk(input = {}) {
   score += damageDelta
   signals.push(...damageSigs)
 
-  // CP14: Refund-to-Order Ratio
+  // CP14: Refund-to-Order Ratio (<20%=0, 20-40%=+5, 40-60%=+15, 60%+=+25)
   let refundDelta = 0
   const refundSigs = []
-  if (returnRate > 0.4) {
+  if (returnRate >= 0.6) {
     refundDelta = 25
-    refundSigs.push(`High refund ratio (${(returnRate * 100).toFixed(0)}% return rate across ${ordersCount} orders)`)
-  } else if (returnRate > 0.2) {
-    refundDelta = 12
+    refundSigs.push(`Very high refund ratio (${(returnRate * 100).toFixed(0)}% return rate across ${ordersCount} orders)`)
+  } else if (returnRate >= 0.4) {
+    refundDelta = 15
+    refundSigs.push(`High refund ratio (${(returnRate * 100).toFixed(0)}%)`)
+  } else if (returnRate >= 0.2) {
+    refundDelta = 5
     refundSigs.push(`Elevated return frequency (${(returnRate * 100).toFixed(0)}%)`)
   } else {
     refundDelta = -5
@@ -582,35 +599,160 @@ function computeRisk(input = {}) {
   score += refundDelta
   signals.push(...refundSigs)
 
-  // CP27: Customer vs Product Return Rate
+  // CP11: Return Reason Inconsistency (consistent=0, one_change=+5, repeated=+10, major=+15)
+  let reasonDelta = 0
+  const reasonSigs = []
+  if (input.reason_changed) {
+    const changes = (input.reason_change_history || []).length
+    if (changes >= 2) { reasonDelta = 15; reasonSigs.push(`Major contradictions in return reason (${changes} changes)`) }
+    else if (changes >= 1) { reasonDelta = 5; reasonSigs.push('Return reason changed during process') }
+    else { reasonDelta = 5; reasonSigs.push('Return reason inconsistency detected') }
+  }
+  if ((shopper?.reason_change_count || 0) >= 3) {
+    reasonDelta += 5
+    reasonSigs.push(`History of reason changes (${shopper.reason_change_count} across returns)`)
+  }
+  checkpoints.push({
+    id: 'CP11',
+    name: 'Return Reason Inconsistency',
+    tier_type: 'C',
+    score_delta: reasonDelta,
+    severity: reasonDelta >= 15 ? 'high' : reasonDelta > 0 ? 'medium' : 'pass',
+    signals: reasonSigs.length ? reasonSigs : ['Consistent return reason'],
+  })
+  score += reasonDelta
+  signals.push(...reasonSigs)
+
+  // CP12: Frequent Address Changes (2-3=+5, 4-5=+10, 6+=+15)
+  let addrDelta = 0
+  const addrSigs = []
+  const addrCount = shopper?.address_mismatch_count || 0
+  if (addrCount >= 6) { addrDelta = 15; addrSigs.push('Highly frequent address changes (6+)') }
+  else if (addrCount >= 4) { addrDelta = 10; addrSigs.push(`Frequent address changes (${addrCount})`) }
+  else if (addrCount >= 2) { addrDelta = 5; addrSigs.push(`Multiple address changes (${addrCount})`) }
+  else if (addrCount >= 1) { addrDelta = 4; addrSigs.push('Address mismatch detected') }
+  checkpoints.push({
+    id: 'CP12',
+    name: 'Address Changes',
+    tier_type: 'C',
+    score_delta: addrDelta,
+    severity: addrDelta >= 10 ? 'high' : addrDelta > 0 ? 'medium' : 'pass',
+    signals: addrSigs.length ? addrSigs : ['No address changes detected'],
+  })
+  score += addrDelta
+  signals.push(...addrSigs)
+
+  // CP16: Previous Rejected Returns (1=+5, 2=+10, 3=+20, 4+=+25)
+  let rejDelta = 0
+  const rejSigs = []
+  const rejCount = shopper?.rejected_return_count || 0
+  if (rejCount >= 4) { rejDelta = 25; rejSigs.push(`Multiple previously rejected returns (${rejCount}) — manual review required`) }
+  else if (rejCount >= 3) { rejDelta = 20; rejSigs.push(`Previous rejected returns (${rejCount})`) }
+  else if (rejCount >= 2) { rejDelta = 10; rejSigs.push(`Previous rejected returns (${rejCount})`) }
+  else if (rejCount >= 1) { rejDelta = 5; rejSigs.push('One previously rejected return') }
+  checkpoints.push({
+    id: 'CP16',
+    name: 'Previous Rejected Returns',
+    tier_type: 'C',
+    score_delta: rejDelta,
+    severity: rejDelta >= 15 ? 'high' : rejDelta > 0 ? 'medium' : 'pass',
+    signals: rejSigs.length ? rejSigs : ['No previously rejected returns'],
+  })
+  score += rejDelta
+  signals.push(...rejSigs)
+
+  // CP23: Duplicate Return Requests (2=+10, 3+=+20)
+  let dupDelta = 0
+  const dupSigs = []
+  const dupCount = shopper?.duplicate_return_request_count || 0
+  if (dupCount >= 3) { dupDelta = 20; dupSigs.push(`Frequent duplicate return requests (${dupCount} times)`) }
+  else if (dupCount >= 2) { dupDelta = 10; dupSigs.push(`Multiple duplicate return requests (${dupCount} times)`) }
+  checkpoints.push({
+    id: 'CP23',
+    name: 'Duplicate Return Requests',
+    tier_type: 'C',
+    score_delta: dupDelta,
+    severity: dupDelta >= 15 ? 'high' : dupDelta > 0 ? 'medium' : 'pass',
+    signals: dupSigs.length ? dupSigs : ['No duplicate return requests'],
+  })
+  score += dupDelta
+  signals.push(...dupSigs)
+
+  // CP25: Open-Box Verification (+15 if wrong-product claim after open-box acceptance)
+  let openBoxDelta = 0
+  const openBoxSigs = []
+  if (input.open_box_delivery && input.customer_accepted_open_box &&
+      input.reason && ['wrong_product', 'wrong product', 'not_as_described'].includes(input.reason)) {
+    openBoxDelta = 15
+    openBoxSigs.push('Wrong-product claim after open-box delivery acceptance — higher scrutiny')
+  }
+  checkpoints.push({
+    id: 'CP25',
+    name: 'Open-Box Verification',
+    tier_type: 'C',
+    score_delta: openBoxDelta,
+    severity: openBoxDelta > 0 ? 'high' : 'pass',
+    signals: openBoxSigs.length ? openBoxSigs : ['No open-box verification concerns'],
+  })
+  score += openBoxDelta
+  signals.push(...openBoxSigs)
+
+  // CP27: Customer vs Product Return Rate (+15 if customer far exceeds product)
+  let cp27Delta = 0
+  const cp27Sigs = []
+  const productObj = store.products.find(p => input.returnLines?.[0]?.product_id === p.id)
+  if (productObj) {
+    const productSold = productObj.total_sold_count || 0
+    const productReturns = productObj.total_returns_count || 0
+    const productRate = productSold > 0 ? productReturns / productSold : 0
+    if (returnRate >= 0.75 && productRate < 0.2) {
+      cp27Delta = 15
+      cp27Sigs.push(`Customer return rate (${(returnRate * 100).toFixed(0)}%) far exceeds product rate (${(productRate * 100).toFixed(0)}%)`)
+    } else if (returnRate >= 0.5 && productRate < 0.15) {
+      cp27Delta = 10
+      cp27Sigs.push(`Customer return rate (${(returnRate * 100).toFixed(0)}%) significantly above product rate (${(productRate * 100).toFixed(0)}%)`)
+    } else if (productRate >= 0.4) {
+      cp27Delta = -5
+      cp27Sigs.push(`Product has high return rate (${(productRate * 100).toFixed(0)}%) — customer return not unusual`)
+    }
+  }
   checkpoints.push({
     id: 'CP27',
     name: 'Customer vs Product Return Benchmark',
     tier_type: 'C',
-    score_delta: 0,
-    severity: 'pass',
-    signals: ['Product category baseline return rate (7.8%) within normal bounds'],
+    score_delta: cp27Delta,
+    severity: cp27Delta >= 10 ? 'high' : 'pass',
+    signals: cp27Sigs.length ? cp27Sigs : ['Product category baseline return rate within normal bounds'],
   })
+  score += cp27Delta
+  signals.push(...cp27Sigs)
 
-  // CP28: Customer Tenure & Account Loyalty
+  // CP28: Customer Tenure & Account Loyalty (loyal = -10, new + risky = +15)
   let tenureDelta = 0
   const tenureSigs = []
-  if (shopper && ordersCount >= 5 && returnRate < 0.2) {
-    tenureDelta = -8
-    tenureSigs.push('Established loyal shopper with positive delivery history')
+  if (shopper) {
+    const joinedAt = shopper.joined_at ? new Date(shopper.joined_at) : null
+    const accountDays = joinedAt ? Math.floor((Date.now() - joinedAt.getTime()) / 86400000) : 0
+    if (accountDays <= 30 && ordersCount <= 5 && returnsCount >= 3) {
+      tenureDelta = 15
+      tenureSigs.push(`New account (${accountDays} days) with high return rate (${returnsCount} returns in ${ordersCount} orders)`)
+    } else if (accountDays >= 365 && ordersCount >= 20 && returnRate < 0.2) {
+      tenureDelta = -10
+      tenureSigs.push(`Loyal customer (${Math.floor(accountDays / 365)}+ years, ${ordersCount} orders, ${(returnRate * 100).toFixed(0)}% return rate)`)
+    }
   }
   checkpoints.push({
     id: 'CP28',
     name: 'Customer Tenure & Loyalty',
     tier_type: 'C',
     score_delta: tenureDelta,
-    severity: 'pass',
+    severity: tenureDelta > 0 ? 'high' : 'pass',
     signals: tenureSigs.length ? tenureSigs : ['Standard customer account profile'],
   })
   score += tenureDelta
   if (tenureSigs.length) signals.push(...tenureSigs)
 
-  // Payment Method check (COD)
+  // Payment Method check (COD = +5)
   if (input.paymentMethod === 'COD') {
     score += 5
     signals.push('COD order')

@@ -590,7 +590,7 @@ def reason_inconsistency_signals(return_request=None, shopper_profile=None,
                 delta += 15
                 signals.append(f"Major contradictions in return reason ({changes} changes)")
             elif changes >= 1:
-                delta += 10
+                delta += 5
                 signals.append("Return reason changed during process")
             else:
                 delta += 5
