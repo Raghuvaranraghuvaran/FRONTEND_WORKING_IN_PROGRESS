@@ -1052,10 +1052,31 @@ class MerchantCategoriesView(APIView):
         categories = Category.objects.filter(merchant=merchant)
         if not categories.exists():
             defaults = (
-                ("Daily Wear", "Everyday tops, shirts and basics"),
-                ("Electronics", "Gadgets and accessories"),
-                ("Ethnic Wear", "Kurtas, sarees, lehengas and festive wear"),
-                ("Home", "Home and living essentials"),
+                ("Ethnic & Festive Wear", "Kurtas, sarees, lehengas, sherwanis, and festive attire"),
+                ("Daily & Casual Wear", "T-shirts, shirts, jeans, tops, hoodies, and loungewear"),
+                ("Formal & Workwear", "Suits, blazers, trousers, formal shirts, and ties"),
+                ("Footwear & Shoes", "Sneakers, formal shoes, boots, heels, loafers, and sandals"),
+                ("Electronics & Smart Devices", "Smartphones, audio, smart TVs, tablets, and laptops"),
+                ("Mobile & Tech Accessories", "Phone cases, chargers, cables, earbuds, and peripherals"),
+                ("Smart Wearables & Watches", "Smartwatches, fitness bands, chronograph and luxury watches"),
+                ("Home, Kitchen & Dining", "Cookware, dinnerware, kitchen appliances, and storage"),
+                ("Home Decor & Bedding", "Bedsheets, curtains, lamps, wall art, rugs, and cushions"),
+                ("Beauty & Cosmetics", "Makeup, lipsticks, foundations, palettes, and nail care"),
+                ("Skincare & Haircare", "Serums, sunscreens, moisturizers, shampoos, and oils"),
+                ("Personal Care & Fragrances", "Perfumes, colognes, grooming trimmers, and hygiene"),
+                ("Jewellery & Accessories", "Earrings, necklaces, rings, bangles, sunglasses, and belts"),
+                ("Bags, Wallets & Luggage", "Handbags, backpacks, laptop bags, wallets, and suitcases"),
+                ("Sports, Gym & Fitness", "Activewear, yoga mats, dumbbells, sportswear, and gear"),
+                ("Kids & Baby Apparel", "Kids fashion, infant wear, party outfits, and rompers"),
+                ("Baby Care & Maternity", "Diapers, baby skincare, strollers, and nursing essentials"),
+                ("Toys, Games & Hobbies", "Educational toys, action figures, board games, and puzzles"),
+                ("Books & Stationery", "Bestsellers, novels, art supplies, notebooks, and pens"),
+                ("Health & Nutrition Supplements", "Whey protein, vitamins, Ayurvedic care, and wellness"),
+                ("Gourmet Food, Tea & Snacks", "Artisanal coffee, green teas, dry fruits, and chocolates"),
+                ("Pet Supplies & Treats", "Pet food, toys, collars, grooming, and pet beds"),
+                ("Automotive & Bike Accessories", "Car perfumes, dash cams, riding gear, and cleaning kits"),
+                ("Gifts & Festive Hampers", "Custom gift hampers, festive gift boxes, and novelty items"),
+                ("General Merchandise", "General merchandise and miscellaneous items"),
             )
             for name, description in defaults:
                 slug = slugify(name)
@@ -1064,7 +1085,7 @@ class MerchantCategoriesView(APIView):
                 Category.objects.get_or_create(
                     merchant=merchant,
                     name=name,
-                    defaults={"description": description, "slug": slug, "id": f"cat_{slug}"},
+                    defaults={"description": description, "slug": slug, "id": f"cat_{slug}"[:64]},
                 )
             categories = Category.objects.filter(merchant=merchant)
         return success(AdminCategorySerializer(categories, many=True).data)

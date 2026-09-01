@@ -3060,7 +3060,14 @@ export const api = {
   },
 
   async getMerchantCategories() {
-    if (hasLiveApi()) return live('/admin/categories/', { role: 'merchant' })
+    if (hasLiveApi()) {
+      try {
+        const liveCats = await live('/admin/categories/', { role: 'merchant' })
+        if (Array.isArray(liveCats) && liveCats.length > 0) return liveCats
+      } catch (err) {
+        console.warn('Live getMerchantCategories error, falling back:', err)
+      }
+    }
     await delay(250)
     return clone(store.categories)
   },

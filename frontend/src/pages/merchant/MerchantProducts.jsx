@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Search, Edit2, Trash2, Check, X, AlertTriangle, Package, IndianRupee, Tag, UploadCloud, FileSpreadsheet, Download, RefreshCw, Image as ImageIcon, Link as LinkIcon, Star } from 'lucide-react'
 import { api } from '../../mock/api'
+import { CATEGORIES } from '../../mock/seed'
 import { INR } from '../../lib/format'
 import EmptyState from '../../components/EmptyState'
 
@@ -70,7 +71,7 @@ const statusFilters = [
 
 export default function MerchantProducts() {
   const [products, setProducts] = useState([])
-  const [categories, setCategories] = useState([])
+  const [categories, setCategories] = useState(CATEGORIES)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
@@ -81,7 +82,7 @@ export default function MerchantProducts() {
   const [editingProduct, setEditingProduct] = useState(null)
   const [formData, setFormData] = useState({
     name: '',
-    category_id: '',
+    category_id: CATEGORIES[0]?.id || 'cat_ethnic',
     price: '',
     stock: '',
     image: '',
@@ -137,7 +138,14 @@ export default function MerchantProducts() {
         api.getMerchantCategories(),
       ])
       setProducts(Array.isArray(prods) ? prods : [])
-      setCategories(Array.isArray(cats) ? cats : [])
+      const loadedCats = Array.isArray(cats) ? cats : []
+      const merged = [...loadedCats]
+      for (const cat of CATEGORIES) {
+        if (!merged.some((c) => c.id === cat.id || c.name.toLowerCase() === cat.name.toLowerCase())) {
+          merged.push(cat)
+        }
+      }
+      setCategories(merged)
     } catch (err) {
       console.error('Failed to load products:', err)
     } finally {
@@ -158,7 +166,7 @@ export default function MerchantProducts() {
     setEditingProduct(null)
     setFormData({
       name: '',
-      category_id: categories[0]?.id || '',
+      category_id: categories[0]?.id || CATEGORIES[0]?.id || 'cat_ethnic',
       price: '',
       stock: '10',
       image: '',
@@ -641,9 +649,19 @@ export default function MerchantProducts() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    Category
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                      Category *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setCategoryModalOpen(true)}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+                      title="Add a custom category"
+                    >
+                      <Plus className="h-3 w-3" /> New
+                    </button>
+                  </div>
                   <select
                     value={formData.category_id}
                     onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
@@ -655,7 +673,7 @@ export default function MerchantProducts() {
                       cursor: 'pointer',
                     }}
                   >
-                    <option value="">Select Category</option>
+                    <option value="">-- Select Category --</option>
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
