@@ -38,14 +38,52 @@ function StatCard({ title, value, subtitle, color, icon: Icon, trend }) {
 }
 
 // Mini Chart Component (simplified)
-function OrderTrendsChart() {
+function OrderTrendsChart({ timeRange = '30d', filterOpen = false, onToggleFilters, onFilterChange }) {
+  const rangeLabels = {
+    '7d': 'Past 7 Days',
+    '30d': 'Past 30 Days',
+    '90d': 'Past 90 Days',
+  }
+
+  const chartValues = {
+    '7d': [52, 58, 63, 60, 72, 75, 70],
+    '30d': [65, 75, 60, 80, 70, 90, 85, 95, 88, 92, 87, 90, 85, 88, 92, 85, 80, 85, 90, 88, 85, 80, 75, 70, 65, 70, 75, 80, 75, 70],
+    '90d': [42, 55, 49, 58, 62, 66, 70, 72, 78, 81, 74, 87, 90, 84, 88, 94, 92, 90, 95, 96, 90, 88, 84, 82, 80, 78, 76, 74, 79, 82],
+  }
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-base font-semibold text-slate-900">Order Trends (Past 30 Days)</h3>
-        <button className="flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
-          Filters <Filter className="h-3 w-3" />
-        </button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="text-base font-semibold text-slate-900">Order Trends ({rangeLabels[timeRange]})</h3>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={onToggleFilters}
+            className="flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Filters <Filter className="h-3 w-3" />
+          </button>
+
+          {filterOpen && (
+            <div className="absolute right-0 z-10 mt-2 min-w-36 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+              {Object.entries(rangeLabels).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    onFilterChange(value)
+                    onToggleFilters()
+                  }}
+                  className={`block w-full rounded-lg px-2 py-1.5 text-left text-xs font-medium ${
+                    timeRange === value ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-4 text-xs">
         <div className="flex items-center gap-2">
@@ -58,7 +96,7 @@ function OrderTrendsChart() {
         </div>
       </div>
       <div className="mt-4 flex h-48 items-end justify-between gap-1.5 sm:gap-2">
-        {[65, 75, 60, 80, 70, 90, 85, 95, 88, 92, 87, 90, 85, 88, 92, 85, 80, 85, 90, 88, 85, 80, 75, 70, 65, 70, 75, 80, 75, 70].map((height, i) => (
+        {(chartValues[timeRange] || chartValues['30d']).map((height, i) => (
           <div key={i} className="flex-1 flex flex-col gap-1 items-center">
             <div className="w-full bg-blue-500 rounded-t opacity-50" style={{ height: `${height}%` }}></div>
             <div className="w-full bg-red-500 rounded-t opacity-70" style={{ height: `${height * 0.3}%` }}></div>
@@ -66,9 +104,9 @@ function OrderTrendsChart() {
         ))}
       </div>
       <div className="mt-3 flex justify-between text-xs text-slate-500">
-        <span>Day 1</span>
-        <span>Day 15</span>
-        <span>Day 30</span>
+        <span>{timeRange === '7d' ? 'Day 1' : timeRange === '90d' ? 'Week 1' : 'Day 1'}</span>
+        <span>{timeRange === '7d' ? 'Day 4' : timeRange === '90d' ? 'Week 5' : 'Day 15'}</span>
+        <span>{timeRange === '7d' ? 'Day 7' : timeRange === '90d' ? 'Week 13' : 'Day 30'}</span>
       </div>
     </div>
   )
@@ -166,6 +204,8 @@ export default function MerchantDashboard() {
   const [roiData, setRoiData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('recent')
+  const [timeRange, setTimeRange] = useState('30d')
+  const [filterOpen, setFilterOpen] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -337,7 +377,12 @@ export default function MerchantDashboard() {
       {/* Charts and Tables Row */}
       <div className="mb-6 grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <OrderTrendsChart />
+          <OrderTrendsChart
+            timeRange={timeRange}
+            filterOpen={filterOpen}
+            onToggleFilters={() => setFilterOpen((prev) => !prev)}
+            onFilterChange={setTimeRange}
+          />
         </div>
         <div className="space-y-6">
           <ReturnReasonsChart />

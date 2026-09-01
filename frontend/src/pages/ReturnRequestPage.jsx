@@ -353,7 +353,7 @@ export default function ReturnRequestPage() {
                   placeholder="Enter 123456"
                   className="min-w-0 flex-1 rounded-lg border border-amber-300 px-3 py-2 text-sm focus:outline-none"
                 />
-                <button className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white">Verify</button>
+                <button type="submit" className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white">Verify</button>
               </div>
             </form>
           )}

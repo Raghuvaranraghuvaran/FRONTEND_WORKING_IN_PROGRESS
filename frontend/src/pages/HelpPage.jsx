@@ -51,7 +51,7 @@ export default function HelpPage() {
       </div>
 
       {/* FAQ Section */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-8">
+      <div id="faq-section" className="rounded-2xl border border-slate-200 bg-white p-8">
         <div className="mb-6 flex items-center gap-3">
           <HelpCircle className="h-7 w-7 text-indigo-600" />
           <h2 className="text-2xl font-bold text-slate-900">Frequently Asked Questions</h2>
@@ -126,7 +126,11 @@ export default function HelpPage() {
             <p className="mt-2 text-sm text-slate-600">
               Visit our comprehensive help center for detailed guides, tutorials, and policy information.
             </p>
-            <button className="mt-4 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors">
+            <button
+              type="button"
+              onClick={() => document.getElementById('faq-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className="mt-4 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+            >
               Visit Help Center
             </button>
           </div>

@@ -143,7 +143,7 @@ export default function MerchantOnboarding() {
             Current tenant: {existing?.business_name || 'None'} · slug {existing?.store_slug || '—'}
           </div>
 
-          <button className="mt-6 w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500">
+          <button type="submit" className="mt-6 w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500">
             {submitting ? 'Saving…' : 'Save store configuration'}
           </button>
         </form>
