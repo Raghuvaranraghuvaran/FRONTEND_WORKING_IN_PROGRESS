@@ -19,8 +19,8 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
-SMTP_USER = getattr(settings, "EMAIL_HOST_USER", "infiniteganesforu@gmail.com")
-SMTP_PASS = getattr(settings, "EMAIL_HOST_PASSWORD", "kzgzqywjqocxjorv")
+SMTP_USER = getattr(settings, "EMAIL_HOST_USER", "")
+SMTP_PASS = getattr(settings, "EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_NAME = "ReturnGuard"
 
 

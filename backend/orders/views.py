@@ -339,7 +339,7 @@ class RequestOrderCancellationOTPView(APIView):
         code = f"{secrets.randbelow(1000000):06d}"
         pepper = getattr(settings, "OTP_PEPPER", "")
         code_hash = hashlib.sha256(f"{pepper}:{code}".encode()).hexdigest()
-        dest_email = getattr(order.user, "email", None) or (request.user.email if (request.user and request.user.is_authenticated) else "infiniteganesforu@gmail.com")
+        dest_email = getattr(order.user, "email", None) or (request.user.email if (request.user and request.user.is_authenticated) else getattr(order, "customer_email", None) or "")
 
         challenge = OTPChallenge.objects.create(
             user=order.user or user,

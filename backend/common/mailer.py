@@ -23,23 +23,23 @@ logger = logging.getLogger(__name__)
 _EMAIL_EXECUTOR = ThreadPoolExecutor(max_workers=6, thread_name_prefix="rg_mailer")
 
 DEFAULT_FROM_NAME = "ReturnGuard Security"
-DEFAULT_VERIFIED_OWNER_EMAIL = "raghuvaranraghuvaran65@gmail.com"
+DEFAULT_VERIFIED_OWNER_EMAIL = os.getenv("OWNER_EMAIL", "")
 
 
 def _get_smtp_credentials():
     user = (
         os.getenv("EMAIL_HOST_USER")
-        or getattr(settings, "EMAIL_HOST_USER", None)
-        or "infiniteganesforu@gmail.com"
+        or getattr(settings, "EMAIL_HOST_USER", "")
+        or ""
     ).strip()
     password = (
         os.getenv("EMAIL_HOST_PASSWORD")
-        or getattr(settings, "EMAIL_HOST_PASSWORD", None)
-        or "kzgzqywjqocxjorv"
+        or getattr(settings, "EMAIL_HOST_PASSWORD", "")
+        or ""
     ).strip().replace(" ", "")
     host = (
         os.getenv("EMAIL_HOST")
-        or getattr(settings, "EMAIL_HOST", None)
+        or getattr(settings, "EMAIL_HOST", "smtp.gmail.com")
         or "smtp.gmail.com"
     ).strip()
     return user, password, host
@@ -137,7 +137,6 @@ def _send_via_brevo_http(subject, message, recipients, from_name=DEFAULT_FROM_NA
         candidate_senders.append(os.getenv("BREVO_FROM_EMAIL"))
     if getattr(settings, "DEFAULT_FROM_EMAIL", None):
         candidate_senders.append(getattr(settings, "DEFAULT_FROM_EMAIL"))
-    candidate_senders.extend(["infiniteganesforu@gmail.com", "raghuvaranraghuvaran65@gmail.com"])
 
     seen = set()
     unique_senders = []
@@ -208,6 +207,9 @@ def _send_direct_smtp(subject, message, recipients, from_name=DEFAULT_FROM_NAME,
     Sends email via direct SMTP with TLS/SSL and 12s timeout (dev / unrestricted environments).
     """
     smtp_user, smtp_pass, smtp_host = _get_smtp_credentials()
+    if not smtp_user or not smtp_pass:
+        print("[Email Dispatch] SMTP credentials not configured (EMAIL_HOST_USER / EMAIL_HOST_PASSWORD missing). Skipping direct SMTP.", flush=True)
+        return False
     effective_from = from_addr or smtp_user
 
     if pdf_bytes or html_message:

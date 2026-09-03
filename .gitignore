@@ -25,12 +25,14 @@ Thumbs.db
 *.sln
 *.sw?
 
-# Environment
+# Environment & Secrets — NEVER COMMIT
 *.local
 .env
-.env.local
-.env.*.local
+.env.*
 *.env
+**/.env
+**/.env.*
+**/*.env
 
 # Python & Backend
 __pycache__/

@@ -188,18 +188,18 @@ CELERY_TASK_EAGER_PROPAGATES = True
 PAYMENT_GATEWAY_SECRET = os.getenv("PAYMENT_GATEWAY_SECRET", "dev-gateway-secret")
 DEMO_OTP = os.getenv("DEMO_OTP", "123456")
 OTP_PEPPER = os.getenv("OTP_PEPPER", SECRET_KEY)
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "infiniteganesforu@gmail.com")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@returnguard.com")
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "infiniteganesforu@gmail.com")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "kzgzqywjqocxjorv")
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "25"))
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
 BREVO_API_KEY = os.getenv("BREVO_API_KEY", "") or os.getenv("SENDINBLUE_API_KEY", "")
-BREVO_FROM_EMAIL = os.getenv("BREVO_FROM_EMAIL", os.getenv("DEFAULT_FROM_EMAIL", "infiniteganesforu@gmail.com"))
+BREVO_FROM_EMAIL = os.getenv("BREVO_FROM_EMAIL", os.getenv("DEFAULT_FROM_EMAIL", "noreply@returnguard.com"))
 
 # Safe fallback: if SMTP is selected but host/user/password aren't filled in, fall back to console
 if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend" and not (EMAIL_HOST and EMAIL_HOST_USER and EMAIL_HOST_PASSWORD):

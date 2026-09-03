@@ -30,7 +30,7 @@ services:
       - key: BREVO_API_KEY
         sync: false
       - key: BREVO_FROM_EMAIL
-        value: "infiniteganesforu@gmail.com"
+        sync: false
       # Fallback: Gmail SMTP (will fail on Render — only works locally)
       - key: EMAIL_BACKEND
         value: "django.core.mail.backends.smtp.EmailBackend"
@@ -45,7 +45,7 @@ services:
       - key: EMAIL_USE_TLS
         value: "true"
       - key: DEFAULT_FROM_EMAIL
-        value: "infiniteganesforu@gmail.com"
+        sync: false
       # Demo OTP (users can always enter 123456)
       - key: DEMO_OTP
         value: "123456"
