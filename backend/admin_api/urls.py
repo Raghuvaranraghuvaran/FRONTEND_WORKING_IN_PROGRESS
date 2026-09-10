@@ -24,4 +24,7 @@ urlpatterns = [
     path("products/", views.MerchantProductsView.as_view(), name="admin-products"),
     path("products/<str:pk>/", views.MerchantProductDetailView.as_view(), name="admin-product-detail"),
     path("categories/", views.MerchantCategoriesView.as_view(), name="admin-categories"),
+    path("coupons/", views.MerchantCouponsView.as_view(), name="admin-coupons"),
+    path("coupons/<str:pk>/", views.MerchantCouponsView.as_view(), name="admin-coupon-detail"),
 ]
+

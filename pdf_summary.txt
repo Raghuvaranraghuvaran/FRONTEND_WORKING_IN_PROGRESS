@@ -1,0 +1,3871 @@
+============================================================
+FILE: Implementation_Plan_Fraud_Detection_Complete_App_Architecture.pdf
+============================================================
+Total pages: 18
+
+--- Page 1 ---
+Implementation Plan
+AI-Assisted Return-Fraud Detection E-Commerce Platform (India, COD-focused)
+1. Background & Problem Statement
+Indian e-commerce sees return fraud rates far above global averages, driven mostly by Cash-on-Delivery (COD)
+orders, which have almost no verification at the point of purchase. The most common patterns are:
+• Wardrobing — buying clothing (often ethnic wear) for a wedding/festival, using it once, then returning it
+• Empty-box returns
+• Serial over-ordering — ordering multiple sizes/variants with intent to keep one and return the rest
+Enterprise fraud-detection tools exist but are priced for large retailers, leaving small-to-mid D2C brands ($50K–
+$5M revenue) with COD checkout exposed and no affordable way to fight this.
+2. Solution Summary
+A full e-commerce platform — not just a fraud add-on — where fraud prevention is built into the core shopping
+and returns flow. Every order and return is scored for risk in real time using the customer’s own order/return
+history and passive device signals. High-risk actions require stronger verification before they’re allowed to
+proceed. Low-risk customers experience zero friction.
+3. Uniqueness of the Product
+• COD-native fraud logic — most fraud tools are built for card/prepaid chargeback fraud; this is designed
+specifically around India’s COD-heavy, low-verification checkout reality.
+• Seasonal/cultural signal awareness — ties wardrobing detection to wedding/festival timing, auto-
+tightening risk thresholds during those windows, a pattern generic global fraud tools don’t model.
+• Passive-first device signals — lightweight device identification establishes trust without asking the
+customer to do anything extra.
+• Logistics-anchored return proof — trust is anchored in the delivery partner’s witnessed pickup rather than
+customer self-attestation, which is far harder to game.
+• Frictionless by default — low-risk customers are auto-approved instantly; step-up verification (SMS OTP,
+bank-account validation) is reserved for risk-flagged actions only.
+• Affordable for small D2C brands — designed for merchants who can’t justify enterprise fraud-tool pricing.
+4. Two User Personas
+Shopper
+Register/sign in, browse by category, order (COD or prepaid), track orders, request returns, complete step-up
+verification when required.
+Merchant (admin)
+View flagged orders/returns, view customer risk profiles, approve/reject flagged cases, see fraud trends.
+
+--- Page 2 ---
+5. Core Feature List (do not miss any of these)
+Shopper-facing
+• Registration page (email/password)
+• Google Sign-In
+• User profile (personal details, saved addresses, stored credentials such as email)
+• Product catalog organized by categories
+• Cart and checkout (COD + prepaid)
+• Passive device identification captured on every session (no user action required)
+• Return request flow:
+– Proof-of-item capture handled at doorstep pickup by the delivery partner (geo-stamped digital
+signature + item barcode/QR scan), not self-attested by the customer
+– Step-up confirmation (SMS OTP) if the return is flagged medium-risk
+• Escalation path if step-up verification fails or is unavailable (see Section 8)
+• Visibility into own return count / status (optional transparency to the user)
+• Notification (SMS/in-app) to the customer when a return is approved or rejected
+Merchant-facing (Admin Dashboard)
+• Merchant onboarding — admin account registration, new merchant/store tenant setup, store profile,
+generation of the merchant-scoped API token used by the dashboard and the browser extension
+• Flagged-returns queue (manual review)
+• Customer risk profile view (order count, return count, refusal count, risk tier, device trust signals)
+• Delivery agent risk view — return rate and flagged-return count per delivery agent/route, surfaced for
+collusion review
+• Approve/reject actions on flagged returns
+• Audit log of admin actions — who approved/rejected each flagged case and when, for accountability and
+to sanity-check self-tuning suggestions
+• Fraud trend analytics (returns per week, top flagged customers, category-wise return rates)
+• Self-tuning threshold suggestions — dashboard periodically suggests rule-weight adjustments based on
+outcomes of auto-approved returns vs. flagged returns later cleared on manual review
+• Configuration panel for fraud rule weights/thresholds
+Fraud Detection (Rule-Based — No ML)
+• Risk score computed on every return request and every COD refusal, using:
+– Return frequency per customer
+– COD refusal history
+– Address-mismatch patterns
+– Seasonal signals (e.g., ethnic wear returned shortly after wedding/festival season) — risk thresholds
+for high-risk categories auto-tighten during known wedding/festival calendar windows rather than
+staying static year-round
+– Device reuse across accounts/numbers
+
+--- Page 3 ---
+– Delivery-agent/route risk signal — flags when return fraud clusters around a specific delivery partner
+or pincode, surfaced as a possible doorstep-collusion signal rather than pure customer-side fraud
+– Verification method used (SMS-OTP-confirmed vs bank-validated vs unverified — weighted by
+confidence)
+• Auto-approve low-risk returns instantly
+• Flag high-risk returns for manual review + mandatory doorstep proof
+Identity & Trust Signals
+• Passive device identification — a lightweight, non-invasive device identifier established on every session.
+Runs automatically; no customer action required.
+• SMS OTP confirmation — one-time passcode sent to the registered mobile number for medium-risk
+order/return actions. Works on any phone with no app or smartphone required.
+• Bank-account / UPI VPA validation (penny-drop check) — reserved for high-risk, repeat-offender accounts
+only; a small verification credit is sent to the customer’s bank/UPI account and confirming its receipt ties
+the account to a real, named bank identity. Combined with forcing the account to prepaid-only checkout,
+this is the final gate before flagging/blocking an account.
+• Doorstep-witnessed return proof — delivery partner captures a geo-stamped digital signature and scans
+the item’s barcode/QR at pickup, replacing customer self-attested return claims.
+Every verification event is tagged with verification_method so the risk engine weights it by confidence level.
+6. Tech Stack
+• Frontend: React.js
+• Backend: Django + Django REST Framework
+• Database: PostgreSQL
+• File storage: for doorstep return-proof records (signature captures, scan logs) and device/session
+telemetry (e.g. S3-compatible storage)
+• Device identification: a lightweight, client-generated device token (stored via cookie/local storage),
+matched server-side for reuse detection — no third-party fingerprinting library required
+• SMS OTP: transactional SMS/OTP provider (e.g., MSG91, Twilio SMS, 2Factor) for step-up confirmation on
+medium-risk actions
+• Bank validation: payment gateway’s penny-drop / VPA-validation API (e.g., via Razorpay, Cashfree, or a
+dedicated bank-verification provider), used only for high-risk escalation path
+• Festival/wedding calendar data: static regional calendar dataset or calendar API, feeding the seasonal
+auto-tightening logic (provider TBD — see Open Decisions)
+• Customer notifications: SMS/in-app notification on return approval/rejection, reusing the SMS OTP
+provider’s messaging capability where possible
+• Multi-tenancy: shared PostgreSQL database with merchant_id row-level scoping across all tenant tables
+(approach TBD — see Open Decisions)
+7. Data Model Overview
+Merchant (tenant) — id, business_name, store_slug, plan_tier, api_token (used by admin dashboard and
+browser extension), created_at.
+
+--- Page 4 ---
+User (shopper or merchant admin, scoped to a merchant/store) — id, merchant_id, email, password_hash,
+google_id (nullable), role (shopper / merchant_admin), device_token (linked device identification record),
+profile fields (name, phone, addresses).
+Category — id, merchant_id, name.
+Product — id, merchant_id, name, category_id, price, stock, images.
+Order — id, merchant_id, user_id, order items (see OrderItem below), total, payment_method (COD/prepaid),
+status, verification_status, verification_method, device_token, created_at.
+ReturnRequest — id, order_id, reason, doorstep_proof_file, delivery_agent_id, pincode, verification_status,
+verification_method, risk_score, status (pending/approved/rejected/manual_review), outcome
+(auto_approved/flagged_then_cleared/flagged_confirmed_fraud — feeds self-tuning suggestions), reviewed_by
+(admin user id, nullable), reviewed_at (nullable — audit trail for manual review actions), created_at.
+CustomerRiskProfile — merchant_id, user_id, total_orders, total_returns, total_cod_refusals,
+device_reuse_flag, risk_tier, last_updated.
+DeliveryAgentRiskProfile — merchant_id, delivery_agent_id, total_deliveries, total_returns_handled,
+return_rate, flagged_return_count, risk_flag, last_updated.
+All merchant-scoped tables (Category, Product, Order, CustomerRiskProfile, DeliveryAgentRiskProfile) carry
+merchant_id so one merchant’s data is never visible to another. CustomerRiskProfile updates automatically
+(e.g., via a Django signal) whenever an order or return is created, so the risk score always reflects current
+behavior.
+8. Verification State Machine (Order/Return)
+An order or return request is initiated by the shopper. The system first runs passive scoring using device
+identification and order/return history signals, producing a Low, Medium, or High risk classification.
+• If the classification is Low risk, the order or return is auto-approved immediately, with no further steps.
+• If the classification is Medium or High risk, step-up verification is triggered: an SMS OTP is sent to the
+customer’s registered mobile number.
+– If the OTP is confirmed, the system proceeds to a risk-scoring pass that incorporates the verification
+outcome before reaching a final approve/reject decision — verification does not bypass this step.
+– If the OTP is not confirmed or is unavailable, the case escalates along one of two paths depending on
+context: repeat or high-risk accounts are routed to bank/UPI penny-drop validation plus a prepaid-
+only restriction going forward; returns are routed to mandatory doorstep-witnessed proof and the
+manual review queue.
+Every verification event is tagged with a verification_method (device_only / sms_otp / bank_validated /
+doorstep_proof) so the risk engine can weight it by confidence level in later scoring.
+Note: seasonal (festival/wedding), delivery-agent/route, and device-reuse signals are not separate decision
+branches — they are all inputs into the single passive-scoring step described above, which is what produces the
+Low / Medium / High risk classification.
+9. Implementation Phases
+Per your request, frontend design comes first, backend follows.
+
+--- Page 5 ---
+Phase 0 — Design
+Wireframes/UI design for: registration, login (Google + email), product listing/category pages, product detail,
+cart, checkout, order history, return request flow, step-up verification screens (SMS OTP status), admin
+dashboard.
+Phase 1 — Frontend Build (React)
+• Auth pages (Google Sign-In + registration/login forms)
+• Category and product listing pages
+• Product detail, cart, checkout UI
+• Passive device identification integration (background script, no UI)
+• Step-up verification UI: SMS OTP entry and confirmation status screen
+• Order history page
+• Return request form (reason, doorstep pickup scheduling — no customer-side proof capture)
+• Admin dashboard UI: merchant onboarding/account setup, flagged queue, customer risk profile view,
+delivery agent risk view, self-tuning suggestions view, analytics
+Phase 2 — Backend Build (Django + DRF)
+• accounts app: custom user model, Google OAuth integration, profile APIs, merchant onboarding/account
+setup APIs
+• Tenant scoping middleware: enforces merchant_id isolation on every request so one merchant never sees
+another’s data
+• catalog app: category/product models and APIs
+• orders app: cart, checkout, COD/prepaid order creation, order history APIs
+• returns app: return request model, doorstep proof handling, status workflow
+• Device identification integration: ingest and store device tokens, reuse-detection logic
+• SMS OTP provider integration for step-up confirmations
+• Bank/UPI penny-drop validation integration: reserved for high-risk escalation path only
+• fraud app: rule-based risk scoring engine, CustomerRiskProfile auto-update via signals,
+DeliveryAgentRiskProfile tracking, outcome-based self-tuning suggestion logic
+• Admin dashboard APIs: flagged queue, risk profiles, delivery agent risk view, analytics endpoints, admin
+action audit log
+• Customer notification service: SMS/in-app notification triggered on return approval/rejection
+Phase 3 — Integration
+• Connect React frontend to Django APIs end-to-end
+• Wire the full verification state machine (passive scoring → step-up → escalation → risk scoring)
+• Test auto-approve vs flag-for-review paths with sample data
+Phase 4 — Merchant Tools & Extension
+• Finalize merchant dashboard analytics
+• Build the Chrome browser extension (merchant ops tool) once core platform APIs are stable — see Section
+11 for scope
+
+--- Page 6 ---
+Phase 5 — Hardening & Launch Prep
+• Security review (device data handling, bank-validation data handling, PII, DPDP Act compliance)
+• Rate-limiting / anti-abuse protection on SMS OTP and other verification endpoints to prevent OTP-flooding
+a customer’s phone number
+• Performance testing on checkout and return flows
+• Pilot with a small D2C brand before wider rollout
+10. Open Decisions to Finalize Before Building
+• Tenant isolation strategy for the multi-tenant SaaS — shared DB with merchant_id row-scoping (simplest,
+chosen as default) vs. schema-per-tenant vs. DB-per-tenant (cost/complexity tradeoff as merchant count
+grows)
+• Which SMS OTP provider to use as the step-up channel (cost, delivery/completion rate)
+• Bank/UPI penny-drop validation provider selection and consent-flow design (DPDP Act compliance)
+• Rule weights/thresholds for the fraud risk engine (needs initial estimates, then tuning with real data)
+• Source for wedding/festival calendar data used to auto-tighten seasonal risk thresholds (regional calendar
+API vs manually maintained list)
+• Threshold/process for flagging a delivery agent as a collusion risk, and how that’s handled operationally
+(retraining vs removal from doorstep-proof duty)
+• Scope of the extension (who uses it and for what)
+• Data retention policy for device data and doorstep proof files (privacy/compliance)
+11. Browser Extension — Merchant Ops Tool
+A Chrome browser extension (Manifest V3) gives merchants a fast way to triage flagged orders/returns without
+opening the full admin dashboard. It calls the same admin APIs from Section 6/9 (flagged queue, risk profile,
+delivery agent risk view, approve/reject), scoped automatically to that merchant’s tenant via their API token —
+no separate backend needed.
+Features
+• Toolbar badge showing a live count of flagged items awaiting review
+• Popup panel: flagged queue list with risk score/tier, customer summary, one-click Approve/Reject
+• Quick-glance delivery agent risk indicator on return items, linking through to the full delivery agent risk
+view in the dashboard
+• Desktop notification when a new high-risk order or return is flagged
+• Settings page: connect to the merchant’s store (API base URL + auth token), configurable polling interval
+Tech
+• Chrome Extension, Manifest V3 (service worker background script, no persistent background page)
+• Calls existing Django REST Framework admin endpoints — flagged queue, risk profile, delivery agent risk
+view, approve/reject
+• Local extension storage for auth token/settings, periodic polling, native notifications for alerts
+• Auth: merchant-scoped API token generated from the admin dashboard, entered once in the extension’s
+settings page
+
+--- Page 7 ---
+Build timing: after Phase 3 integration, once the admin APIs are stable, as scoped in Phase 4.
+12. How It Works — End-to-End Flow
+Shopper Flow
+The shopper signs up (email or Google). Passive device identification starts silently in the background, requiring
+no action from the shopper. The shopper browses the catalog, adds items to cart, and checks out using COD or
+prepaid. The risk engine scores the order using order/return history, device signals, and seasonal signals. A low-
+risk order is placed instantly with zero friction. Later, if the shopper requests a return, the delivery partner
+captures proof at doorstep pickup (a geo-stamped digital signature and a barcode/QR scan) rather than relying
+on the shopper’s own attestation. A medium-risk return triggers an SMS OTP sent to confirm it’s genuine. If
+confirmed, the return is approved and the shopper is notified by SMS or in-app message. If not confirmed, or if
+the case is high-risk, it escalates to a bank/UPI penny-drop check and manual review, and the shopper is notified
+of the outcome once a decision is made.
+Merchant Flow
+The merchant signs up, creates their store (tenant), and receives an API token. Once the storefront is live, every
+order and return is scored automatically. Low-risk cases auto-approve with no merchant action needed. Flagged
+cases land in the Flagged Queue, visible from either the dashboard or the browser extension. The merchant
+opens a case, reviews the risk score, the customer’s risk profile, and delivery-agent risk context if relevant, then
+approves or rejects it. The action is logged in the audit trail along with who took it and when. Over time, the
+dashboard surfaces rule-weight tuning suggestions based on which auto-approved cases turned out risky versus
+which flagged cases were cleared on review; the merchant chooses whether to apply or ignore each suggestion.
+Chrome Extension Flow (quick triage)
+The merchant installs the extension and enters their API token in Settings, which scopes the extension to only
+that merchant’s tenant data. The toolbar badge shows a live count of pending flagged items, and a desktop
+notification fires when a new high-risk order or return is flagged. Clicking the badge opens a popup showing the
+flagged queue, where the merchant can approve or reject with one click — using the same audit trail and risk
+data as the full dashboard.
+13. System Architecture
+High-level shape of the system, tying together the components described in the sections above.
+Frontend layer
+A single React.js application serves both the shopper-facing storefront and the merchant-facing admin
+dashboard as separate route trees within the same codebase (or as two separate React apps sharing a
+component library, depending on team preference). The frontend talks to the backend exclusively through the
+Django REST Framework API — no direct database access from the client.
+Backend layer
+A Django + Django REST Framework application, organized into the app modules described in Phase 2: accounts,
+catalog, orders, returns, fraud, and the admin dashboard API surface. All requests pass through a tenant-scoping
+middleware that resolves the merchant_id for the current request (from the authenticated user or API token)
+and makes it available to every view and query for that request.
+
+--- Page 8 ---
+Data layer
+A single shared PostgreSQL database holds all tenant data, with merchant_id scoping enforced at the application
+layer via the middleware above. Object storage (S3-compatible) holds doorstep return-proof records and any
+device-session data that doesn’t belong in the relational database.
+Risk-scoring layer
+The fraud app sits alongside the orders and returns apps as an internal service: whenever an order is placed or a
+return is requested, the relevant app calls into the fraud engine synchronously to get an initial risk classification
+before the request completes. Follow-up scoring (after OTP or bank verification completes) happens through the
+same engine, triggered by webhook/callback from the verification provider or by the frontend polling for status.
+Asynchronous/background processing
+SMS OTP dispatch, bank/UPI penny-drop calls, and customer notifications are handled as background jobs (e.g.,
+via Celery with a Redis or database-backed queue) so the checkout and return-request endpoints stay fast and
+don’t block on third-party API latency.
+Integration points
+• SMS/OTP provider (e.g., MSG91, Twilio, 2Factor) — step-up confirmation and customer notifications
+• Payment gateway / bank-verification provider (e.g., Razorpay, Cashfree) — penny-drop validation
+• Festival/wedding calendar data source — feeds seasonal threshold auto-tightening
+• Google OAuth — shopper sign-in
+Merchant-facing surfaces
+The admin dashboard (part of the React frontend) and the Chrome browser extension both consume the same
+admin API endpoints, scoped by the merchant’s API token, so there is a single source of truth for flagged queue
+state, risk profiles, and audit history regardless of which surface the merchant uses.
+
+--- Page 9 ---
+ADDENDUM — Flaw Remediation & Revised Design
+(Reserve Implementation Plan)
+The section below supplements the Implementation Plan above with corrections identified in review. Where the
+two disagree, this addendum represents the corrected/updated approach.
+1. Risk Signals Are Too Simplistic → Weighted, Contextual Scoring
+Replace raw counters with rate-based, time-decayed, combined signals. The COD refusal rate should be
+calculated as refusals divided by total COD orders in the trailing 90 days, not a lifetime count. Return rate should
+be tracked per category, since a customer who returns 40% of ethnic wear but 0% of electronics is a different
+case than someone who returns everything. Return timing should be scored relative to category norms — a
+wedding-outfit return on day 6 is a different signal than one on day 1.
+Hard rule: no single signal (device reuse, festival timing, one refusal) can independently push a case to reject or
+high-risk-block. Every signal is a weighted input into a composite score, and a minimum of two independent
+signal categories must agree before an account is auto-restricted.
+2. Verification Treated as Proof → Verification Is a Risk Modifier, Never a Bypass
+SMS OTP and bank/UPI validation confirm who the account belongs to, not whether this specific return is
+legitimate. Verification status should no longer determine approval directly. A verified identity reduces the risk
+score by a bounded amount — enough to move a high-risk case down to medium, never straight to auto-
+approve. Manual review remains reachable for any case above the high-risk threshold, regardless of verification
+outcome.
+3. State Machine Logic Problem → Verification Feeds Back Into Scoring, Doesn’t Bypass It
+The corrected flow: an initial risk score is computed from passive signals. Based on that score, the appropriate
+verification step is triggered (none, OTP, or bank/UPI). The verification outcome and its confidence level are
+then combined with the initial score to produce an updated risk assessment, which is what the decision engine
+actually acts on. The previous design let a confirmed OTP flow straight to approval; the corrected design always
+recomputes a score after verification and routes it through the same decision engine, so verification changes the
+inputs to the decision rather than skipping the decision itself.
+4. Device Signal Collection Needs Reduction
+Passive signal collection for the MVP should be limited to account age, order/return history, address consistency
+across orders, a lightweight device-reuse identifier (a client-generated token stored via cookie/local storage, not
+any form of device fingerprinting library), and payment method pattern (COD vs prepaid mix). Any more invasive
+session-level tracking is deferred to a later phase, gated on demonstrated value over this reduced signal set, a
+documented DPDP-compliant consent flow, and a defined retention/deletion policy.
+5. Return Reasons Underused → Structured Taxonomy Feeding the Risk Engine
+The return reason field should be constrained to a fixed set of values: wrong size, changed mind, damaged
+product, wrong product received, missing item or component, quality issue, not as described, or other. Each
+reason carries a base risk weight and interacts with category — wrong size on ethnic wear during wedding
+season scores differently than wrong size on daily-wear basics, and changed mind on a high-value item from a
+first-time customer scores higher than damaged product from a repeat, low-risk customer.
+6. Delivery-Agent Collusion → Baseline-Adjusted Anomaly Detection, Not Accusation
+Replace a raw "return rate per agent" metric with an expected-versus-actual model: the expected return rate for
+an agent is the baseline return rate for their route/pincode/category mix, and the anomaly score is the gap
+
+--- Page 10 ---
+between actual and expected. Only a sustained, statistically meaningful deviation — with a defined minimum
+sample size, such as 30 deliveries, over a rolling window — surfaces the agent in a review queue. That queue is
+explicitly labeled an investigation signal, never a confirmed-collusion finding, and no automated action (such as
+removal from doorstep-proof duty) happens without human sign-off.
+7. Self-Tuning Underspecified → Recommendation-Only, With Governance
+Self-tuning threshold suggestions are read-only in the first release: the dashboard shows suggested changes, but
+nothing auto-applies. A suggestion only appears once a minimum sample size (e.g. 50 outcomes per rule since
+the last change) and a minimum evaluation window (e.g. 14 days) have been met. Every applied change is
+logged with its before/after values, who approved it, and when, feeding the same audit log used elsewhere in
+the system. A rollback option restores the previous threshold set in one step. Fully automatic, unattended
+threshold adjustment stays out of scope until the platform has enough historical outcome data to validate the
+suggestion engine itself.
+8. Fraud Outcome Labels Too Coarse → Expanded Set
+The three-value outcome field should be replaced with a richer set: auto-approved, confirmed fraud, suspected
+fraud, legitimate return, logistics issue, merchant issue, insufficient evidence, and verification abandoned. This
+distinction is what makes both the self-tuning suggestions (Section 7) and the delivery-agent anomaly detection
+(Section 6) trustworthy — thresholds can’t be tuned on outcomes that don’t separate "this was fraud" from "the
+courier lost the item."
+9. Data Model Too Simplified → Normalize History, Don’t Overwrite It
+The order’s items should be broken out into their own records (an OrderItem per line, holding product, quantity,
+and price) rather than a single combined field. Each risk-scoring event should be preserved as its own historical
+record — including the score, tier, which rule version produced it, and which signals were used — rather than
+overwriting a single risk_score field on the order or return. Each verification attempt (device-only, SMS OTP,
+bank-validated, or doorstep proof) should likewise be preserved as its own event record with its method, status,
+and confidence weight, rather than collapsing verification history into a single status field. Returns should be
+broken into individual return-line records so partial-order returns are representable, and a timeline of return-
+related events (requested, pickup scheduled, doorstep proof captured, OTP sent, OTP confirmed, escalated,
+reviewed, decided) should be kept for each return request. Preserving this history — rather than repeatedly
+overwriting a handful of summary fields — is also what makes rule versioning possible, since you can trace
+exactly which threshold set produced any historical score, which the self-tuning audit trail in Section 7 depends
+on.
+10. Extension Auth Is a Security Risk → Least-Privilege, Short-Lived, Revocable
+The long-lived static API token pasted into the extension’s settings should be replaced with a short-lived token
+(for example, valid for one hour) that refreshes through a login flow rather than being permanently stored as a
+secret. The extension should operate under a scoped role — able to read the flagged queue and risk views, and
+approve or reject cases — but without full merchant-admin API access. Every extension request should be re-
+authorized server-side against the merchant’s tenant, rather than trusting the client-held token alone. High-
+impact actions taken from the extension, such as approving or rejecting a high-risk case, should require a
+confirmation step rather than resolving instantly on a single click. The merchant should be able to revoke all
+extension sessions from the main dashboard at any time.
+11. Multi-Tenant Isolation Needs a Database-Level Boundary
+The existing merchant_id middleware scoping should be kept, but backed by PostgreSQL Row-Level Security
+policies on every tenant-scoped table, keyed off a per-request session variable identifying the current merchant.
+This means that even a missing or incorrect merchant_id filter in application code cannot leak another tenant’s
+
+--- Page 11 ---
+rows — the database itself refuses to return them. Automated authorization tests that specifically attempt
+cross-tenant reads, and assert they return nothing, should be part of the standard test suite.
+12. MVP Scope Too Large → Trimmed First Release
+The first release should include only the core storefront (catalog, cart, checkout for COD and prepaid, order
+history), the reduced-signal risk scoring described in Section 4 above, SMS OTP step-up, doorstep QR/barcode
+proof capture (without bank/UPI validation), and the merchant review dashboard (flagged queue,
+approve/reject, audit log). Bank/UPI penny-drop validation, delivery-agent anomaly detection, self-tuning
+suggestions, and the Chrome extension should all be deferred to a later phase, so the core fraud workflow can
+be validated with real merchant data before adding surface area that’s expensive to secure and hard to justify
+without evidence it helps.
+
+--- Page 12 ---
+Dashboard UI Appendix — Page 1
+Dashboard UI Appendix
+Supplement to: AI-Assisted Return-Fraud Detection E-Commerce Platform — Implementation Plan
+Scope note: The original PDF defines the fraud, order, return, merchant-review, and data workflows. This appendix adds the
+requested dashboard navigation and page concepts. Billing & Invoice is a UI/business module interpretation and is not
+explicitly defined in the source plan.
+14. Merchant Dashboard Navigation & Page Flow
+The following screens add the requested frontend information architecture. Functional content follows the implementation
+plan; exact visual layouts are UI interpretations. The core merchant workflow remains flagged queue → contextual review →
+approve or reject → audit trail.
+14.1 Main Merchant Dashboard
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ LOGO / PLATFORM              Search        Notifications        Admin       ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ Dashboard          ■ Dashboard Overview                                      ■
+■ Orders             ■ ■■■■■■■■■■■■■■ ■■■■■■■■■■■■■■ ■■■■■■■■■■■■■■■■■■■■■   ■
+■ Customers          ■ ■ Total      ■ ■ Flagged    ■ ■ Returns Pending   ■   ■
+■ Returns            ■ ■ Orders     ■ ■ Cases      ■ ■ Review            ■   ■
+■ Flagged Cases      ■ ■■■■■■■■■■■■■■ ■■■■■■■■■■■■■■ ■■■■■■■■■■■■■■■■■■■■■   ■
+■ Analytics          ■ Recent Flagged Cases                                   ■
+■ Audit Log          ■ Customer | Order | Risk | Status | Action              ■
+■ Billing & Invoices ■ User A   | #1024 | HIGH | Review | View Case          ■
+■ Settings           ■ User B   | #1025 | MED  | Review | View Case           ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+14.2 Orders Page
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ Dashboard / Orders                                      Search   Alerts     ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ Dashboard          ■ Orders  [All] [COD] [Prepaid] [Flagged]                ■
+■ Orders ←           ■                                                         ■
+■ Customers          ■ Order ID | Customer | Payment | Status | Risk          ■
+■ Returns            ■ #1024    | User A   | COD     | Active | Low           ■
+■ Flagged Cases      ■ #1025    | User B   | COD     | Review | High          ■
+■ Analytics          ■ #1026    | User C   | Prepaid | Active | Medium        ■
+■ Audit Log          ■                                                         ■
+■ Billing & Invoices ■ Click an order → Order Details                         ■
+■ Settings           ■                                                         ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+14.3 After Clicking One Order — Order Details
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ ← Back to Orders                                             ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ Order #1025                                                  ■
+■ Customer Information                                         ■
+■ Customer Name / Account / Address                            ■
+■                                                              ■
+■ Order Details                                                ■
+■ Products / Quantity / Total                                  ■
+■ Payment Method: COD or Prepaid                               ■
+■ Order Status                                                 ■
+■                                                              ■
+■ Risk Information                                             ■
+■ Risk Tier                                                    ■
+■ Verification Status / Method                                 ■
+■ Relevant Risk Context                                        ■
+■                                                              ■
+■ [ View Customer Profile ] [ View Related Return ]            ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+14.4 After Clicking a Specific Customer — Customer Risk Profile
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ ← Back to Customers                                                  ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ CUSTOMER PROFILE                                                     ■
+■ Customer / Account                 CURRENT RISK: Risk Tier           ■
+■                                                                      ■
+■ [ Total Orders ]   [ Total Returns ]   [ COD Refusals ]              ■
+■                                                                      ■
+■ Order & Return History                                               ■
+■ Date | Order | Payment | Status | Risk                               ■
+■                                                                      ■
+■ Risk & Verification History                                          ■
+■  Risk scoring events    Signals used    Verification attempts     ■
+■  Return-related timeline                                            ■
+
+--- Page 13 ---
+Dashboard UI Appendix — Page 2
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+14.5 Billing & Invoice Dashboard Integration
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ Billing & Invoices                                                  ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ Current Plan / Subscription         Status        [Manage Plan]     ■
+■                                                                      ■
+■ [ Current Billing ]                 [ Next Billing ]                 ■
+■                                                                      ■
+■ Recent Invoices                                                      ■
+■ Invoice ID | Date | Amount | Payment Status | Action                 ■
+■ INV-001    | ...  | ...    | Paid           | View / Download        ■
+■ INV-002    | ...  | ...    | Paid           | View / Download        ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+14.6 Recommended Navigation Relationship
+Merchant Dashboard
+■■■ Dashboard
+■■■ Orders
+■   ■■■ Orders List
+■   ■■■ Order Details → Customer Profile / Related Return
+■■■ Customers
+■   ■■■ Customers List
+■   ■■■ Customer Risk Profile
+■■■ Returns / Flagged Cases → Review → Approve / Reject → Audit Log
+■■■ Analytics
+■■■ Audit Log
+■■■ Billing & Invoices (optional module; not defined in original plan)
+■■■ Settings
+15. Change Assessment
+No changes are made to the original fraud-detection logic, verification state machine, revised data model, security
+remediation, or trimmed MVP scope. The added dashboard pages are a frontend information-architecture appendix. Billing &
+Invoice should remain clearly marked as an optional future/business module unless the implementation plan is formally
+expanded.
+
+--- Page 14 ---
+Complete Application UI & Architecture Appendix — Page 1
+Complete Application UI, Navigation & Architecture
+Appendix
+Supplement to the AI-Assisted Return-Fraud Detection E-Commerce Platform Implementation Plan
+Document basis. This appendix follows the implementation plan and its revised Addendum. The Addendum takes priority
+where it changes the earlier plan. The exact appearance of screens is not specified in the source PDF; therefore, screen
+layouts and navigation presentation below are UI/UX interpretations of the documented features. Billing & Invoices remains an
+optional business module because it is not defined in the source MVP.
+16. Complete Application Journey — Starting to Ending
+APPLICATION OPENS
+■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■
+▼                         ▼
+Shopper Entry             Merchant Entry
+■                         ■
+▼                         ▼
+Landing / Storefront       Merchant Sign In
+■                         ■
+■■■■■■■■■■■■■■■                  ▼
+▼             ▼          Merchant Dashboard
+Sign In       Browse                ■
+■             ■          ■■■■■■■■■■■■■■■■■■■■■■■
+▼             ▼          ▼       ▼             ▼
+Auth Flow     Product Flow  Orders Customers Flagged Cases
+■             ■          ■       ■             ■
+■■■■■■■■■■■■■■■          ▼       ▼             ▼
+▼              Details  Risk Profile   Review
+Checkout             ■       ■             ■
+■                  ■■■■■■■■■■■■■■■■■■■■■■■
+▼                          ▼
+Risk Scoring                 Decision
+■                   Approve / Reject
+■■■■■■■■■■■■■■■■■■■■■■■               ■
+▼          ▼          ▼               ▼
+Low       Medium      High          Audit Log
+■          ■          ■
+■          ■■■■■ Verification / Re-scoring
+▼
+Order Proceeds
+■
+▼
+Order History
+■
+▼
+Return Request
+■
+▼
+Risk Scoring
+■
+▼
+Doorstep Proof + Review
+■
+▼
+Final Outcome / Notification
+17. Opening Interface
+The source plan defines registration/login, catalog browsing, merchant onboarding, and separate shopper and merchant
+functionality. A practical opening screen can therefore provide two clear entry paths: Shop and Merchant/Admin.
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■                           PLATFORM LOGO                        ■
+■                                                                ■
+■       Secure Shopping + Return Risk Management Platform        ■
+■                                                                ■
+■                 [ Start Shopping ] [ Merchant Login ]          ■
+■                                                                ■
+■       Shop products  Track orders  Request returns           ■
+■       Merchant review  Flagged cases  Audit trail             ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+18. Shopper-Side Interface Architecture
+SHOPPER
+■
+■■■ Landing / Storefront
+■     ■■■ Categories
+■     ■■■ Product Listing
+■     ■■■ Product Details
+■
+■■■ Authentication
+■     ■■■ Register
+■     ■■■ Email / Password Login
+■     ■■■ Google Sign-In
+■
+■■■ Shopping
+■     ■■■ Cart
+
+--- Page 15 ---
+Complete Application UI & Architecture Appendix — Page 2
+■     ■■■ Checkout
+■           ■■■ COD
+■           ■■■ Prepaid
+■
+■■■ Risk / Verification Flow
+■     ■■■ Passive initial scoring
+■     ■■■ Low → continue with minimal friction
+■     ■■■ Medium → appropriate step-up flow
+■     ■■■ High → escalation/review according to state flow
+■
+■■■ Orders
+■     ■■■ Order History
+■     ■■■ Order Status
+■
+■■■ Returns
+■■■ Select return reason
+■■■ Initial risk assessment
+■■■ SMS OTP step-up where required
+■■■ Doorstep QR/barcode proof capture
+■■■ Final decision / notification
+18.1 Shopper Screen Sequence
+OPEN APP
+■
+▼
+■■■■■■■■■■■■■■■■
+■ STOREFRONT   ■
+■ Categories   ■
+■ Products     ■
+■■■■■■■■■■■■■■■■
+▼
+■■■■■■■■■■■■■■■■
+■ PRODUCT      ■
+■ DETAILS      ■
+■ [Add Cart]   ■
+■■■■■■■■■■■■■■■■
+▼
+■■■■■■■■■■■■■■■■
+■ CART         ■
+■ [Checkout]   ■
+■■■■■■■■■■■■■■■■
+▼
+■■■■■■■■■■■■■■■■
+■ CHECKOUT     ■
+■ COD/Prepaid  ■
+■■■■■■■■■■■■■■■■
+▼
+■■■■■■■■■■■■■■■■
+■ RISK ENGINE  ■
+■■■■■■■■■■■■■■■■
+▼
+Low / Medium / High
+■
+▼
+Order Outcome → Order History
+19. Return Journey — End-to-End
+ORDER HISTORY
+■
+▼
+SELECT ORDER
+■
+▼
+REQUEST RETURN
+■
+▼
+SELECT STRUCTURED RETURN REASON
+■
+▼
+INITIAL RISK SCORING
+■
+■■■ Low / lower-risk path
+■
+■■■ Medium / high-risk path
+■
+▼
+SMS OTP where required
+■
+▼
+Verification outcome feeds
+back into risk assessment
+■
+▼
+Doorstep pickup proof capture
+ QR / barcode scan
+ Geo-stamped signature
+■
+▼
+Final decision / manual review
+■
+▼
+Shopper notification
+
+--- Page 16 ---
+Complete Application UI & Architecture Appendix — Page 3
+20. Merchant/Admin Interface Architecture
+MERCHANT / ADMIN LOGIN
+■
+▼
+MERCHANT DASHBOARD
+■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+▼        ▼          ▼             ▼               ▼
+Overview Orders   Customers   Returns/Flagged   Audit Log
+■        ■          ■             ■
+■        ▼          ▼             ▼
+■    Order List  Customer      Case Review
+■        ■       List/Profile      ■
+■        ▼          ■              ▼
+■    Order Details  ■       Approve / Reject
+■        ■          ■              ■
+■        ■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■                    ■
+▼                    ▼
+Analytics        Recorded Audit Event
+Optional UI/business module:
+Billing & Invoices → Current Plan → Billing → Invoice History
+20.1 Main Merchant Dashboard
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ LOGO                 Search             Alerts              Admin          ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ Dashboard         ■ DASHBOARD OVERVIEW                                       ■
+■ Orders            ■ ■■■■■■■■■■■■ ■■■■■■■■■■■■ ■■■■■■■■■■■■■■■■■■■■■■■■■     ■
+■ Customers         ■ ■ Orders   ■ ■ Flagged  ■ ■ Pending Review        ■     ■
+■ Returns           ■ ■■■■■■■■■■■■ ■■■■■■■■■■■■ ■■■■■■■■■■■■■■■■■■■■■■■■■     ■
+■ Flagged Cases     ■                                                          ■
+■ Analytics         ■ RECENT FLAGGED CASES                                     ■
+■ Audit Log         ■ Customer | Order | Risk | Status | Action                ■
+■ Billing/Invoices* ■ User A   | #1024 | HIGH | Review | View                  ■
+■ Settings          ■ User B   | #1025 | MED  | Review | View                   ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+* Optional module; not defined in source MVP.
+21. Orders Navigation
+CLICK: ORDERS
+■
+▼
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ ORDERS                                                               ■
+■ [All] [COD] [Prepaid] [Flagged]                                     ■
+■                                                                      ■
+■ Order ID | Customer | Payment | Status | Risk | View                 ■
+■ #1024    | User A   | COD     | Active | Low  |  →                   ■
+■ #1025    | User B   | COD     | Review | High |  →                   ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■
+▼ CLICK ONE ORDER
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ ORDER DETAILS                                                        ■
+■ Customer information                                                 ■
+■ Products / quantities / total                                        ■
+■ Payment method and order status                                      ■
+■ Verification information                                             ■
+■ Risk context                                                         ■
+■ [View Customer Profile] [View Related Return]                        ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+22. Customers Navigation
+CLICK: CUSTOMERS
+■
+▼
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ CUSTOMERS                                                            ■
+■ Search  [All] [Low Risk] [Medium] [High Risk]                       ■
+■                                                                      ■
+■ Customer | Orders | Returns | COD Refusals | Risk | View             ■
+■ User A   | 15     | 1       | 0            | Low  | →                ■
+■ User B   | 10     | 6       | 2            | High | →                ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■
+▼ CLICK ONE CUSTOMER
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ CUSTOMER RISK PROFILE                                                ■
+■ Customer / account context          Current Risk Tier                ■
+■                                                                      ■
+■ [Total Orders] [Total Returns] [COD Refusals]                        ■
+■                                                                      ■
+■ Order & Return History                                               ■
+■ Risk-scoring history                                                 ■
+■ Signals used                                                         ■
+■ Verification attempts                                                ■
+■ Return-related timeline                                              ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+23. Flagged Case Review Flow
+FLAGGED CASES
+
+--- Page 17 ---
+Complete Application UI & Architecture Appendix — Page 4
+■
+▼
+FLAGGED QUEUE
+■
+▼
+SELECT CASE
+■
+■■■ Customer Risk Profile
+■■■ Order / Return Context
+■■■ Risk Information
+■■■ Verification History
+■■■ Doorstep Proof / Related Timeline
+■
+▼
+REVIEW
+■
+■■■■■■■■■■■■
+▼          ▼
+APPROVE    REJECT
+■          ■
+■■■■■■■■■■■■
+▼
+AUDIT LOG
+■
+▼
+CUSTOMER OUTCOME / NOTIFICATION
+24. Billing & Invoice Navigation
+This section is retained from the previous dashboard appendix as an optional UI/business module. It is not part of the source
+PDF's defined MVP.
+CLICK: BILLING & INVOICES
+■
+▼
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ BILLING & INVOICES                                                   ■
+■ Current Plan / Subscription | Status | Manage Plan                   ■
+■                                                                      ■
+■ Current Billing             Next Billing                              ■
+■                                                                      ■
+■ Invoice ID | Date | Amount | Status | Action                         ■
+■ INV-001    | ...  | ...    | Paid   | View / Download                ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+25. System Architecture — Application to Backend
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■                         FRONTEND LAYER                                ■
+■                         React.js                                      ■
+■                                                                       ■
+■ Shopper Storefront      Merchant Dashboard       (Future/Optional)    ■
+■ Auth / Catalog          Flagged Review            Billing UI          ■
+■ Cart / Checkout         Orders / Customers                           ■
+■ Orders / Returns        Audit / Analytics                            ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ HTTPS / REST API
+▼
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■                    BACKEND LAYER — Django + DRF                       ■
+■                                                                       ■
+■ Accounts ■ Catalog ■ Orders ■ Returns ■ Fraud ■ Admin API             ■
+■ Tenant scoping / authorization                                        ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■                       ■
+▼                       ▼
+■■■■■■■■■■■■■■■■■■      ■■■■■■■■■■■■■■■■■■■■■■■
+■ Risk Engine    ■      ■ Verification / Jobs ■
+■ Rule-based     ■      ■ OTP / notifications ■
+■ Composite score■      ■ Background workers  ■
+■■■■■■■■■■■■■■■■■■      ■■■■■■■■■■■■■■■■■■■■■■■
+■                          ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+▼
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ DATA LAYER               ■
+■ PostgreSQL               ■
+■ Tenant-scoped data       ■
+■ RLS in revised design    ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■
+▼
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+■ OBJECT / FILE STORAGE    ■
+■ Doorstep proof records   ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+26. Core Risk & Verification Architecture
+ORDER PLACED OR RETURN REQUESTED
+■
+▼
+PASSIVE INITIAL SCORING
+■
+▼
+Composite Risk Assessment
+■
+■■■■■■■■■■■■■■■■■■■■
+▼        ▼         ▼
+
+--- Page 18 ---
+Complete Application UI & Architecture Appendix — Page 5
+LOW     MEDIUM     HIGH
+■        ■         ■
+■        ■■■■■■■■■■■
+■             ▼
+■     Appropriate verification
+■      according to state flow
+■             ■
+■             ▼
+■       UPDATED SCORING
+■             ■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+▼             ▼
+Decision       Manual Review
+■             ■
+■■■■■■■■■■■■■■■
+▼
+Outcome + History
+27. MVP Boundary in the Final UI
+The revised Addendum trims the first release to the core storefront, COD/prepaid checkout, reduced-signal risk scoring, SMS OTP
+step-up, doorstep QR/barcode proof capture, and the merchant review dashboard with approve/reject and audit log. Bank/UPI
+penny-drop validation, delivery-agent anomaly detection, self-tuning suggestions, and the Chrome extension are deferred. The UI
+architecture should therefore visually distinguish MVP screens from later-phase screens.
+28. Final Application Map
+START
+■
+▼
+OPEN APPLICATION
+■
+■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+▼                              ▼
+SHOPPER                         MERCHANT
+■                              ■
+▼                              ▼
+Storefront                      Login
+■                              ■
+▼                              ▼
+Product → Cart → Checkout       Dashboard
+■                              ■
+▼                    ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+Risk assessment       ▼         ▼             ▼               ▼
+■                  Orders   Customers   Flagged Cases    Audit Log
+▼                    ■         ■             ■
+Order outcome          ▼         ▼             ▼
+■                 Details   Risk Profile   Review
+▼                    ■         ■             ■
+Order History          ■■■■■■■■■■■■■■■■■■■■■■■■■
+■                                     ▼
+▼                                Decision
+Return Request                         ■
+■                                Approve/Reject
+▼                                     ■
+Risk + Verification                    ▼
+■                                  Audit Trail
+▼
+Doorstep Proof
+■
+▼
+Final Outcome / Notification
+Optional future/business UI:
+Billing & Invoices
+Later-phase capabilities:
+Bank/UPI validation, delivery-agent anomaly detection,
+self-tuning suggestions, Chrome extension
+============================================================
+FILE: Return Guard — Risk Checkpoints.pdf
+============================================================
+Total pages: 30
+
+--- Page 1 ---
+Return
+Guard
+—
+Risk
+Checkpoints
+1.
+Frequent
+Size
+Exchanges
+What
+to
+check
+Track:
+Total
+size
+exchanges
+÷
+Total
+orders
+Example:
+10
+orders
+6
+size
+exchanges
+Important
+Size
+exchange
+itself
+is
+NOT
+fraud.
+A
+genuine
+customer
+may
+buy
+M
+and
+exchange
+for
+L.
+The
+suspicious
+pattern
+is:
+Buy
+S
+Exchange
+M
+Buy
+M
+Exchange
+L
+Buy
+S
++
+M
++
+L
+Keep
+L
+Return
+S
++
+M
+Suggested
+scoring
+Normal
+size
+exchanges
+→
+0
+Repeated
+→
++5
+Very
+frequent
+→
++10
+Extreme
+pattern
+→
++15
+Action
+
+--- Page 2 ---
+Usually
+Medium
+risk
+,
+not
+immediate
+rejection.
+Request
+proof
+only
+when
+combined
+with
+other
+suspicious
+signals.
+2.
+Multiple
+Sizes
+in
+One
+Order
+What
+to
+check
+Detect
+whether
+the
+customer
+orders:
+Same
+product:
+S
+M
+L
+XL
+and
+later
+returns
+most
+of
+them.
+Example
+Product:
+T-Shirt
+S
+→
+returned
+M
+→
+returned
+L
+→
+kept
+XL
+→
+returned
+Why?
+This
+can
+indicate
+"try
+multiple
+sizes
+and
+return
+the
+rest."
+But
+this
+can
+also
+be
+completely
+legitimate.
+Score
+
+--- Page 3 ---
+2
+sizes
+→
+0
+3
+sizes
+→
++5
+4+
+sizes
+→
++10
+Repeated
+pattern
+→
++15
+Action
+Don't
+restrict
+based
+on
+one
+order.
+Restrict/proof
+should
+happen
+only
+if
+this
+pattern
+repeatedly
+occurs.
+3.
+Repeated
+Size
+Switching
+This
+is
+different
+from
+#1.
+Example
+Order
+1:
+M
+→
+L
+Order
+2:
+L
+→
+M
+Order
+3:
+M
+→
+L
+Order
+4:
+L
+→
+M
+Why?
+Repeated
+switching
+may
+indicate
+unusual
+ordering
+behavior.
+Score
+1–2
+exchanges
+→
+0
+3
+exchanges
+→
++5
+4–5
+→
++10
+6+
+→
++15
+Action
+
+--- Page 4 ---
+Usually:
+Medium
+→
+Manual
+Review
+Don't
+reject
+automatically.
+4.
+Wardrobing
+Pattern
+This
+is
+one
+of
+your
+most
+important
+checkpoints.
+What
+is
+wardrobing?
+Customer
+buys
+clothing,
+uses/wears
+it
+and
+then
+returns
+it.
+The
+system
+cannot
+reliably
+determine
+"worn"
+from
+order
+data
+alone,
+so
+don't
+claim
+that
+the
+algorithm
+knows
+the
+customer
+wore
+it.
+Instead,
+identify
+patterns
+that
+warrant
+inspection
+.
+Example:
+Customer
+repeatedly
+buys
+premium
+clothing
+↓
+Returns
+after
+several
+days
+↓
+Claims
+"changed
+mind"
+↓
+High
+number
+of
+fashion
+returns
+↓
+Previous
+condition
+issues
+Score
+Pattern
+detected
+→
++20
+
+--- Page 5 ---
+Repeated
+pattern
+→
++30
+Previous
+condition
+issues
+→
++35
+Action
+Proof
+required
+/
+manual
+inspection
+This
+is
+a
+case
+where
+I
+would
+not
+auto-reject
+based
+solely
+on
+the
+score.
+5.
+High-Value
+Item
+Returns
+What
+to
+check
+Compare
+return
+value
+with
+customer's
+normal
+order
+value.
+Example:
+Normal
+orders:
+₹800–₹2,000
+Current
+return:
+₹15,000
+Why?
+A
+sudden
+high-value
+return
+deserves
+more
+verification.
+Score
+Normal
+value
+→
+0
+2×
+normal
+→
++5
+3×
+normal
+→
++10
+5×+
+normal
+→
++15
+Action
+Medium
+risk
+→
+manual/proof
+review.
+
+--- Page 6 ---
+6.
+Return
+Immediately
+After
+Delivery
+What
+to
+check
+Time
+between:
+Delivered
+↓
+Return
+requested
+Example:
+Delivered:
+10:00
+AM
+Return:
+10:15
+AM
+Important
+This
+is
+not
+necessarily
+suspicious
+.
+Maybe
+the
+customer
+immediately
+discovered
+the
+wrong
+size.
+Score
+Normal
+→
+0
+Very
+quick
+→
++5
+Repeated
+immediate
+returns
+→
++10
+Action
+Never
+restrict
+based
+only
+on
+this
+checkpoint.
+Combine
+with
+other
+signals.
+7.
+Return
+Near
+Policy
+Deadline
+Example:
+
+--- Page 7 ---
+Your
+store
+has
+a:
+7-day
+return
+policy
+Customer
+repeatedly
+requests
+returns
+on:
+Day
+7
+Day
+7
+Day
+6
+Day
+7
+Why?
+Repeated
+last-day
+returns
+can
+be
+a
+pattern
+worth
+investigating.
+Score
+Occasional
+→
+0
+Repeated
+→
++5
+Strong
+repeated
+pattern
+→
++10
+Action
+Usually
+Medium
+risk
+.
+8.
+Same
+Product
+Repeatedly
+Returned
+Example:
+Customer
+purchases
+Product
+A
+→
+returns
+Purchases
+Product
+A
+→
+returns
+
+--- Page 8 ---
+Purchases
+Product
+A
+→
+returns
+Why?
+Could
+indicate:
+●
+Product
+problem
+●
+Wrong
+sizing
+●
+Quality
+issue
+●
+Customer
+behavior
+You
+need
+to
+distinguish
+between
+these.
+Important
+improvement
+Check
+whether
+other
+customers
+are
+also
+returning
+that
+product
+.
+If
+70%
+of
+customers
+return
+the
+same
+product,
+the
+problem
+may
+be
+the
+product
+,
+not
+the
+customer.
+Score
+2
+returns
+→
++5
+3
+→
++10
+4+
+→
++15
+9.
+Frequent
+Damage
+Claims
+What
+to
+check
+Count
+claims
+such
+as:
+Damaged
+product
+Broken
+product
+
+--- Page 9 ---
+Torn
+product
+Scratched
+product
+Used
+product
+Example:
+10
+returns
+5
+damage
+claims
+Score
+0–1
+→
+0
+2
+→
++5
+3
+→
++15
+4+
+→
++25
+Action
+Repeated
+damage
+claims
+should
+trigger
+proof
+requirement
+.
+10.
+Damage
+Claim
+Without
+Evidence
+Suppose
+the
+merchant
+requires:
+Photo
+of
+damaged
+product
+Customer
+repeatedly
+says:
+"Product
+was
+damaged"
+but
+doesn't
+provide
+evidence.
+Score
+First
+time
+→
+0
+Repeated
+missing
+evidence
+→
++10
+
+--- Page 10 ---
+Multiple
+claims
+without
+evidence
+→
++20
+Action
+Request
+photo/video
+proof.
+Don't
+immediately
+reject.
+11.
+Return
+Reason
+Inconsistency
+Example:
+Customer
+initially
+says:
+"Wrong
+size"
+Then
+later:
+"Product
+damaged"
+Then:
+"Product
+quality
+issue"
+Why?
+Changing
+reasons
+doesn't
+automatically
+mean
+fraud,
+but
+it
+can
+increase
+uncertainty.
+Score
+Consistent
+→
+0
+One
+change
+→
++5
+Repeated
+changes
+→
++10
+Major
+contradictions
+→
++15
+Action
+Manual
+review.
+
+--- Page 11 ---
+12.
+Frequent
+Address
+Changes
+What
+to
+check
+Track:
+Customer
+A
+Order
+1
+→
+Address
+A
+Order
+2
+→
+Address
+B
+Order
+3
+→
+Address
+C
+Order
+4
+→
+Address
+D
+Why?
+Frequent
+changes
+may
+be
+suspicious,
+but
+they
+can
+also
+happen
+because
+people
+travel
+or
+move.
+Score
+Normal
+→
+0
+2–3
+changes
+→
++5
+4–5
+→
++10
+6+
+→
++15
+Action
+Use
+as
+a
+supporting
+signal
+,
+never
+as
+the
+only
+reason
+for
+restriction.
+13.
+Multiple
+Accounts
+With
+Same
+Identity
+Signals
+Suppose:
+
+--- Page 12 ---
+Account
+A
+Phone
+→
+X
+Address
+→
+Y
+Account
+B
+Phone
+→
+X
+Address
+→
+Y
+What
+to
+check
+Potential
+shared
+signals:
+●
+Phone
+●
+Email
+●
+Address
+●
+Payment
+identifier
+●
+Device/browser
+signals,
+if
+legally
+and
+appropriately
+collected
+Why?
+Multiple
+accounts
+may
+be
+used
+to
+bypass
+customer-level
+restrictions.
+Score
+2
+related
+accounts
+→
++10
+3+
+→
++20
+Repeated
+suspicious
+behavior
+→
++30
+Action
+Manual
+investigation.
+14.
+High
+Refund-to-Order
+Ratio
+
+--- Page 13 ---
+Calculate:
+Total
+refunded
+amount
+---------------------
+Total
+purchase
+amount
+Example:
+Purchased
+=
+₹50,000
+Refunded
+=
+₹35,000
+Refund
+ratio
+=
+70%
+Score
+<20%
+→
+0
+20–40%
+→
++5
+40–60%
+→
++15
+60%+
+→
++25
+Why?
+A
+customer
+receiving
+refunds
+for
+most
+purchases
+deserves
+additional
+review.
+15.
+Seasonal
+Return
+Behavior
+This
+is
+an
+interesting
+feature
+for
+your
+project.
+Example:
+Wedding
+season
+↓
+Customer
+buys
+ethnic
+wear
+
+--- Page 14 ---
+↓
+After
+event
+↓
+Returns
+everything
+But
+you
+need
+historical
+data.
+Example
+Customer:
+Jan
+→
+normal
+Feb
+→
+normal
+Mar
+→
+normal
+Apr
+→
+5
+ethnic-wear
+returns
+Score
+Slight
+seasonal
+anomaly
+→
++5
+Strong
+anomaly
+→
++10
+Repeated
+seasonal
+pattern
+→
++20
+Action
+Usually
+Medium/High
+,
+requiring
+supporting
+signals.
+16.
+Previous
+Rejected
+Return
+Suppose:
+Return
+1
+→
+Rejected
+Return
+2
+→
+Approved
+Return
+3
+→
+Rejected
+
+--- Page 15 ---
+Return
+4
+→
+New
+return
+Why?
+Repeated
+rejected
+claims
+are
+an
+important
+historical
+signal.
+Score
+1
+rejected
+→
++5
+2
+→
++10
+3
+→
++20
+4+
+→
++25
+Action
+New
+return
+should
+generally
+go
+to:
+Manual
+Review
+/
+Proof
+Required
+rather
+than
+automatic
+approval.
+17.
+Unusual
+Order
+Quantity
+Example:
+Normally:
+Customer
+orders
+1–2
+items
+Suddenly:
+Customer
+orders
+15
+identical
+products
+Then:
+Returns
+14
+Why?
+This
+can
+indicate
+unusual
+behavior.
+
+--- Page 16 ---
+But
+it
+could
+also
+be
+a
+legitimate
+bulk
+purchase.
+Score
+2×
+normal
+quantity
+→
++5
+3×
+→
++10
+5×+
+→
++20
+Large
+quantity
++
+high
+return
+→
++30
+17.
+Product/Serial
+Number
+Mismatch
+⭐⭐⭐
+This
+is
+a
+very
+important
+missing
+checkpoint
+.
+For
+electronics,
+mobiles,
+laptops,
+watches,
+appliances,
+etc.,
+store
+a
+product
+identifier
+when
+the
+order
+is
+shipped:
+Order:
+Product:
+iPhone
+Serial/IMEI:
+ABC123456
+When
+the
+return
+arrives:
+Returned
+item:
+Serial/IMEI:
+XYZ987654
+If
+they
+don't
+match:
+HIGH/CRITICAL
+RISK
+Flipkart
+explicitly
+says
+return
+pickup
+validation
+can
+check
+the
+product's
+IMEI,
+name,
+image,
+brand,
+serial
+number,
+article
+number
+and
+barcode.
+This
+can
+detect
+switch
+fraud
+,
+where
+someone
+returns
+a
+different/older/damaged
+item
+instead
+of
+the
+item
+originally
+purchased.
+
+--- Page 17 ---
+18.
+Missing
+Accessories
+/
+Incomplete
+Product
+Check
+whether
+the
+returned
+package
+contains
+everything
+originally
+shipped.
+For
+example:
+Original
+order:
+Laptop
+Charger
+Mouse
+Manual
+Bag
+Returned:
+Laptop
+Charger
+❌
+Mouse
+❌
+Bag
+Your
+system
+should
+compare:
+Original
+package
+contents
+↓
+Returned
+package
+contents
+Flipkart
+explicitly
+includes
+accessories,
+manuals,
+freebies
+and
+combo
+items
+in
+its
+return-condition
+checks.
+Return
+Guard
+action
+Missing
+accessory
+↓
+
+--- Page 18 ---
+Calculate
+accessory
+value
+↓
+Minor
+→
+Partial
+refund
+/
+manual
+review
+Major
+→
+Hold
+refund
+This
+is
+particularly
+useful
+for
+electronics
+and
+bundles
+.
+19.
+Product
+Condition
+/
+Tampered
+Seal
+Check
+Your
+current
+system
+talks
+about
+"damage",
+but
+you
+should
+separate:
+●
+Damaged
+●
+Used
+●
+Washed
+●
+Soiled
+●
+Scratched
+●
+Seal
+broken
+●
+Warranty
+seal
+tampered
+●
+Return
+tag
+removed
+Flipkart
+explicitly
+checks
+whether
+products
+are
+unused,
+unwashed,
+unsoiled
+and
+whether
+applicable
+quality/return/warranty
+seals
+remain
+intact.
+So
+add:
+CONDITION_CHECK
+with
+values:
+UNUSED
+USED
+DAMAGED
+SOILED
+TAMPERED
+
+--- Page 19 ---
+UNKNOWN
+Example
+Customer
+says:
+"Product
+damaged."
+Pickup
+inspection
+finds:
+Product
+is
+used
+Return
+tag
+removed
+Visible
+stains
+That
+should
+substantially
+increase
+risk.
+20.
+Packaging
+/
+Box
+Mismatch
+⭐⭐
+Check:
+Original
+packaging
+↓
+Returned
+packaging
+For
+example:
+Original:
+Samsung
+box
++
+seal
+Returned:
+Different
+box
+/
+damaged
+box
+This
+is
+especially
+useful
+for
+electronics.
+Flipkart's
+published
+return
+checks
+include
+original
+packaging
+condition.
+
+--- Page 20 ---
+Score
+Minor
+packaging
+damage
+→
++5
+Major
+damage
+→
++10
+Wrong
+packaging
+→
++20
+21.
+Wrong
+Item
+Returned
+/
+Product
+Swap
+This
+should
+be
+one
+of
+your
+highest-priority
+rules
+.
+Example:
+Customer
+purchased:
+Nike
+Shoe
+₹8,000
+Returned:
+Different
+shoe
+₹2,000
+or:
+Original
+product
+→
+new
+Returned
+product
+→
+old/damaged
+Your
+system
+can
+compare:
+SKU
+Barcode
+Serial
+number
+IMEI
+Product
+image
+
+--- Page 21 ---
+Brand
+Model
+Color
+Size
+This
+is
+one
+of
+the
+major
+forms
+of
+return
+fraud
+discussed
+in
+the
+industry,
+and
+current
+return-fraud
+technology
+is
+also
+using
+item
+images/authenticity
+checks
+to
+detect
+swaps.
+Decision
+Immediate
+HOLD
++
+Manual
+Verification
+Don't
+auto-refund.
+22.
+Return
+Quantity
+Mismatch
+Suppose
+the
+customer
+ordered:
+5
+products
+but
+requests:
+return
+=
+5
+and
+only
+sends
+back:
+4
+Your
+system
+should
+detect:
+Ordered
+Quantity:
+5
+Return
+Quantity:
+5
+Received
+Quantity:
+4
+Action
+Refund
+eligible
+quantity
+=
+4
+
+--- Page 22 ---
+Missing
+item
+=
+investigation
+This
+is
+especially
+important
+for
+bulk
+orders
+and
+bundles.
+23.
+Duplicate
+Return
+/
+Multiple
+Return
+Requests
+This
+is
+another
+important
+one.
+Example:
+Order
+#1234
+Return
+request
+#1
+→
+submitted
+Return
+request
+#2
+→
+submitted
+Return
+request
+#3
+→
+submitted
+Or:
+Customer
+requests
+return
+↓
+Cancels
+↓
+Requests
+again
+↓
+Cancels
+↓
+Requests
+again
+This
+should
+increase
+risk.
+
+--- Page 23 ---
+Score
+1
+request
+→
+0
+2
+requests
+→
++10
+3+
+requests
+→
++20
+24.
+One-Time
+vs
+Repeated
+Replacement
+Flipkart's
+published
+policy
+shows
+that
+certain
+categories
+may
+allow
+only
+one
+replacement.
+So
+your
+system
+should
+track:
+Replacement
+count
+per
+order
+Example:
+Replacement
+#1
+→
+approved
+Replacement
+#2
+→
+requested
+Then:
+Manual
+review
+This
+prevents
+endless
+replacement
+cycles.
+25.
+Open-Box
+/
+Delivery-Time
+Verification
+This
+is
+a
+very
+interesting
+checkpoint
+for
+India
+.
+Some
+deliveries
+may
+involve
+open-box
+verification.
+For
+example:
+Delivery
+↓
+
+--- Page 24 ---
+Customer
+checks
+product
+↓
+Product
+appears
+correct
+↓
+Customer
+accepts
+If
+a
+customer
+later
+claims:
+"Wrong
+product
+delivered"
+your
+system
+should
+know
+whether
+the
+order
+was
+accepted
+after
+an
+open-box
+check.
+Flipkart's
+published
+policy
+specifically
+describes
+open-box
+delivery
+and
+says
+that
+after
+acceptance,
+returns
+may
+be
+restricted
+except
+for
+certain
+defects.
+Your
+data
+model
+could
+store:
+open_box_delivery
+=
+true
+customer_accepted
+=
+true
+delivery_verification
+=
+passed
+Then:
+Later
+wrong-product
+claim
+↓
+Higher
+scrutiny
+But
+don't
+automatically
+reject—there
+can
+still
+be
+legitimate
+defects.
+26.
+Category/Product-Specific
+Return
+Eligibility
+This
+is
+extremely
+important
+.
+Your
+current
+scoring
+system
+treats
+all
+returns
+similarly.
+
+--- Page 25 ---
+Don't.
+A:
+T-shirt
+and:
+Mobile
+phone
+shouldn't
+have
+the
+same
+return
+rules.
+Flipkart's
+current
+policy
+has
+different
+windows/actions
+by
+category—for
+example,
+some
+lifestyle
+items
+have
+refund/replacement/exchange
+options,
+while
+many
+electronics
+have
+replacement/service-center
+processes
+and
+some
+products
+are
+non-returnable.
+So
+create:
+ReturnPolicy
+with:
+category
+return_window
+refund_allowed
+replacement_allowed
+exchange_allowed
+proof_required
+inspection_required
+non_returnable
+Then
+your
+scoring
+engine
+knows:
+"This
+particular
+return
+isn't
+even
+eligible
+for
+normal
+auto-approval."
+
+--- Page 26 ---
+27.
+Customer
+Return
+Rate
+vs
+Product
+Return
+Rate
+This
+is
+one
+of
+my
+favorite
+additions.
+Suppose:
+Product
+A
+Store
+return
+rate
+=
+60%
+Customer
+return
+rate
+=
+65%
+Don't
+flag
+the
+customer
+heavily.
+The
+product
+itself
+may
+have
+a
+sizing/quality
+problem.
+But:
+Product
+return
+rate
+=
+10%
+Customer
+return
+rate
+=
+75%
+Now
+the
+customer's
+behavior
+is
+much
+more
+unusual.
+So
+calculate:
+Customer
+Return
+Rate
+VS
+Product
+Return
+Rate
+VS
+Category
+Return
+Rate
+This
+will
+make
+your
+system
+much
+smarter
+.
+
+--- Page 27 ---
+28.
+First-Time
+Customer
+vs
+Long-Term
+Customer
+Add
+customer
+tenure.
+Example:
+Customer
+A
+Customer
+for
+3
+years
+100
+orders
+5
+returns
+Customer
+B
+Customer
+for
+10
+days
+5
+orders
+4
+returns
+Both
+may
+have
+similar
+recent
+activity,
+but
+their
+historical
+context
+is
+different.
+So
+include:
+customer_age
+total_orders
+successful_orders
+successful_deliveries
+return_history
+A
+long-term
+customer
+with
+one
+unusual
+return
+shouldn't
+be
+treated
+the
+same
+as
+a
+brand-new
+account
+with
+extreme
+behavior.
+extreme
+behavior.
+
+--- Page 28 ---
+A
+very
+important
+Points
+After
+researching
+the
+marketplace
+approach,
+there
+are
+4
+types
+of
+checks
+.
+This
+will
+make
+your
+project
+much
+more
+professional.
+Type
+A
+—
+Eligibility
+Checks
+These
+happen
+before
+risk
+scoring
+.
+Is
+product
+returnable?
+Is
+return
+within
+window?
+Is
+category
+eligible?
+Is
+refund
+allowed?
+Is
+replacement
+allowed?
+If
+no:
+Return
+not
+eligible
+according
+to
+policy.
+Type
+B
+—
+Product
+Verification
+Then
+verify
+the
+actual
+returned
+product:
+SKU
+Barcode
+Serial
+number
+IMEI
+Brand
+Model
+
+--- Page 29 ---
+Quantity
+Accessories
+Packaging
+Seals
+Condition
+Product
+image
+This
+catches:
+Wrong
+product
+/
+product
+swap
+/
+missing
+components
+/
+used
+product.
+Type
+C
+—
+Customer
+Behavior
+Risk
+Then
+run
+your
+original
+behavioral
+checks:
+Return
+frequency
+COD
+refusal
+Size
+switching
+Multiple
+sizes
+Damage
+claims
+Wrong-product
+claims
+Address
+patterns
+Multiple
+accounts
+Previous
+rejected
+claims
+Refund
+ratio
+Seasonal
+behavior
+etc.
+
+--- Page 30 ---
+Type
+D
+—
+Decision
+Engine
+Finally:
+Eligibility
++
+Product
+Verification
++
+Customer
+Risk
++
+Historical
+Comparison
+↓
+Final
+Decision
+============================================================
+FILE: ReturnGuard_Modified.pdf
+============================================================
+Total pages: 2
+
+--- Page 1 ---
+Project Briefs
+AI-powered return-fraud detection for Indian D2C e-commerce brands
+Problem Statement
+E-commerce platforms in India face return fraud rates far higher than global averages, driven heavily by
+Cash-on-Delivery (COD) orders where customers order, refuse delivery, or return items after use with
+almost no verification at the point of purchase. D2C brands and mid-market sellers lose heavily to
+wardrobing (wearing and returning clothes after a wedding or festival season), empty-box returns, and serial
+over-ordering (ordering multiple sizes with intent to keep one and return the rest). Enterprise fraud tools are
+priced for large players, leaving smaller D2C brands with no affordable way to fight this.
+Solution
+A lightweight application for Indian D2C brands that analyzes each return or refusal risk in real time. It
+factors in COD refusal history, return frequency per customer, address-mismatch patterns, and seasonal
+wardrobing signals (e.g. ethnic wear returned right after wedding season), using the merchant's own order
+data. Low-risk returns get auto-approved instantly to keep customer trust high; high-risk ones get flagged for
+manual check or a small verification step such as photo proof or video unboxing requirement. Pricing is a
+small percentage of fraud losses actually prevented, making it a zero-upfront-risk pilot for a small D2C
+brand to try.
+Solution Overview
+A simple standalone application that receives a merchant's order and return data, looks at each customer's
+order and return history, and gives every return request a risk score in real time. Low-risk returns get
+approved automatically. High-risk cases (repeat over-orderers, COD refusal patterns, returns right after
+festival season) get flagged for a quick manual check or a photo/video proof step before refund.
+Target Users & Problem Fit
+Small-to-mid Indian D2C brands ($50K-$5M revenue range) selling through their own e-commerce
+operations with COD checkout. They lose real money to return fraud every month but cannot afford
+enterprise fraud tools built for large retailers. They will use it because it is cheap to try (pay only a
+percentage of fraud actually caught) and does not add friction for honest customers.
+
+--- Page 2 ---
+ReturnGuard
+Technical Approach
+Stack: Python backend, merchant order/return data integration, a risk-scoring model (starts rule-based, can
+upgrade to ML later), and a simple merchant dashboard. Four key pieces: (1) order/return data ingestion,
+(2) risk-scoring engine, (3) merchant dashboard showing flagged returns and savings, and (4)
+auto-approve/flag decision logic wired into the merchant's return flow.
+Team & Build Plan
+One team member builds the merchant data integration first. Another builds the risk-scoring logic in parallel
+using a small sample dataset. Once both are working, we connect them into a basic dashboard (built third),
+then test on one pilot merchant's real historical data before demo.
+Impact & Edge
+Merchants keep more revenue without punishing honest customers with strict return policies. Unlike
+enterprise fraud tools priced for large retailers, this is built cheap and specific to Indian COD/return
+patterns—a gap the project aims to address for small D2C brands.
+============================================================
+FILE: backend RG.pdf
+============================================================
+Total pages: 20
+
+--- Page 1 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 1
+Complete Django Backend Architecture
+React.js Frontend → Django + DRF → PostgreSQL
+Current MVP + Payment/Invoice Layer + Future Features
+Visual implementation blueprint with architecture frames, data-flow diagrams, frontend-to-backend mapping, fraud
+workflows, payment and invoice notification architecture, database design and future expansion paths.
+Revision note: this version adds a dedicated Payment Gateway, Webhook, Failure Handling and Automated Invoice Email
+Architecture section (Section 5). All previously documented sections are preserved below; section numbers from 5 onward have
+shifted by one to make room for it.
+
+--- Page 2 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 2
+1. Complete Platform Architecture
+SHOPPER
+Landing / Auth
+Catalog
+Cart / Checkout
+Orders / Returns
+OTP / Status
+Notifications
+MERCHANT / ADMIN
+Dashboard / Orders
+Customers
+Risk Profiles
+Flagged Cases
+Approve / Reject
+Audit / Analytics
+HTTPS / REST
+DJANGO + DJANGO REST FRAMEWORK
+Accounts
+Merchants
+Admin API
+Catalog
+Payments
+Notifications
+Orders
+Fraud
+Analytics
+Returns
+Verification
+Future Integrations
+Data & Storage Layer
+PostgreSQL + RLS
+Users / Orders / Risk
+Object Storage
+Proof / Media
+External Providers
+SMS / Payment / Bank
+React shopper and merchant surfaces call the same Django + DRF API layer, which is backed by PostgreSQL, object storage and external
+providers.
+2. Frontend → Backend Data Flow
+
+--- Page 3 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 3
+React Screen (user action)
+API Client (JSON + Authorization)
+Django URL Routing
+Authentication
+Permissions + Merchant Context
+Serializer Validation
+Service / Business Logic
+Fraud Engine
+Payment
+Verification
+PostgreSQL
+JSON Response → React Update
+3. Frontend Screen to Backend Map
+Frontend frame
+Backend API / module
+Login / Register
+accounts → authentication, role creation, sessions/tokens
+Catalog / Product Details
+catalog → products, categories, inventory
+Cart / Checkout
+orders + payments + fraud → atomic order creation
+Payment Result Screen
+payments → webhook-verified status, invoice link
+OTP Screen
+verification → send/verify, attempt history, re-score
+Order History
+orders → paginated tenant/user-scoped history
+Return Request
+returns + fraud → validation, risk scoring, timeline
+Return Status
+returns → events, proof, decision state
+
+--- Page 4 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 4
+Frontend frame
+Backend API / module
+Merchant Dashboard
+admin_api → summary metrics and queues
+Customers / Risk Profile
+fraud + admin_api → risk history and evidence
+Flagged Case
+fraud + returns → context, review, decision
+Audit Log
+audit service → immutable admin actions
+Future Analytics
+analytics → aggregates, trends, anomaly outputs
+4. Checkout Frame and Backend Flow
+REACT CHECKOUT
+Address | Cart | Payment | [ PLACE ORDER ]
+POST /api/orders/checkout/
+DJANGO CHECKOUT API
+Auth + serializer validation
+CHECKOUT SERVICE
+Validate stock / totals · START DB TRANSACTION
+Order
+Payment
+Fraud Score
+Commit / Rollback
+JSON Response → React Success UI
+Payment record creation and the payment/invoice notification flow that follows checkout are detailed in Section 5.
+
+--- Page 5 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 5
+NEW SECTION
+5. Payment Gateway, Webhooks, Failure Handling & Automated Invoice
+Email Architecture
+This section defines how payment results are captured, how customers are notified for every outcome, how invoices are
+generated and delivered, and when the real payment gateway should be introduced relative to the rest of the backend
+build.
+5.1 Payment & Invoice Notification Matrix
+Event
+Order status
+Payment status
+Customer email
+Payment initiated
+Pending
+Processing
+Optional
+Payment successful
+Confirmed / Processing
+Paid
+Payment success +
+invoice
+Payment failed
+Payment pending /
+Failed
+Failed
+Payment failure
+Payment rejected /
+declined
+Pending
+Rejected
+Payment rejected
+COD order placed
+Confirmed
+COD pending
+Order confirmation
+5.2 Recommended Checkout → Payment → Notification Flow
+React Checkout
+Create Order
+Create Payment Record
+COD PATH
+Order Confirmed
+↓
+Order Email
+↓
+Customer Inbox
+GATEWAY PATH
+Payment Result / Webhook
+↓
+see outcome handling below
+COD orders confirm immediately and email the customer without waiting on a gateway. Gateway orders continue into the outcome handling
+below.
+Gateway Payment Outcome Handling
+
+--- Page 6 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 6
+Payment Result / Webhook Received
+PAID
+Generate Invoice
+FAILED
+Failure Email
+REJECTED
+Rejection Email
+Celery Task → Invoice / Status Email
+Customer Inbox
+Gateway orders wait for a verified webhook result before the order or invoice state changes.
+5.3 Invoice Email Flow (Online Prepaid Orders)
+Payment Successful
+Payment Gateway Webhook
+Django Verifies Webhook Signature
+Payment.status = PAID
+Order.status = CONFIRMED
+Database Transaction Committed
+Generate Invoice → Store Invoice Record
+transaction.on_commit()
+Celery Task
+Send Payment Success Email + Attach / Link Invoice
+Customer Email
+For COD orders, send an order confirmation immediately; generate the final payment invoice once payment is actually
+collected, per business/payment rules.
+
+--- Page 7 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 7
+5.4 Never Trust the Frontend Payment Message Alone
+Even if React shows a “Payment Successful” message, Django must not mark a payment as paid from that response
+alone. The gateway’s signed webhook is the single source of truth — this prevents forged payment-success requests
+from being sent directly to the API.
+Payment Gateway
+Signed Webhook
+Django Verifies Signature
+Payment Marked PAID
+Order Confirmed
+Invoice Generated
+Customer Notified
+5.5 Payment / Invoice Data Model Additions
+Order
+|-- Payment (order_id, gateway, gateway_payment_id, amount, status, failure_reason)
+| |-- PaymentEvent (payment_id, event_type, gateway_event_id, payload, created_at)
+|
+|-- Invoice (order_id, invoice_number, invoice_url, status, generated_at)
+|
+|-- EmailDelivery (user_id, event_type, related_order_id, status, sent_at)
+Payment, PaymentEvent, Invoice and EmailDelivery extend the Fraud Data Model in Section 7 — they hang off the same Order
+entity used by returns and fraud scoring.
+5.6 End-to-End Architecture With Payment Layer
+
+--- Page 8 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 8
+REACT.JS → Checkout
+DJANGO + DRF
+Orders
+Payments
+Fraud Engine
+PostgreSQL · Payment Gateway → Webhook
+Django Webhook → Verify Signature → Update Database
+Invoice
+Notification
+Celery + Redis
+Email
+5.7 When to Introduce the Real Payment Gateway
+Recommendation: do not implement the real payment gateway first. Build the surrounding backend and prove the
+flow with a mock payment service before connecting a live provider.
+1. React Checkout UI
+2. Django Order Backend
+3. PostgreSQL Database Models
+4. Mock Payment Flow
+5. Connect Real Payment Gateway
+6. Webhook Verification
+7. Invoice Generation
+8. Celery Email Notifications
+5.8 Mock-First Development Sequence
+
+--- Page 9 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 9
+React Checkout
+POST /api/orders/checkout/
+Django Creates Order
+Payment Record Created
+Mock Payment Result
+Success / Failure Response
+This lets the whole application be built and tested before a real payment provider is connected. New modules: orders/, payments/, invoices/,
+notifications/.
+
+--- Page 10 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 10
+6. Complete Return + Fraud Flow
+Order History (React)
+Request Return (reason + items)
+POST /api/returns/
+Return Service
+Validate ownership / window / lines · create timeline event
+Fraud Engine
+Account Age
+Behavior Patterns
+COD refusal, category rate,
+timing, address, device reuse
+Context Signals
+payment / reason
+Composite Score
+LOW
+Auto-approve
+MEDIUM
+OTP → Re-score
+HIGH
+Manual Review
+Final Workflow
+Doorstep Proof
+Merchant Action
+Audit + Notification
+7. Fraud Data Model
+Merchant
+|-- Product -- Category
+|-- Customer / User
+| |-- CustomerRiskProfile
+| | |-- RiskScoreEvent
+| | |-- VerificationEvent
+|-- Order
+|-- OrderItem
+|-- Payment (see Section 5.5)
+| |-- PaymentEvent
+|-- Invoice
+|-- EmailDelivery
+|-- ReturnRequest
+
+--- Page 11 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 11
+|-- ReturnLine
+|-- ReturnEvent
+|-- DoorstepProof
+|-- ReviewDecision
+AuditLog -> references sensitive merchant/admin actions
+8. Django Application Architecture
+backend/
+|-- config/
+| |-- settings/
+| |-- urls.py
+| |-- middleware.py
+|-- common/
+| |-- permissions.py
+| |-- exceptions.py
+| |-- tenancy.py
+|-- accounts/
+|-- merchants/
+|-- catalog/
+|-- cart/
+|-- orders/
+|-- payments/ # gateway integration, webhooks
+|-- invoices/ # NEW: invoice generation + storage
+|-- returns/
+|-- fraud/
+| |-- services/
+| | |-- risk_engine.py
+| | |-- signal_extractors.py
+| | |-- decision_engine.py
+| |-- tasks/
+|-- verification/
+|-- notifications/ # payment, invoice, order, return emails
+|-- proof/
+|-- audit/
+|-- analytics/
+|-- delivery_risk/ # future
+|-- bank_validation/ # future
+|-- threshold_learning/ # future
+|-- admin_api/
+9. API Architecture
+Domain
+Representative endpoints
+Authentication
+POST /api/auth/register/ | login/ | refresh/ | logout/
+Products
+GET /api/products/ | GET /api/products/{id}/
+Cart
+GET/POST/PATCH /api/cart/
+Checkout
+POST /api/orders/checkout/
+
+--- Page 12 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 12
+Domain
+Representative endpoints
+Orders
+GET /api/orders/ | GET /api/orders/{id}/
+Payments
+POST /api/payments/webhook/ | GET /api/payments/{id}/
+Invoices
+GET /api/invoices/{id}/ | GET /api/orders/{id}/invoice/
+Returns
+POST /api/returns/ | GET /api/returns/{id}/ | GET /timeline/
+OTP
+POST /api/verification/send/ | POST /verify/
+Proof
+POST /api/returns/{id}/proof/
+Merchant
+GET /api/admin/dashboard/ | /orders/ | /customers/
+Risk Review
+GET /api/admin/flagged-cases/ | POST /approve/ | /reject/
+Future
+/api/bank-validation/ | /delivery-risk/ | /analytics/
+
+--- Page 13 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 13
+10. Verification and OTP Flow
+Medium-Risk Action
+React OTP Screen
+POST /api/verification/send/
+Django OTP Service → SMS Provider
+VerificationEvent Created
+User Submits OTP
+Verify Expiry + Attempts + Hash
+Store Result
+Re-score Risk
+Decision Engine
+11. Doorstep Proof Data Flow
+Delivery / Return Event
+QR/barcode scan · digital signature · location/timestamp
+Django Proof API
+PostgreSQL
+metadata
+Object Storage
+proof files
+Return Timeline
+Merchant Review
+12. Merchant Review Frame
+
+--- Page 14 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 14
+FLAGGED CASE
+Customer Risk: HIGH · Order / Return Reason
+Risk Signals / Verification Status
+Address-Device / Doorstep Proof
+[ APPROVE ]   [ REJECT ]
+Django Review API
+Permission + tenant check
+Approve
+Reject
+ReviewDecision
+AuditLog
+Notification
+13. Multi-Tenant Security Design
+Authenticated User
+Resolve Merchant Context
+Django Permission
+Queryset Scoping
+PostgreSQL RLS
+Policy Boundary
+Authorized Rows Only
+
+--- Page 15 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 15
+14. Background Processing Architecture
+API Request
+Fast DB Work → Immediate Response
+Slow / External Work
+Task Queue / Worker (Celery + Redis)
+SMS
+Notifications
+(incl. payment/invoice email)
+Analytics
+PostgreSQL
+Use this pattern for SMS, notifications, payment/invoice emails, scheduled fraud analytics, future anomaly calculations and
+other slow integrations.
+15. Future Feature: Bank / UPI Validation
+React / Merchant Action
+POST /api/bank-validation/
+Django Integration Service
+Approved External Validation Provider
+Normalized Result
+success/failure · provider reference · permitted metadata only
+VerificationEvent / Risk Signal
+Fraud Re-evaluation
+Implementation details depend on the provider and legal/privacy requirements; the backend should isolate provider-specific
+code behind an adapter/service.
+16. Future Feature: Delivery-Agent Risk Analysis
+
+--- Page 16 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 16
+Delivery Events
+timestamps · proof completion · route anomalies · return outcomes
+Delivery Risk Service
+AgentRiskEvent History
+Aggregated Risk Profile
+Merchant / Operations Review
+Keep delivery-agent analysis separate from shopper risk so evidence, permissions and review logic remain understandable.
+
+--- Page 17 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 17
+17. Future Feature: Self-Tuning Thresholds
+Historical Outcomes
+Analytics Aggregation
+false positives/negatives · review outcomes · category performance
+Threshold Suggestions
+Merchant / Admin Review
+Approved Rule Version
+New Fraud Configuration
+Do not automatically change production thresholds without review. Persist configuration versions so every decision can be
+traced to the rule set that produced it.
+18. Future Extension Architecture
+Future Client: Browser Extension
+Authenticated REST
+SAME Django API
+flagged cases · case actions · notifications · merchant permissions
+SAME PostgreSQL
+No duplicate fraud engine inside the extension. The extension remains a future client surface; Django remains the single
+backend and fraud decision source.
+19. Performance Architecture
+Area
+Design rule
+React lists
+Server-side pagination and filtering
+ORM
+select_related / prefetch_related and measured indexes
+API payload
+Separate compact list serializers from detailed serializers
+Caching
+Cache stable reads; invalidate after writes
+External APIs
+Background workers and retries
+
+--- Page 18 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 18
+Area
+Design rule
+Database writes
+Atomic transactions
+Fraud scoring
+Efficient signal queries; avoid repeated history scans
+Payments/Invoices
+Idempotent webhook handling; retry queue for email delivery
+Analytics
+Pre-aggregation and scheduled jobs for heavy reporting
+Files
+Object storage; never embed large media in JSON
+Monitoring
+Request IDs, latency, error logs and health checks
+
+--- Page 19 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 19
+20. Error and Response Frame
+Success
+{
+"data": {...},
+"meta": {
+"request_id": "...",
+"pagination": {...}
+}
+}
+Error
+{
+"error": {
+"code": "RETURN_NOT_ELIGIBLE",
+"message": "This order cannot be returned.",
+"field_errors": {},
+"request_id": "..."
+}
+}
+Payment webhook error (example)
+{
+"error": {
+"code": "PAYMENT_SIGNATURE_INVALID",
+"message": "Webhook signature verification failed.",
+"field_errors": {},
+"request_id": "..."
+}
+}
+21. Complete Development Roadmap
+Phase
+Scope
+Phase 1 — Foundation
+Django + PostgreSQL + environment + custom user +
+merchants
+Phase 2 — Core Commerce
+Catalog → Cart → Checkout → Orders → Mock Payments
+Phase 3 — Payment &
+Invoice
+Gateway integration → webhooks → invoice generation →
+Celery emails
+Phase 4 — Returns
+ReturnRequest → ReturnLine → Timeline → Proof
+Phase 5 — Fraud
+Signals → Composite scoring → Risk events → Decisions
+Phase 6 — Verification
+OTP → verification events → re-scoring
+
+--- Page 20 ---
+Complete Django Backend Architecture — Current + Payment + Future Features
+Page 20
+Phase
+Scope
+Phase 7 — Merchant
+Operations
+Dashboard → Customers → Flagged cases → Actions →
+Audit
+Phase 8 — Performance &
+Security
+RLS → indexes → caching → background workers → testing
+Phase 9 — Future
+Integrations
+Bank/UPI → delivery risk → analytics → threshold
+suggestions
+Phase 10 — Future Client
+Chrome extension using the same secured Django APIs
+Payment gateway integration (Phase 3) intentionally comes right after core commerce is provable end-to-end with a mock
+payment service — see Section 5.7.
+22. Final Implementation Contract
+1
+Identify the React screen.
+2
+Identify the user action.
+3
+Define endpoint and HTTP method.
+4
+Define request serializer.
+5
+Validate permissions and tenant context.
+6
+Call a focused service layer.
+7
+Use an atomic transaction where state changes are coupled.
+8
+Run fraud / payment / verification logic when applicable.
+9
+Verify payment webhooks by signature before trusting any status change.
+10
+Persist normalized history, invoice and audit records.
+11
+Return a stable JSON response.
+12
+Update React using the response.
+13
+Add unit, API, tenant-isolation and regression tests.
+Final Result
+This blueprint provides a complete backend direction: the current commerce and return-fraud platform, a dedicated
+payment gateway / webhook / invoice / notification layer, and future bank/UPI validation, delivery-agent risk analysis,
+analytics, threshold suggestions and a future browser-extension client. The visual frames and flow diagrams are
+designed to make the implementation sequence easier to follow when using the document as a build specification.

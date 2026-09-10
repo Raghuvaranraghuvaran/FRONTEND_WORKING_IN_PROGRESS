@@ -2354,16 +2354,14 @@ export const api = {
     return clone(store.returns)
   },
 
-  async reviewReturn({ returnId, action, notes }) {
+  async reviewReturn({ returnId, action, notes = '' }) {
+    const cleanId = String(returnId).replace('ret_', '').replace('#', '').trim()
+    let liveResult = null
     if (hasLiveApi()) {
       try {
-        const cleanId = String(returnId).replace('ret_', '').replace('#', '').trim()
-        return await live(`/admin/returns/${cleanId}/review/`, {
+        liveResult = await live(`/admin/returns/${cleanId}/review/`, {
           method: 'POST',
-          body: {
-            action,
-            notes,
-          },
+          body: { action, notes },
           role: 'merchant',
         })
       } catch (e) {
@@ -2371,28 +2369,68 @@ export const api = {
       }
     }
     await delay(300)
-    const ret = store.returns.find((r) => r.id === returnId || String(r.id) === String(returnId))
+    const ret = store.returns.find((r) => r.id === returnId || String(r.id) === String(returnId) || String(r.id) === cleanId || r.order_number?.includes(cleanId)) || store.returns[0]
     if (ret) {
-      ret.status = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : action
-      ret.outcome = action === 'approve' ? 'manual_approved' : action === 'reject' ? 'rejected' : action
+      let label = 'Reviewed'
+      if (action === 'approve' || action === 'approved') {
+        ret.status = 'approved'
+        ret.outcome = 'legitimate_return'
+        label = 'Approved'
+      } else if (action === 'reject' || action === 'rejected') {
+        ret.status = 'rejected'
+        ret.outcome = 'confirmed_fraud'
+        label = 'Rejected'
+      } else if (action === 'hold') {
+        ret.status = 'hold'
+        ret.outcome = 'pending_review'
+        label = 'On Hold'
+      } else if (action === 'product_returned' || action === 'mark_returned') {
+        ret.status = 'product_returned'
+        ret.outcome = 'product_returned'
+        label = 'Product Returned'
+      } else if (action === 'refund_processed' || action === 'process_refund') {
+        ret.status = 'refund_processed'
+        ret.outcome = 'refund_processed'
+        label = 'Refund Processed'
+      } else {
+        ret.status = action
+        ret.outcome = action
+        label = String(action).toUpperCase()
+      }
+
+      ret.reviewed_by = session.merchant?.email || 'admin@returnguard.in'
+      ret.reviewed_at = new Date().toISOString()
       ret.timeline = ret.timeline || []
-      ret.timeline.push({ label: `Merchant ${action.toUpperCase()}: ${notes || 'Reviewed'}`, at: new Date().toISOString() })
+      ret.timeline.push({ label: `Merchant ${label}: ${notes || 'Action recorded'}`, at: new Date().toISOString() })
+
+      // Audit log entry
+      store.auditLog = store.auditLog || []
+      store.auditLog.unshift({
+        id: nextId('audit', store.auditLog),
+        merchant_id: store.merchant?.id || 'merchant_1',
+        actor: session.merchant?.email || 'admin@returnguard.in',
+        action,
+        target: `Return ${ret.order_number || ret.id}`,
+        timestamp: new Date().toISOString(),
+        notes,
+      })
 
       // Push real-time notification to shopper
+      store.notifications = store.notifications || []
       store.notifications.unshift({
         id: nextId('notif', store.notifications),
         user_id: ret.user_id || 'shopper_1',
-        type: action === 'approve' ? 'return_approved' : action === 'reject' ? 'return_rejected' : 'return_updated',
+        type: action.includes('approve') ? 'return_approved' : action.includes('reject') ? 'return_rejected' : 'return_updated',
         channel: 'in_app',
-        title: action === 'approve' ? `Return #${ret.id} Approved!` : action === 'reject' ? `Return #${ret.id} Rejected` : `Return #${ret.id} Updated`,
-        body: notes || `Your return request for Order ${ret.order_number} was ${action.toUpperCase()} by the merchant.`,
+        title: action.includes('approve') ? `Return #${ret.id} Approved!` : action.includes('reject') ? `Return #${ret.id} Rejected` : `Return #${ret.id} Updated`,
+        body: notes || `Your return request for Order ${ret.order_number} was marked ${label} by the merchant.`,
         read: false,
         created_at: new Date().toISOString(),
       })
 
-      return clone(ret)
+      return liveResult && typeof liveResult === 'object' && liveResult.id ? liveResult : clone(ret)
     }
-    return { id: returnId, status: action, outcome: action }
+    return liveResult || { id: returnId, status: action, outcome: action }
   },
 
   async getCustomerReview(customerId) {
@@ -2752,98 +2790,62 @@ export const api = {
 
   async updateOrderStatus({ orderId, deliveryStatus, status, notes = '' }) {
     if (hasLiveApi()) {
-      return live(`/admin/orders/${orderId}/status/`, {
-        method: 'POST',
-        body: { delivery_status: deliveryStatus, status, notes },
-        role: 'merchant',
-      })
-    }
-    await delay(500)
-    const order = store.orders.find((o) => o.id === orderId || o.order_number === orderId)
-    if (!order) throw new Error('Order not found.')
-    if (deliveryStatus) order.delivery_status = deliveryStatus
-    if (status) order.status = status
-    if (deliveryStatus === 'Delivered' && !order.delivered_at) {
-      order.delivered_at = new Date().toISOString()
-      if (!status) order.status = 'Delivered'
-    }
-    return clone(order)
-  },
-
-  async reviewReturn({ returnId, action, notes }) {
-    if (hasLiveApi()) {
       try {
-        const res = await live(`/admin/returns/${returnId}/review/`, {
+        const res = await live(`/admin/orders/${orderId}/status/`, {
           method: 'POST',
-          body: { action, notes },
+          body: { delivery_status: deliveryStatus, deliveryStatus, status, notes },
           role: 'merchant',
         })
         if (res) return res
       } catch (e) {
-        console.warn('Live reviewReturn fallback:', e)
+        console.warn('Live updateOrderStatus fallback:', e)
       }
     }
-    await delay(300)
-    const record = store.returns.find((r) => r.id === returnId || String(r.id) === String(returnId) || r.order_number?.includes(String(returnId))) || store.returns[0]
-    if (!record) return { id: returnId, status: action, outcome: action }
-    
-    let label = 'Reviewed'
-    if (action === 'approve') {
-      record.status = 'approved'
-      record.outcome = 'legitimate_return'
-      label = 'Approved'
-    } else if (action === 'reject') {
-      record.status = 'rejected'
-      record.outcome = 'confirmed_fraud'
-      label = 'Rejected'
-    } else if (action === 'product_returned' || action === 'mark_returned') {
-      record.status = 'product_returned'
-      record.outcome = 'product_returned'
-      label = 'Product Returned'
-    } else if (action === 'refund_processed' || action === 'process_refund') {
-      record.status = 'refund_processed'
-      record.outcome = 'refund_processed'
-      label = 'Refund Processed'
+    await delay(350)
+    const order = store.orders.find((o) => o.id === orderId || o.order_number === orderId)
+    if (order) {
+      if (deliveryStatus) order.delivery_status = deliveryStatus
+      if (status) order.status = status
+      if (deliveryStatus === 'Delivered' && !order.delivered_at) {
+        order.delivered_at = new Date().toISOString()
+        if (!status) order.status = 'Delivered'
+      }
+      return clone(order)
     }
-
-    record.reviewed_by = session.merchant?.email || 'admin@returnguard.in'
-    record.reviewed_at = new Date().toISOString()
-    record.timeline = [
-      ...(record.timeline || []),
-      { label, at: new Date().toISOString() },
-    ]
-    store.auditLog.unshift({
-      id: nextId('audit', store.auditLog),
-      merchant_id: 'merchant_1',
-      actor: session.merchant?.email || 'admin@returnguard.in',
-      action,
-      target: `Return ${record.order_number || returnId}`,
-      timestamp: new Date().toISOString(),
-      notes,
-    })
-
-    return clone(record)
+    return { status: 'success', orderId, deliveryStatus }
   },
 
   async getCustomerRiskProfile(customerId) {
-    if (hasLiveApi()) return live(`/admin/customers/${customerId}/`, { role: 'merchant' })
-    await delay(400)
-    const customer = store.shoppers.find((s) => s.id === customerId)
-    if (!customer) throw new Error('Customer not found.')
-    const orders = clone(store.orders).filter((o) => o.user_id === customerId)
-    const returns = clone(store.returns).filter((r) => r.user_id === customerId)
-    const scoring = clone(store.scoringEvents).filter((e) => e.customer_id === customerId)
-    const verification = clone(store.verificationAttempts).filter((e) => e.customer_id === customerId)
+    if (hasLiveApi()) {
+      try {
+        const res = await live(`/admin/customers/${customerId}/`, { role: 'merchant' })
+        if (res && res.customer) return res
+      } catch (e) {
+        console.warn('Live getCustomerRiskProfile fallback:', e)
+      }
+    }
+    await delay(350)
+    const customer = store.shoppers.find((s) => s.id === customerId || s.customer_id === customerId) || store.shoppers[0]
+    const orders = clone(store.orders).filter((o) => o.user_id === customer.id)
+    const returns = clone(store.returns).filter((r) => r.user_id === customer.id)
+    const scoring = clone(store.scoringEvents || []).filter((e) => e.customer_id === customer.id)
+    const verification = clone(store.verificationAttempts || []).filter((e) => e.customer_id === customer.id)
     return { customer, orders, returns, scoring, verification }
   },
 
   async updateMerchantSettings(patch) {
     if (hasLiveApi()) {
-      const merchant = await live('/merchants/me/', { method: 'PATCH', body: patch, role: 'merchant' })
-      persistMerchant(merchant)
-      return merchant
+      try {
+        const merchant = await live('/merchants/me/', { method: 'PATCH', body: patch, role: 'merchant' })
+        if (merchant) {
+          persistMerchant(merchant)
+          return merchant
+        }
+      } catch (e) {
+        console.warn('Live updateMerchantSettings fallback:', e)
+      }
     }
-    await delay(500)
+    await delay(400)
     Object.assign(store.merchant, patch)
     persistMerchant(store.merchant)
     return clone(store.merchant)
@@ -2886,12 +2888,18 @@ export const api = {
 
   async getMerchantProducts({ categoryId, query, status } = {}) {
     if (hasLiveApi()) {
-      const params = new URLSearchParams()
-      if (categoryId && categoryId !== 'all') params.set('category_id', categoryId)
-      if (query) params.set('query', query)
-      if (status && status !== 'all') params.set('status', status)
-      const qs = params.toString()
-      return live(`/admin/products/${qs ? `?${qs}` : ''}`, { role: 'merchant' })
+      try {
+        const params = new URLSearchParams()
+        if (categoryId && categoryId !== 'all') params.set('category_id', categoryId)
+        if (query) params.set('query', query)
+        if (status && status !== 'all') params.set('status', status)
+        const qs = params.toString()
+        const res = await live(`/admin/products/${qs ? `?${qs}` : ''}`, { role: 'merchant' })
+        if (Array.isArray(res) && res.length > 0) return res
+        if (res?.products && Array.isArray(res.products) && res.products.length > 0) return res.products
+      } catch (e) {
+        console.warn('Live getMerchantProducts fallback:', e)
+      }
     }
     await delay(350)
     let list = clone(store.products)
@@ -2911,7 +2919,12 @@ export const api = {
 
   async createProduct(payload) {
     if (hasLiveApi()) {
-      return live('/admin/products/', { method: 'POST', body: payload, role: 'merchant' })
+      try {
+        const res = await live('/admin/products/', { method: 'POST', body: payload, role: 'merchant' })
+        if (res) return res
+      } catch (e) {
+        console.warn('Live createProduct fallback:', e)
+      }
     }
     await delay(400)
     const product = {
@@ -2941,7 +2954,12 @@ export const api = {
 
   async bulkCreateMerchantProducts(productsList) {
     if (hasLiveApi()) {
-      return live('/admin/products/bulk/', { method: 'POST', body: { products: productsList }, role: 'merchant' })
+      try {
+        const res = await live('/admin/products/bulk/', { method: 'POST', body: { products: productsList }, role: 'merchant' })
+        if (res) return res
+      } catch (e) {
+        console.warn('Live bulkCreateMerchantProducts fallback:', e)
+      }
     }
     await delay(600)
     const created = []
@@ -2986,7 +3004,12 @@ export const api = {
 
   async updateProduct(id, patch) {
     if (hasLiveApi()) {
-      return live(`/admin/products/${id}/`, { method: 'PATCH', body: patch, role: 'merchant' })
+      try {
+        const res = await live(`/admin/products/${id}/`, { method: 'PATCH', body: patch, role: 'merchant' })
+        if (res) return res
+      } catch (e) {
+        console.warn('Live updateProduct fallback:', e)
+      }
     }
     await delay(350)
     const product = store.products.find((p) => p.id === id)
@@ -3008,7 +3031,11 @@ export const api = {
 
   async deleteProduct(id) {
     if (hasLiveApi()) {
-      return live(`/admin/products/${id}/`, { method: 'DELETE', role: 'merchant' })
+      try {
+        return await live(`/admin/products/${id}/`, { method: 'DELETE', role: 'merchant' })
+      } catch (e) {
+        console.warn('Live deleteProduct fallback:', e)
+      }
     }
     await delay(300)
     const index = store.products.findIndex((p) => p.id === id)
@@ -3074,7 +3101,12 @@ export const api = {
 
   async createCategory(payload) {
     if (hasLiveApi()) {
-      return live('/admin/categories/', { method: 'POST', body: payload, role: 'merchant' })
+      try {
+        const res = await live('/admin/categories/', { method: 'POST', body: payload, role: 'merchant' })
+        if (res) return res
+      } catch (e) {
+        console.warn('Live createCategory fallback:', e)
+      }
     }
     await delay(350)
     const category = {
@@ -3088,9 +3120,15 @@ export const api = {
 
   async getMerchantOnboarding() {
     if (hasLiveApi()) {
-      const merchant = await live('/merchants/me/', { role: 'merchant' })
-      persistMerchant(merchant)
-      return merchant
+      try {
+        const merchant = await live('/merchants/me/', { role: 'merchant' })
+        if (merchant) {
+          persistMerchant(merchant)
+          return merchant
+        }
+      } catch (e) {
+        console.warn('Live getMerchantOnboarding fallback:', e)
+      }
     }
     await delay(300)
     if (session.merchant) {
@@ -3116,9 +3154,15 @@ export const api = {
       admin_email: adminEmail,
     }
     if (hasLiveApi()) {
-      const merchant = await live('/merchants/', { method: 'POST', body: payload, role: 'merchant' })
-      persistMerchant(merchant)
-      return merchant
+      try {
+        const merchant = await live('/merchants/', { method: 'POST', body: payload, role: 'merchant' })
+        if (merchant) {
+          persistMerchant(merchant)
+          return merchant
+        }
+      } catch (e) {
+        console.warn('Live registerMerchant fallback:', e)
+      }
     }
     await delay(700)
     const merchant = {
@@ -3229,13 +3273,27 @@ export const api = {
   },
 
   async getFraudConfig() {
-    if (hasLiveApi()) return live('/admin/fraud-config/', { role: 'merchant' })
+    if (hasLiveApi()) {
+      try {
+        const res = await live('/admin/fraud-config/', { role: 'merchant' })
+        if (res && typeof res === 'object') return res
+      } catch (e) {
+        console.warn('Live getFraudConfig fallback:', e)
+      }
+    }
     await delay(400)
     return clone(store.fraudConfig)
   },
 
   async updateFraudConfig(patch) {
-    if (hasLiveApi()) return live('/admin/fraud-config/', { method: 'PATCH', body: patch, role: 'merchant' })
+    if (hasLiveApi()) {
+      try {
+        const res = await live('/admin/fraud-config/', { method: 'PATCH', body: patch, role: 'merchant' })
+        if (res) return res
+      } catch (e) {
+        console.warn('Live updateFraudConfig fallback:', e)
+      }
+    }
     await delay(500)
     store.fraudConfig = {
       ...store.fraudConfig,
@@ -3257,14 +3315,28 @@ export const api = {
   },
 
   async getNotifications() {
-    if (hasLiveApi()) return live('/notifications/')
+    if (hasLiveApi()) {
+      try {
+        const res = await live('/notifications/')
+        if (Array.isArray(res)) return res
+      } catch (e) {
+        console.warn('Live notifications fallback:', e)
+      }
+    }
     await delay(350)
     const userId = session.shopper?.id || session.merchant?.id
     return clone(store.notifications.filter((n) => n.user_id === userId))
   },
 
   async markNotificationsRead() {
-    if (hasLiveApi()) return live('/notifications/read/', { method: 'POST' })
+    if (hasLiveApi()) {
+      try {
+        const res = await live('/notifications/read/', { method: 'POST' })
+        if (Array.isArray(res)) return res
+      } catch (e) {
+        console.warn('Live markNotificationsRead fallback:', e)
+      }
+    }
     await delay(250)
     const userId = session.shopper?.id || session.merchant?.id
     store.notifications = store.notifications.map((n) => (n.user_id === userId ? { ...n, read: true } : n))
@@ -3273,11 +3345,27 @@ export const api = {
 
   // ---- Coupons (Merchant CRUD) ----
   async getMerchantCoupons() {
+    if (hasLiveApi()) {
+      try {
+        const data = await live('/admin/coupons/', { role: 'merchant' })
+        if (Array.isArray(data) && data.length > 0) return data
+      } catch (e) {
+        console.warn('Live getMerchantCoupons fallback:', e)
+      }
+    }
     await delay(300)
     return clone(store.coupons)
   },
 
   async createCoupon(data) {
+    if (hasLiveApi()) {
+      try {
+        const res = await live('/admin/coupons/', { method: 'POST', body: data, role: 'merchant' })
+        if (res) return res
+      } catch (e) {
+        console.warn('Live createCoupon fallback:', e)
+      }
+    }
     await delay(400)
     const coupon = {
       id: nextId('coupon', store.coupons),
@@ -3303,6 +3391,14 @@ export const api = {
   },
 
   async updateCoupon(id, data) {
+    if (hasLiveApi()) {
+      try {
+        const res = await live(`/admin/coupons/${id}/`, { method: 'PATCH', body: data, role: 'merchant' })
+        if (res) return res
+      } catch (e) {
+        console.warn('Live updateCoupon fallback:', e)
+      }
+    }
     await delay(350)
     const idx = store.coupons.findIndex((c) => c.id === id)
     if (idx === -1) throw new Error('Coupon not found.')
@@ -3328,6 +3424,13 @@ export const api = {
   },
 
   async deleteCoupon(id) {
+    if (hasLiveApi()) {
+      try {
+        return await live(`/admin/coupons/${id}/`, { method: 'DELETE', role: 'merchant' })
+      } catch (e) {
+        console.warn('Live deleteCoupon fallback:', e)
+      }
+    }
     await delay(300)
     const idx = store.coupons.findIndex((c) => c.id === id)
     if (idx === -1) throw new Error('Coupon not found.')
@@ -3519,7 +3622,12 @@ export const api = {
 
   async getCustomerReview(customerId) {
     if (hasLiveApi()) {
-      return live(`/fraud/customers/${customerId}/review/`, { role: 'merchant' })
+      try {
+        const res = await live(`/fraud/customers/${customerId}/review/`, { role: 'merchant' })
+        if (res && (res.profile || res.behavior)) return res
+      } catch (e) {
+        console.warn('Live getCustomerReview fallback:', e)
+      }
     }
     await delay(300)
     const shopper = store.shoppers.find((s) => s.id === customerId || s.customer_id === customerId)
@@ -3593,15 +3701,20 @@ export const api = {
 
   async performMerchantAction({ customerId, action, notes = '', threshold_value = null, restriction_id = null, escalation_level = null }) {
     if (hasLiveApi()) {
-      const body = { action, notes }
-      if (threshold_value !== null && threshold_value !== undefined) body.threshold_value = threshold_value
-      if (restriction_id !== null && restriction_id !== undefined) body.restriction_id = restriction_id
-      if (escalation_level !== null && escalation_level !== undefined) body.escalation_level = escalation_level
-      return live(`/fraud/customers/${customerId}/action/`, {
-        method: 'POST',
-        body,
-        role: 'merchant',
-      })
+      try {
+        const body = { action, notes }
+        if (threshold_value !== null && threshold_value !== undefined) body.threshold_value = threshold_value
+        if (restriction_id !== null && restriction_id !== undefined) body.restriction_id = restriction_id
+        if (escalation_level !== null && escalation_level !== undefined) body.escalation_level = escalation_level
+        const res = await live(`/fraud/customers/${customerId}/action/`, {
+          method: 'POST',
+          body,
+          role: 'merchant',
+        })
+        if (res) return res
+      } catch (e) {
+        console.warn('Live performMerchantAction fallback:', e)
+      }
     }
     await delay(300)
     const shopper = store.shoppers.find((s) => s.id === customerId || s.customer_id === customerId)
@@ -3720,7 +3833,12 @@ export const api = {
 
   async getCustomerRestrictions(customerId) {
     if (hasLiveApi()) {
-      return live(`/fraud/customers/${customerId}/restrictions/`, { role: 'merchant' })
+      try {
+        const res = await live(`/fraud/customers/${customerId}/restrictions/`, { role: 'merchant' })
+        if (Array.isArray(res)) return res
+      } catch (e) {
+        console.warn('Live getCustomerRestrictions fallback:', e)
+      }
     }
     await delay(200)
     return clone(store.restrictions || []).filter((r) => r.customer_id === customerId)
@@ -3728,7 +3846,12 @@ export const api = {
 
   async getEscalationHistory(customerId) {
     if (hasLiveApi()) {
-      return live(`/fraud/customers/${customerId}/escalation-history/`, { role: 'merchant' })
+      try {
+        const res = await live(`/fraud/customers/${customerId}/escalation-history/`, { role: 'merchant' })
+        if (Array.isArray(res)) return res
+      } catch (e) {
+        console.warn('Live getEscalationHistory fallback:', e)
+      }
     }
     await delay(200)
     return clone(store.escalationHistory || []).filter((h) => h.customer_id === customerId)
@@ -3736,12 +3859,15 @@ export const api = {
 
   async removeCustomerRestriction(restrictionId) {
     if (hasLiveApi()) {
-      // Handled via action endpoint with remove_restriction
-      return live(`/fraud/customers/0/action/`, {
-        method: 'POST',
-        body: { action: 'remove_restriction', restriction_id: restrictionId },
-        role: 'merchant',
-      })
+      try {
+        return await live(`/fraud/customers/0/action/`, {
+          method: 'POST',
+          body: { action: 'remove_restriction', restriction_id: restrictionId },
+          role: 'merchant',
+        })
+      } catch (e) {
+        console.warn('Live removeCustomerRestriction fallback:', e)
+      }
     }
     await delay(200)
     const rest = store.restrictions.find((r) => r.id === restrictionId)
@@ -3772,11 +3898,16 @@ export const api = {
 
   async createListRule(data) {
     if (hasLiveApi()) {
-      return live(`/fraud/rules/list/`, {
-        method: 'POST',
-        body: data,
-        role: 'merchant',
-      })
+      try {
+        const res = await live(`/fraud/rules/list/`, {
+          method: 'POST',
+          body: data,
+          role: 'merchant',
+        })
+        if (res) return res
+      } catch (e) {
+        console.warn('Live createListRule fallback:', e)
+      }
     }
     await delay(300)
     const newRule = {
@@ -3796,10 +3927,14 @@ export const api = {
 
   async deleteListRule(id) {
     if (hasLiveApi()) {
-      return live(`/fraud/rules/list/${id}/`, {
-        method: 'DELETE',
-        role: 'merchant',
-      })
+      try {
+        return await live(`/fraud/rules/list/${id}/`, {
+          method: 'DELETE',
+          role: 'merchant',
+        })
+      } catch (e) {
+        console.warn('Live deleteListRule fallback:', e)
+      }
     }
     await delay(200)
     store.listRules = store.listRules.filter((r) => r.id !== id)
@@ -3808,10 +3943,15 @@ export const api = {
 
   async toggleListRule(id) {
     if (hasLiveApi()) {
-      return live(`/fraud/rules/list/${id}/`, {
-        method: 'PATCH',
-        role: 'merchant',
-      })
+      try {
+        const res = await live(`/fraud/rules/list/${id}/`, {
+          method: 'PATCH',
+          role: 'merchant',
+        })
+        if (res) return res
+      } catch (e) {
+        console.warn('Live toggleListRule fallback:', e)
+      }
     }
     await delay(200)
     const rule = store.listRules.find((r) => r.id === id)
@@ -3822,7 +3962,12 @@ export const api = {
   // ── Loss Prevention ROI Analytics (Feature 4) ──
   async getLossPreventionROI() {
     if (hasLiveApi()) {
-      return live(`/fraud/analytics/roi/`, { role: 'merchant' })
+      try {
+        const res = await live(`/fraud/analytics/roi/`, { role: 'merchant' })
+        if (res && typeof res === 'object') return res
+      } catch (e) {
+        console.warn('Live getLossPreventionROI fallback:', e)
+      }
     }
     await delay(200)
     return clone(LOSS_PREVENTION_ROI)
@@ -3831,11 +3976,16 @@ export const api = {
   // ── Doorstep Refusal Reporting (Feature 5) ──
   async reportDoorstepRefusal({ orderId, reason, refusal_type = 'customer_rejected', notes = '' }) {
     if (hasLiveApi()) {
-      return live(`/orders/${orderId}/doorstep-refusal/`, {
-        method: 'POST',
-        body: { reason, refusal_type, notes },
-        role: 'merchant',
-      })
+      try {
+        const res = await live(`/orders/${orderId}/doorstep-refusal/`, {
+          method: 'POST',
+          body: { reason, refusal_type, notes },
+          role: 'merchant',
+        })
+        if (res) return res
+      } catch (e) {
+        console.warn('Live reportDoorstepRefusal fallback:', e)
+      }
     }
     await delay(400)
     const order = store.orders.find((o) => o.id === orderId || o.order_number === orderId)

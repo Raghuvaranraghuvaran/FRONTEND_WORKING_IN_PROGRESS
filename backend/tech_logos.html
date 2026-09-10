@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { background: transparent; padding: 12px; width: 780px; height: 180px; display: flex; align-items: center; justify-content: center; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    width: 100%;
+    background: #ffffff;
+    padding: 16px;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  }
+  .card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+  }
+  .card svg {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+  }
+  .name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .desc {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <!-- React -->
+    <div class="card">
+      <svg viewBox="-11.5 -10.23174 23 20.46348">
+        <circle cx="0" cy="0" r="2.05" fill="#61dafb"/>
+        <g stroke="#61dafb" stroke-width="1" fill="none">
+          <ellipse rx="11" ry="4.2"/>
+          <ellipse rx="11" ry="4.2" transform="rotate(60)"/>
+          <ellipse rx="11" ry="4.2" transform="rotate(120)"/>
+        </g>
+      </svg>
+      <div>
+        <div class="name">React</div>
+        <div class="desc">Frontend SPA & UI</div>
+      </div>
+    </div>
+
+    <!-- Python -->
+    <div class="card">
+      <svg viewBox="0 0 110 110">
+        <linearGradient id="py-a" x1="10%" y1="10%" x2="90%" y2="90%">
+          <stop offset="0%" stop-color="#387EB8"/>
+          <stop offset="100%" stop-color="#366994"/>
+        </linearGradient>
+        <linearGradient id="py-b" x1="10%" y1="10%" x2="90%" y2="90%">
+          <stop offset="0%" stop-color="#FFE873"/>
+          <stop offset="100%" stop-color="#FFD43B"/>
+        </linearGradient>
+        <path d="M54.5 5C29.6 5 31.2 15.8 31.2 15.8l.03 11.2h23.7v3.4H21.5S5 28.5 5 53.4c0 24.8 14.5 24 14.5 24h8.6v-12.1s-.5-14.5 14.2-14.5h24.4s13.7.2 13.7-13.3c0-13.6-1.5-32.5-21.9-32.5zm-13 7.6c2.4 0 4.4 2 4.4 4.4 0 2.4-2 4.4-4.4 4.4s-4.4-2-4.4-4.4c0-2.4 2-4.4 4.4-4.4z" fill="url(#py-a)"/>
+        <path d="M55.5 105c24.9 0 23.3-10.8 23.3-10.8l-.03-11.2H55.1V79.6h33.4s16.5 1.9 16.5-23c0-24.8-14.5-24-14.5-24h-8.6v12.1s.5 14.5-14.2 14.5H43.3s-13.7-.2-13.7 13.3c0 13.6 1.5 32.5 21.9 32.5zm13-7.6c-2.4 0-4.4-2-4.4-4.4 0-2.4 2-4.4 4.4-4.4s4.4 2 4.4 4.4c0 2.4-2 4.4-4.4 4.4z" fill="url(#py-b)"/>
+      </svg>
+      <div>
+        <div class="name">Python</div>
+        <div class="desc">Core Logic Engine</div>
+      </div>
+    </div>
+
+    <!-- Django -->
+    <div class="card">
+      <svg viewBox="0 0 100 100">
+        <rect width="100" height="100" rx="18" fill="#0C4B33"/>
+        <text x="50" y="65" font-family="'Trebuchet MS', sans-serif" font-size="44" font-weight="900" fill="#FFFFFF" text-anchor="middle">dj</text>
+      </svg>
+      <div>
+        <div class="name">Django REST</div>
+        <div class="desc">Backend API Framework</div>
+      </div>
+    </div>
+
+    <!-- PostgreSQL -->
+    <div class="card">
+      <svg viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="46" fill="#336791"/>
+        <text x="50" y="64" font-family="'Arial Black', sans-serif" font-size="34" font-weight="900" fill="#FFFFFF" text-anchor="middle">SQL</text>
+      </svg>
+      <div>
+        <div class="name">PostgreSQL</div>
+        <div class="desc">Database with RLS</div>
+      </div>
+    </div>
+
+    <!-- Redis -->
+    <div class="card">
+      <svg viewBox="0 0 100 100">
+        <rect width="100" height="100" rx="18" fill="#D82C20"/>
+        <polygon points="50,15 85,35 85,65 50,85 15,65 15,35" fill="#FFFFFF" opacity="0.9"/>
+        <polygon points="50,22 78,38 78,62 50,78 22,62 22,38" fill="#A41E11"/>
+        <text x="50" y="58" font-family="'Segoe UI', sans-serif" font-size="20" font-weight="900" fill="#FFFFFF" text-anchor="middle">REDIS</text>
+      </svg>
+      <div>
+        <div class="name">Redis & Celery</div>
+        <div class="desc">Async Task Pipeline</div>
+      </div>
+    </div>
+
+    <!-- Tailwind CSS -->
+    <div class="card">
+      <svg viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="46" fill="#0F172A"/>
+        <path d="M28 44c2.5-5 6.5-7.5 12-7.5 7.5 0 9.5 5.5 14 5.5 4 0 7-3 8-6-2.5 5-6.5 7.5-12 7.5-7.5 0-9.5-5.5-14-5.5-4 0-7 3-8 6zm14 18c2.5-5 6.5-7.5 12-7.5 7.5 0 9.5 5.5 14 5.5 4 0 7-3 8-6-2.5 5-6.5 7.5-12 7.5-7.5 0-9.5-5.5-14-5.5-4 0-7 3-8 6z" fill="#38BDF8"/>
+      </svg>
+      <div>
+        <div class="name">Tailwind CSS</div>
+        <div class="desc">Design System</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
