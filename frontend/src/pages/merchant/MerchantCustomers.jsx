@@ -159,10 +159,10 @@ export default function MerchantCustomers() {
                   </div>
                 </div>
 
-                {/* Behavioral Metrics Grid (PDF Section 2) */}
+                {/* Behavioral Metrics Grid */}
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-                    Customer Behavior Metrics (PDF §2)
+                    Customer Behavior Metrics
                   </h3>
                   <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
                     <div className="rounded-xl bg-slate-50 p-3 text-center border border-slate-100">

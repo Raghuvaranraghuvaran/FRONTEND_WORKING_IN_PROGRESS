@@ -450,12 +450,12 @@ export default function MerchantFlaggedCaseDetail() {
         />
       )}
 
-      {/* Progressive Escalation Ladder (PDF §6 & §7) */}
+      {/* Progressive Escalation Ladder */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-              <span>🪜</span> Progressive Escalation Ladder (PDF §6 & §7)
+              <span>🪜</span> Progressive Escalation Ladder
             </h3>
             <p className="text-[11px] text-slate-500">
               Click on any step below to instantaneously test and adjust the customer's escalation tier.

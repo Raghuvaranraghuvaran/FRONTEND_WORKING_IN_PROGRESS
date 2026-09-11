@@ -609,7 +609,7 @@ export const RETURNS = [
     },
     created_at: '2026-08-18T11:20:00Z',
     risk_context: 'CRITICAL ALERT: Physical swap detected. Outbound SKU NK123 (₹8,000) was replaced with cheap replica SKU NK987 (₹2,000).',
-    signals: ['⚠️ CRITICAL: Product swap detected (CP21)', '⚠️ Value mismatch loss: ₹6,000', '⚠️ Serial tag removed / altered'],
+    signals: ['⚠️ CRITICAL: Product swap detected', '⚠️ Value mismatch loss: ₹6,000', '⚠️ Serial tag removed / altered'],
     images: [
       'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=400&q=80',
       'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?auto=format&fit=crop&w=400&q=80',

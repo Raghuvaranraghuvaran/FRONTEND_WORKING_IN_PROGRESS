@@ -123,7 +123,7 @@ export default function MerchantFlaggedCases() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🔬</span>
+            <ShieldAlert className="h-6 w-6 text-indigo-600" />
             <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
               Return & Flagged Cases Review
             </h1>
@@ -169,13 +169,13 @@ export default function MerchantFlaggedCases() {
             <ShieldAlert className="h-4 w-4 text-rose-600" />
           </div>
           <div className="font-mono text-2xl font-black text-rose-900 mt-2">{criticalCount}</div>
-          <p className="text-[11px] text-rose-700 mt-0.5">Scored ≥ 65 pts</p>
+          <p className="text-[11px] text-rose-700 mt-0.5">Scored 65+ pts</p>
         </div>
 
         <div className="rounded-2xl border border-red-300 bg-red-50 p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-red-900 uppercase">Product Swaps</span>
-            <span className="text-base">🚨</span>
+            <AlertTriangle className="h-4 w-4 text-red-600" />
           </div>
           <div className="font-mono text-2xl font-black text-red-900 mt-2">{swapCount}</div>
           <p className="text-[11px] text-red-700 mt-0.5">CP21 Counterfeit / swap</p>
@@ -189,11 +189,11 @@ export default function MerchantFlaggedCases() {
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold text-slate-500 mr-1">Sort:</span>
             {[
-              { id: 'priority', label: '🔥 Priority' },
-              { id: 'risk_high', label: '⬆ Risk (High→Low)' },
-              { id: 'risk_low', label: '⬇ Risk (Low→High)' },
-              { id: 'newest', label: '🕐 Newest' },
-              { id: 'oldest', label: '📅 Oldest' },
+              { id: 'priority', label: 'Priority' },
+              { id: 'risk_high', label: 'Risk (High to Low)' },
+              { id: 'risk_low', label: 'Risk (Low to High)' },
+              { id: 'newest', label: 'Newest' },
+              { id: 'oldest', label: 'Oldest' },
             ].map(s => (
               <button
                 key={s.id}
@@ -218,17 +218,19 @@ export default function MerchantFlaggedCases() {
                 type="button"
                 disabled={bulkLoading}
                 onClick={() => handleBulkAction('approve')}
-                className="px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 cursor-pointer disabled:opacity-50 transition-colors shadow-xs"
+                className="flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 cursor-pointer disabled:opacity-50 transition-colors shadow-xs"
               >
-                ✓ Bulk Approve
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>Bulk Approve</span>
               </button>
               <button
                 type="button"
                 disabled={bulkLoading}
                 onClick={() => handleBulkAction('reject')}
-                className="px-3.5 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 cursor-pointer disabled:opacity-50 transition-colors shadow-xs"
+                className="flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 cursor-pointer disabled:opacity-50 transition-colors shadow-xs"
               >
-                ✕ Bulk Reject
+                <AlertTriangle className="h-3.5 w-3.5" />
+                <span>Bulk Reject</span>
               </button>
               <button
                 type="button"
@@ -337,7 +339,7 @@ export default function MerchantFlaggedCases() {
               <span className="text-xs font-bold text-slate-600">Select all ({sorted.length} cases)</span>
             </label>
             <span className="text-[11px] font-bold text-slate-400">
-              Sorted by: {sortBy === 'priority' ? '🔥 Priority Score' : sortBy.replace('_', ' ')}
+              Sorted by: {sortBy === 'priority' ? 'Priority Score' : sortBy.replace('_', ' ')}
             </span>
           </div>
 
@@ -387,7 +389,7 @@ export default function MerchantFlaggedCases() {
                         <StatusBadge status={record.status} />
                         {isSwap && (
                           <span className="rounded-md bg-red-600 text-white px-2 py-0.5 text-[10px] font-black uppercase tracking-wider animate-pulse">
-                            🚨 SWAP DETECTED
+                            SWAP DETECTED
                           </span>
                         )}
                       </div>

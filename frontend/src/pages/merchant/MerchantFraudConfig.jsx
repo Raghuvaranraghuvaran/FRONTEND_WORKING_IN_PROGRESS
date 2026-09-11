@@ -4,28 +4,28 @@ import { api } from '../../mock/api'
 const weightLabels = {
   cod_refusal: 'Repeated COD Refusals (Max 25 pts)',
   return_frequency: 'High Return Frequency (Max 20 pts)',
-  multiple_variants: 'Multiple Variant Orders / Bracketing (CP2 - Max 15 pts)',
+  multiple_variants: 'Multiple Variant Orders / Bracketing (Max 15 pts)',
   high_value_cod: 'High-Value COD Orders (Max 10 pts)',
-  seasonal_signal: 'Seasonal / Festive Signals (CP15 - Max 10 pts)',
-  address_mismatch: 'Address Inconsistencies / Frequent Changes (CP12 - Max 10 pts)',
-  device_reuse: 'Device Reuse / Multi-Account (CP13 - Max 22 pts)',
+  seasonal_signal: 'Seasonal / Festive Signals (Max 10 pts)',
+  address_mismatch: 'Address Inconsistencies / Frequent Changes (Max 10 pts)',
+  device_reuse: 'Device Reuse / Multi-Account (Max 22 pts)',
   escalation_bonus: 'Repeat Offender / Escalation Multiplier (Max 16 pts)',
-  serial_mismatch: 'Serial & IMEI Physical Mismatch (CP17b - Max 50 pts)',
-  product_swap: 'Product Swap / Wrong Item Returned (CP21 - Max 50 pts)',
-  wardrobing: 'Wardrobing / Worn Fashion Pattern (CP4 - Max 35 pts)',
-  damage_claim: 'Frequent Damage Claims (CP9 - Max 25 pts)',
-  damage_no_evidence: 'Damage Claims Without Photo Proof (CP10 - Max 20 pts)',
-  refund_ratio: 'High Refund-to-Purchase Ratio (CP14 - Max 25 pts)',
-  unusual_quantity: 'Sudden Bulk Quantity Return (CP17a - Max 30 pts)',
-  missing_accessories: 'Missing Box Accessories (CP18 - Max 15 pts)',
-  product_condition: 'Tampered / Soiled Condition (CP19 - Max 20 pts)',
-  packaging_mismatch: 'Wrong / Damaged Packaging (CP20 - Max 20 pts)',
+  serial_mismatch: 'Serial & IMEI Physical Mismatch (Max 50 pts)',
+  product_swap: 'Product Swap / Wrong Item Returned (Max 50 pts)',
+  wardrobing: 'Wardrobing / Worn Fashion Pattern (Max 35 pts)',
+  damage_claim: 'Frequent Damage Claims (Max 25 pts)',
+  damage_no_evidence: 'Damage Claims Without Photo Proof (Max 20 pts)',
+  refund_ratio: 'High Refund-to-Purchase Ratio (Max 25 pts)',
+  unusual_quantity: 'Sudden Bulk Quantity Return (Max 30 pts)',
+  missing_accessories: 'Missing Box Accessories (Max 15 pts)',
+  product_condition: 'Tampered / Soiled Condition (Max 20 pts)',
+  packaging_mismatch: 'Wrong / Damaged Packaging (Max 20 pts)',
 }
 
 const PRESET_TEMPLATES = {
   baseline: {
-    name: 'PDF Baseline (All 28 Checkpoints)',
-    desc: 'Standard weights across 4-tier architecture as specified in ReturnGuard Risk Checkpoints PDF.',
+    name: 'Standard Baseline (All 28 Checkpoints)',
+    desc: 'Standard weights across 4-tier architecture as specified in ReturnGuard Risk Checkpoints.',
     weights: {
       cod_refusal: 25,
       return_frequency: 20,
@@ -138,6 +138,14 @@ export default function MerchantFraudConfig() {
   useEffect(() => {
     api.getFraudConfig().then((data) => {
       setConfig(data)
+      const rawWeights = (data && data.weights) || {}
+      const sanitized = {}
+      Object.entries(rawWeights).forEach(([k, v]) => {
+        const num = Number(v)
+        if (!isNaN(num)) {
+          sanitized[k] = num > 0 && num <= 1 ? Math.round(num * 100) : Math.round(num)
+        }
+      })
       const defaultWeights = {
         cod_refusal: 25,
         return_frequency: 20,
@@ -147,7 +155,7 @@ export default function MerchantFraudConfig() {
         address_mismatch: 10,
         device_reuse: 22,
         escalation_bonus: 8,
-        ...(data.weights || {}),
+        ...sanitized,
       }
       setWeights(defaultWeights)
       setThresholds(data.thresholds || { low_max: 34, medium_max: 64, high_min: 65 })
@@ -295,7 +303,7 @@ export default function MerchantFraudConfig() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Fraud Rules & Risk Engine Configuration</h1>
           <p className="text-sm text-slate-500">
-            Configure weighted scoring signals (PDF §4), escalation triggers, preset templates, and test live with the Risk Simulator.
+            Configure weighted scoring signals, escalation triggers, preset templates, and test live with the Risk Simulator.
           </p>
         </div>
         <span className="w-fit rounded-full bg-indigo-50 border border-indigo-200 px-3 py-1 text-xs font-semibold text-indigo-700">
@@ -309,7 +317,7 @@ export default function MerchantFraudConfig() {
       <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
           <div>
-            <h2 className="text-xs font-bold uppercase tracking-wider text-indigo-900">1-Click Industry Presets (PDF §4 Tuning)</h2>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-indigo-900">1-Click Industry Presets</h2>
             <p className="text-xs text-indigo-700">Quickly apply recommended weights calibrated for different merchant business models.</p>
           </div>
         </div>
@@ -343,7 +351,7 @@ export default function MerchantFraudConfig() {
             activeTab === 'triggers' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
-          Trigger Thresholds & Proof Rules (PDF §3 & §8)
+          Trigger Thresholds & Proof Rules
         </button>
         <button
           onClick={() => setActiveTab('simulator')}
@@ -370,7 +378,7 @@ export default function MerchantFraudConfig() {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h2 className="text-base font-bold text-slate-900">Signal Scoring Weights (PDF §4)</h2>
+                <h2 className="text-base font-bold text-slate-900">Signal Scoring Weights</h2>
                 <p className="text-xs text-slate-500 mt-0.5">Points added to base score (0–100 scale) when signal is triggered.</p>
               </div>
               <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
@@ -379,23 +387,26 @@ export default function MerchantFraudConfig() {
             </div>
 
             <div className="mt-5 space-y-4">
-              {Object.entries(weights).map(([key, value]) => (
-                <div key={key} className="rounded-xl bg-slate-50/70 p-3 border border-slate-100">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <label className="text-slate-700">{weightLabels[key] || key}</label>
-                    <span className="font-mono text-indigo-600 font-bold">+{Number(value)} pts</span>
+              {Object.entries(weights).map(([key, value]) => {
+                const intVal = Math.round(Number(value)) || 0
+                return (
+                  <div key={key} className="rounded-xl bg-slate-50/70 p-3 border border-slate-100">
+                    <div className="flex justify-between text-xs font-semibold">
+                      <label className="text-slate-700">{weightLabels[key] || key}</label>
+                      <span className="font-mono text-indigo-600 font-bold">+{intVal} pts</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max={intVal > 40 ? 50 : 40}
+                      step="1"
+                      value={intVal}
+                      onChange={(e) => setWeights({ ...weights, [key]: Number(e.target.value) })}
+                      className="mt-2 w-full accent-indigo-600 cursor-pointer"
+                    />
                   </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="40"
-                    step="1"
-                    value={value}
-                    onChange={(e) => setWeights({ ...weights, [key]: Number(e.target.value) })}
-                    className="mt-2 w-full accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
@@ -458,7 +469,7 @@ export default function MerchantFraudConfig() {
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-base font-bold text-slate-900">Progressive Escalation Ladder (PDF §6)</h2>
+              <h2 className="text-base font-bold text-slate-900">Progressive Escalation Ladder</h2>
               <p className="text-xs text-slate-500 mt-0.5">Automated policy applied when repeat violations are confirmed.</p>
 
               <div className="mt-4 space-y-2 text-xs">
@@ -488,7 +499,7 @@ export default function MerchantFraudConfig() {
       {activeTab === 'triggers' && (
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-slate-900">Specific Signal Trigger Cutoffs (PDF §3)</h2>
+            <h2 className="text-base font-bold text-slate-900">Specific Signal Trigger Cutoffs</h2>
             <p className="text-xs text-slate-500">Fine-tune exactly when an individual risk signal is triggered.</p>
 
             <div>
@@ -537,7 +548,7 @@ export default function MerchantFraudConfig() {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-slate-900">Return Claims & Proof Policies (PDF §3 & §8)</h2>
+            <h2 className="text-base font-bold text-slate-900">Return Claims & Proof Policies</h2>
             <p className="text-xs text-slate-500">Automate physical evidence collection and delivery verification.</p>
 
             <div className="space-y-3">
@@ -737,7 +748,7 @@ export default function MerchantFraudConfig() {
                   <span className="text-lg font-normal text-slate-400"> / 100</span>
                 </p>
                 <div className="mt-3 inline-block rounded-xl bg-white/10 px-4 py-2 backdrop-blur-sm">
-                  <p className="text-[11px] text-indigo-200">Recommended Decision (PDF §5):</p>
+                  <p className="text-[11px] text-indigo-200">Recommended Decision:</p>
                   <p className="text-sm font-bold text-white uppercase">{simResult.action}</p>
                 </div>
               </div>
