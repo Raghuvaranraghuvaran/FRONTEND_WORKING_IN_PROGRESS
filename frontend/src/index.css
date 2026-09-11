@@ -58,6 +58,57 @@ a[class*="tempmail" i] {
   font-variant-numeric: tabular-nums;
 }
 
+/* Custom styling for range input track & thumb */
+input[type="range"].rg-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 9999px;
+  outline: none;
+}
+
+input[type="range"].rg-slider::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+  height: 8px;
+  border-radius: 9999px;
+  background: transparent !important;
+}
+
+input[type="range"].rg-slider::-moz-range-track {
+  height: 8px;
+  border-radius: 9999px;
+  background: transparent !important;
+}
+
+input[type="range"].rg-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3.5px solid currentColor;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  margin-top: -5px;
+  transition: transform 0.1s ease;
+}
+
+input[type="range"].rg-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+input[type="range"].rg-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3.5px solid currentColor;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
 .glass-card {
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.9);

@@ -37,6 +37,7 @@ const SIGNAL_CONFIGS = {
     label: 'Repeated COD Refusals (Max 25 pts)',
     icon: Ban,
     accentColor: 'accent-rose-500',
+    colorHex: '#f43f5e',
     iconColor: 'text-rose-500',
     iconBg: 'bg-rose-50',
     badgeClass: 'bg-rose-50 text-rose-700 border-rose-100',
@@ -47,6 +48,7 @@ const SIGNAL_CONFIGS = {
     label: 'High Return Frequency (Max 20 pts)',
     icon: Package,
     accentColor: 'accent-amber-500',
+    colorHex: '#f59e0b',
     iconColor: 'text-amber-500',
     iconBg: 'bg-amber-50',
     badgeClass: 'bg-amber-50 text-amber-700 border-amber-100',
@@ -57,6 +59,7 @@ const SIGNAL_CONFIGS = {
     label: 'Multiple Variant Orders / Bracketing (Max 15 pts)',
     icon: Layers,
     accentColor: 'accent-purple-500',
+    colorHex: '#a855f7',
     iconColor: 'text-purple-500',
     iconBg: 'bg-purple-50',
     badgeClass: 'bg-purple-50 text-purple-700 border-purple-100',
@@ -67,6 +70,7 @@ const SIGNAL_CONFIGS = {
     label: 'High-Value COD Orders (Max 10 pts)',
     icon: Gem,
     accentColor: 'accent-blue-500',
+    colorHex: '#3b82f6',
     iconColor: 'text-blue-500',
     iconBg: 'bg-blue-50',
     badgeClass: 'bg-blue-50 text-blue-700 border-blue-100',
@@ -77,6 +81,7 @@ const SIGNAL_CONFIGS = {
     label: 'Seasonal / Festive Signals (Max 10 pts)',
     icon: Calendar,
     accentColor: 'accent-emerald-500',
+    colorHex: '#10b981',
     iconColor: 'text-emerald-500',
     iconBg: 'bg-emerald-50',
     badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-100',
@@ -87,6 +92,7 @@ const SIGNAL_CONFIGS = {
     label: 'Address Inconsistencies / Frequent Changes (Max 10 pts)',
     icon: MapPin,
     accentColor: 'accent-amber-400',
+    colorHex: '#f59e0b',
     iconColor: 'text-amber-500',
     iconBg: 'bg-amber-50',
     badgeClass: 'bg-amber-50 text-amber-800 border-amber-100',
@@ -97,6 +103,7 @@ const SIGNAL_CONFIGS = {
     label: 'Device Reuse / Multi-Account (Max 22 pts)',
     icon: Smartphone,
     accentColor: 'accent-teal-500',
+    colorHex: '#14b8a6',
     iconColor: 'text-teal-500',
     iconBg: 'bg-teal-50',
     badgeClass: 'bg-teal-50 text-teal-700 border-teal-100',
@@ -107,6 +114,7 @@ const SIGNAL_CONFIGS = {
     label: 'Repeat Offender / Escalation Multiplier (Max 16 pts)',
     icon: AlertTriangle,
     accentColor: 'accent-pink-500',
+    colorHex: '#ec4899',
     iconColor: 'text-pink-500',
     iconBg: 'bg-pink-50',
     badgeClass: 'bg-pink-50 text-pink-700 border-pink-100',
@@ -604,15 +612,45 @@ export default function MerchantFraudConfig() {
                       </span>
                     </div>
 
-                    <input
-                      type="range"
-                      min="0"
-                      max={cfg.maxVal || 40}
-                      step="1"
-                      value={currentVal}
-                      onChange={(e) => setWeights({ ...weights, [key]: Number(e.target.value) })}
-                      className={`w-full cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none ${cfg.accentColor}`}
-                    />
+                    {(() => {
+                      const maxV = cfg.maxVal || 40
+                      const pct = Math.min(100, Math.max(0, Math.round((currentVal / maxV) * 100)))
+                      return (
+                        <div className="relative w-full flex items-center py-1.5 select-none">
+                          {/* Background Track with Color Fill */}
+                          <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden relative">
+                            <div
+                              className="h-full rounded-full transition-all duration-75"
+                              style={{
+                                width: `${pct}%`,
+                                backgroundColor: cfg.colorHex,
+                              }}
+                            />
+                          </div>
+
+                          {/* Thumb Knob Indicator */}
+                          <div
+                            className="pointer-events-none absolute h-5 w-5 rounded-full bg-white shadow-md -translate-x-1/2 transition-all duration-75"
+                            style={{
+                              left: `${pct}%`,
+                              border: `3.5px solid ${cfg.colorHex}`,
+                            }}
+                          />
+
+                          {/* Interactive Range Input Overlaid */}
+                          <input
+                            type="range"
+                            min="0"
+                            max={maxV}
+                            step="1"
+                            value={currentVal}
+                            onChange={(e) => setWeights({ ...weights, [key]: Number(e.target.value) })}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            aria-label={cfg.label}
+                          />
+                        </div>
+                      )
+                    })()}
                   </div>
                 )
               })}

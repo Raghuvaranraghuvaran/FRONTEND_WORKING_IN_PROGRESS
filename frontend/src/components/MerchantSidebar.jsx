@@ -12,6 +12,7 @@ import {
   Wrench, 
   Settings,
   Ticket,
+  Headphones,
   X
 } from 'lucide-react'
 
@@ -152,6 +153,22 @@ export default function MerchantSidebar({ onClose }) {
             onClick={handleNav}
           />
         </nav>
+
+        {/* Need Help Support Card */}
+        <div className="mx-3 mt-6 mb-4 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 text-center">
+          <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-2xs mb-2.5">
+            <Headphones className="h-4 w-4" />
+          </div>
+          <p className="text-xs font-bold text-slate-900">Need Help?</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">Check our guide or contact support.</p>
+          <button
+            type="button"
+            onClick={() => window.open('mailto:support@returnguard.io', '_blank')}
+            className="mt-3 w-full rounded-xl bg-white border border-indigo-200 py-1.5 text-xs font-bold text-indigo-700 shadow-2xs hover:bg-indigo-50 transition cursor-pointer"
+          >
+            Contact Support
+          </button>
+        </div>
       </div>
     </div>
   )

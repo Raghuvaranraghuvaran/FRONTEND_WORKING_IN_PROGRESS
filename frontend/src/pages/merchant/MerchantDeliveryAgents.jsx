@@ -14,7 +14,9 @@ import {
   Filter, 
   CheckCircle2, 
   AlertCircle,
-  Truck
+  Truck,
+  Calendar,
+  Building2
 } from 'lucide-react'
 
 export default function MerchantDeliveryAgents() {
@@ -28,6 +30,7 @@ export default function MerchantDeliveryAgents() {
   const [sortOption, setSortOption] = useState('-risk')
   const [dateRange, setDateRange] = useState('30d')
   const [riskFilter, setRiskFilter] = useState('all')
+  const [cityFilter, setCityFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
 
   // Modals & Drawers state
@@ -67,8 +70,12 @@ export default function MerchantDeliveryAgents() {
     loadData()
   }, [sortOption, riskFilter, dateRange])
 
-  // Filter by local search query if present
+  // Filter by local search query and city if present
   const filteredAgents = agents.filter((agent) => {
+    if (cityFilter !== 'all') {
+      const loc = `${agent.route || ''} ${agent.location_name || ''}`.toLowerCase()
+      if (!loc.includes(cityFilter.toLowerCase())) return false
+    }
     if (!searchQuery) return true
     const q = searchQuery.toLowerCase()
     return (
@@ -157,12 +164,54 @@ export default function MerchantDeliveryAgents() {
         )}
       </AnimatePresence>
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 leading-tight">Delivery-agent risk</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Baseline-adjusted anomaly review. This is an investigation signal, not a confirmed-collusion finding.
-        </p>
+      {/* ── Top Header Banner with Scooter Rider Illustration ──────────────── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-3xl bg-gradient-to-r from-indigo-50/70 via-purple-50/40 to-blue-50/70 border border-indigo-100/70 p-5 shadow-2xs">
+        <div className="flex items-start gap-3.5">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-200 shrink-0">
+            <Truck className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 leading-tight">Delivery-agent risk</h1>
+            <p className="text-xs text-slate-500 mt-0.5 max-w-xl">
+              Baseline-adjusted anomaly review. This is an investigation signal, not a confirmed-collusion finding.
+            </p>
+          </div>
+        </div>
+
+        {/* Right banner illustration & bullet points */}
+        <div className="flex items-center gap-3.5 bg-white/85 backdrop-blur-xs rounded-2xl border border-indigo-100/80 px-4 py-2.5 shadow-2xs">
+          {/* Scooter Courier SVG */}
+          <div className="relative h-12 w-16 shrink-0 flex items-center justify-center">
+            <svg viewBox="0 0 100 80" className="w-full h-full">
+              <circle cx="25" cy="62" r="11" fill="#334155" />
+              <circle cx="25" cy="62" r="5" fill="#94A3B8" />
+              <circle cx="78" cy="62" r="11" fill="#334155" />
+              <circle cx="78" cy="62" r="5" fill="#94A3B8" />
+              <path d="M25 62 L48 62 L58 48 L76 62" stroke="#6366F1" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <path d="M48 62 L54 36 L68 36" stroke="#4F46E5" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <path d="M66 33 L73 33" stroke="#1E293B" strokeWidth="3.5" strokeLinecap="round" />
+              <rect x="18" y="30" width="20" height="20" rx="4" fill="#818CF8" />
+              <path d="M18 37 L38 37" stroke="#4338CA" strokeWidth="2" />
+              <circle cx="55" cy="20" r="7.5" fill="#F59E0B" />
+              <path d="M50 28 C50 22, 60 22, 60 28 L60 42 L48 42 Z" fill="#4338CA" />
+            </svg>
+          </div>
+
+          <div className="space-y-1 text-[11px] font-semibold text-slate-700">
+            <div className="flex items-center gap-1.5 text-indigo-950">
+              <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
+              <span>Identify risky delivery patterns.</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-indigo-950">
+              <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
+              <span>Prevent return fraud.</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-indigo-950">
+              <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
+              <span>Ensure trusted deliveries.</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ── Section Title & Filter Toolbar matching Screenshot ──────────────── */}
@@ -175,7 +224,7 @@ export default function MerchantDeliveryAgents() {
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value)}
-              className="appearance-none rounded-xl border border-slate-200 bg-white py-2 pl-3.5 pr-8 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 focus:border-indigo-500 focus:outline-none transition cursor-pointer"
+              className="appearance-none rounded-xl border border-slate-200 bg-white py-2 pl-3.5 pr-8 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 focus:border-indigo-500 focus:outline-hidden transition cursor-pointer"
             >
               <option value="-risk">Sort by Risk</option>
               <option value="-anomaly_gap">Highest Anomaly Gap</option>
@@ -185,12 +234,15 @@ export default function MerchantDeliveryAgents() {
             <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
           </div>
 
-          {/* Date Range Selector */}
+          {/* Date Range Selector with Calendar icon */}
           <div className="relative">
+            <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <Calendar className="h-3.5 w-3.5" />
+            </div>
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}
-              className="appearance-none rounded-xl border border-slate-200 bg-white py-2 pl-3.5 pr-8 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 focus:border-indigo-500 focus:outline-none transition cursor-pointer"
+              className="appearance-none rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-8 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 focus:border-indigo-500 focus:outline-hidden transition cursor-pointer"
             >
               <option value="7d">Last 7 Days</option>
               <option value="30d">Last 30 Days</option>
@@ -199,17 +251,21 @@ export default function MerchantDeliveryAgents() {
             <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
           </div>
 
-          {/* Risk Level Filter */}
+          {/* City Filter with Building2 icon */}
           <div className="relative">
+            <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <Building2 className="h-3.5 w-3.5" />
+            </div>
             <select
-              value={riskFilter}
-              onChange={(e) => setRiskFilter(e.target.value)}
-              className="appearance-none rounded-xl border border-slate-200 bg-white py-2 pl-3.5 pr-8 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 focus:border-indigo-500 focus:outline-none transition cursor-pointer"
+              value={cityFilter}
+              onChange={(e) => setCityFilter(e.target.value)}
+              className="appearance-none rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-8 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 focus:border-indigo-500 focus:outline-hidden transition cursor-pointer"
             >
-              <option value="all">Ert All</option>
-              <option value="HIGH">High Risk</option>
-              <option value="MEDIUM">Medium Risk</option>
-              <option value="LOW">Low Risk</option>
+              <option value="all">All Cities</option>
+              <option value="Mumbai">Mumbai</option>
+              <option value="Bengaluru">Bengaluru</option>
+              <option value="Kolkata">Kolkata</option>
+              <option value="Chennai">Chennai</option>
             </select>
             <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
           </div>
@@ -265,6 +321,7 @@ export default function MerchantDeliveryAgents() {
           <div className="lg:col-span-1">
             <RecentAnomaliesRail
               anomalies={recentAnomalies}
+              summary={summary}
               onViewAll={() => setDetailsAgentId(agents[0]?.id)}
             />
           </div>
