@@ -427,6 +427,50 @@ class MerchantOTPVerifyView(APIView):
         return success(merchant_login_payload(user))
 
 
+class MerchantTenantConfigureView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from common.tenancy import get_merchant_from_request
+        merchant = get_merchant_from_request(request) or Merchant.objects.first()
+        if not merchant:
+            return success({
+                "id": "merchant_demo",
+                "business_name": "Aria Admin's Store",
+                "store_slug": "demo",
+                "admin_email": "demo@merchant.com",
+                "plan_tier": "Pilot",
+                "created_at": "2026-08-01T10:00:00Z",
+            })
+        return success(MerchantSerializer(merchant).data)
+
+    def post(self, request):
+        from common.tenancy import get_merchant_from_request
+        merchant = get_merchant_from_request(request) or Merchant.objects.first()
+
+        business_name = (request.data.get("business_name") or "").strip()
+        store_slug = (request.data.get("store_slug") or "").strip().lower()
+        admin_email = (request.data.get("admin_email") or "").strip().lower()
+
+        if merchant:
+            if business_name:
+                merchant.business_name = business_name
+            if store_slug:
+                merchant.store_slug = store_slug
+            if admin_email:
+                merchant.admin_email = admin_email
+            merchant.save()
+            return success(MerchantSerializer(merchant).data)
+
+        merchant = Merchant.objects.create(
+            business_name=business_name or "Aria Admin's Store",
+            store_slug=store_slug or "demo",
+            admin_email=admin_email or "demo@merchant.com",
+            plan_tier="Pilot",
+        )
+        return success(MerchantSerializer(merchant).data)
+
+
 class MerchantMeView(APIView):
     permission_classes = [AllowAny]
 

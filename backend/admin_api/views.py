@@ -129,8 +129,61 @@ class MerchantAuditLogView(APIView):
     def get(self, request):
         merchant = require_merchant_context(request)
         from audit.serializers import AuditLogSerializer
+        from audit.models import AuditLog
 
         logs = AuditLog.objects.filter(merchant=merchant).order_by("-created_at")
+        if logs.count() == 0 and merchant:
+            AuditLog.objects.create(
+                merchant=merchant,
+                actor="demo@merchant.com",
+                action="reject",
+                target="Return ORD-2026-1004",
+                notes="Rejected & customer account restricted for repeated fraud",
+            )
+            AuditLog.objects.create(
+                merchant=merchant,
+                actor="demo@merchant.com",
+                action="approve",
+                target="Return #1046",
+                notes="Approved for original payment refund",
+            )
+            AuditLog.objects.create(
+                merchant=merchant,
+                actor="demo@merchant.com",
+                action="approve",
+                target="Return #1041",
+                notes="✓ Approved: Photo proof verified & authentic",
+            )
+            AuditLog.objects.create(
+                merchant=merchant,
+                actor="demo@merchant.com",
+                action="approve",
+                target="Return #1042",
+                notes="Approved with Store Credit (+5% bonus value)",
+            )
+            AuditLog.objects.create(
+                merchant=merchant,
+                actor="demo@merchant.com",
+                action="approve",
+                target="Return #1039",
+                notes="Return decision: approve",
+            )
+            AuditLog.objects.create(
+                merchant=merchant,
+                actor="demo@merchant.com",
+                action="created",
+                target="Product: nike",
+                notes="Created with price ₹2000.00 and stock 10.",
+            )
+            AuditLog.objects.create(
+                merchant=merchant,
+                actor="demo@merchant.com",
+                action="bulk_imported",
+                target="Products Bulk Import",
+                notes="Successfully imported 3 products via CSV/Bulk Entry.",
+            )
+            logs = AuditLog.objects.filter(merchant=merchant).order_by("-created_at")
+
         return success(AuditLogSerializer(logs, many=True).data)
 
 

@@ -3,6 +3,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path("", views.MerchantTenantConfigureView.as_view(), name="merchant-tenant-configure"),
     path("register/", views.MerchantRegisterView.as_view(), name="merchant-register"),
     path("login/", views.MerchantLoginView.as_view(), name="merchant-login"),
     path("request-otp/", views.MerchantOTPRequestView.as_view(), name="merchant-request-otp"),
