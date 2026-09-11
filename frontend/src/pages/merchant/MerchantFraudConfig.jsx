@@ -1,117 +1,202 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../../mock/api'
+import { 
+  Sparkles,
+  ShoppingBag,
+  Shirt,
+  Laptop,
+  BarChart2,
+  Sliders,
+  Play,
+  Users,
+  BarChart3,
+  RotateCcw,
+  Target,
+  CheckCircle2,
+  Search,
+  UserCheck,
+  TrendingUp,
+  Save,
+  Lightbulb,
+  CheckCircle,
+  Ban,
+  Package,
+  Layers,
+  Gem,
+  Calendar,
+  MapPin,
+  Smartphone,
+  AlertTriangle,
+  ArrowRight,
+  Shield
+} from 'lucide-react'
 
-const weightLabels = {
-  cod_refusal: 'Repeated COD Refusals (Max 25 pts)',
-  return_frequency: 'High Return Frequency (Max 20 pts)',
-  multiple_variants: 'Multiple Variant Orders / Bracketing (Max 15 pts)',
-  high_value_cod: 'High-Value COD Orders (Max 10 pts)',
-  seasonal_signal: 'Seasonal / Festive Signals (Max 10 pts)',
-  address_mismatch: 'Address Inconsistencies / Frequent Changes (Max 10 pts)',
-  device_reuse: 'Device Reuse / Multi-Account (Max 22 pts)',
-  escalation_bonus: 'Repeat Offender / Escalation Multiplier (Max 16 pts)',
-  serial_mismatch: 'Serial & IMEI Physical Mismatch (Max 50 pts)',
-  product_swap: 'Product Swap / Wrong Item Returned (Max 50 pts)',
-  wardrobing: 'Wardrobing / Worn Fashion Pattern (Max 35 pts)',
-  damage_claim: 'Frequent Damage Claims (Max 25 pts)',
-  damage_no_evidence: 'Damage Claims Without Photo Proof (Max 20 pts)',
-  refund_ratio: 'High Refund-to-Purchase Ratio (Max 25 pts)',
-  unusual_quantity: 'Sudden Bulk Quantity Return (Max 30 pts)',
-  missing_accessories: 'Missing Box Accessories (Max 15 pts)',
-  product_condition: 'Tampered / Soiled Condition (Max 20 pts)',
-  packaging_mismatch: 'Wrong / Damaged Packaging (Max 20 pts)',
+const SIGNAL_CONFIGS = {
+  cod_refusal: {
+    label: 'Repeated COD Refusals (Max 25 pts)',
+    icon: Ban,
+    accentColor: 'accent-rose-500',
+    iconColor: 'text-rose-500',
+    iconBg: 'bg-rose-50',
+    badgeClass: 'bg-rose-50 text-rose-700 border-rose-100',
+    defaultVal: 18,
+    maxVal: 25,
+  },
+  return_frequency: {
+    label: 'High Return Frequency (Max 20 pts)',
+    icon: Package,
+    accentColor: 'accent-amber-500',
+    iconColor: 'text-amber-500',
+    iconBg: 'bg-amber-50',
+    badgeClass: 'bg-amber-50 text-amber-700 border-amber-100',
+    defaultVal: 32,
+    maxVal: 40,
+  },
+  multiple_variants: {
+    label: 'Multiple Variant Orders / Bracketing (Max 15 pts)',
+    icon: Layers,
+    accentColor: 'accent-purple-500',
+    iconColor: 'text-purple-500',
+    iconBg: 'bg-purple-50',
+    badgeClass: 'bg-purple-50 text-purple-700 border-purple-100',
+    defaultVal: 15,
+    maxVal: 25,
+  },
+  high_value_cod: {
+    label: 'High-Value COD Orders (Max 10 pts)',
+    icon: Gem,
+    accentColor: 'accent-blue-500',
+    iconColor: 'text-blue-500',
+    iconBg: 'bg-blue-50',
+    badgeClass: 'bg-blue-50 text-blue-700 border-blue-100',
+    defaultVal: 10,
+    maxVal: 20,
+  },
+  seasonal_signal: {
+    label: 'Seasonal / Festive Signals (Max 10 pts)',
+    icon: Calendar,
+    accentColor: 'accent-emerald-500',
+    iconColor: 'text-emerald-500',
+    iconBg: 'bg-emerald-50',
+    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    defaultVal: 16,
+    maxVal: 20,
+  },
+  address_mismatch: {
+    label: 'Address Inconsistencies / Frequent Changes (Max 10 pts)',
+    icon: MapPin,
+    accentColor: 'accent-amber-400',
+    iconColor: 'text-amber-500',
+    iconBg: 'bg-amber-50',
+    badgeClass: 'bg-amber-50 text-amber-800 border-amber-100',
+    defaultVal: 12,
+    maxVal: 20,
+  },
+  device_reuse: {
+    label: 'Device Reuse / Multi-Account (Max 22 pts)',
+    icon: Smartphone,
+    accentColor: 'accent-teal-500',
+    iconColor: 'text-teal-500',
+    iconBg: 'bg-teal-50',
+    badgeClass: 'bg-teal-50 text-teal-700 border-teal-100',
+    defaultVal: 22,
+    maxVal: 30,
+  },
+  escalation_bonus: {
+    label: 'Repeat Offender / Escalation Multiplier (Max 16 pts)',
+    icon: AlertTriangle,
+    accentColor: 'accent-pink-500',
+    iconColor: 'text-pink-500',
+    iconBg: 'bg-pink-50',
+    badgeClass: 'bg-pink-50 text-pink-700 border-pink-100',
+    defaultVal: 8,
+    maxVal: 20,
+  },
 }
 
 const PRESET_TEMPLATES = {
   baseline: {
+    id: 'baseline',
     name: 'Standard Baseline (All 28 Checkpoints)',
-    desc: 'Standard weights across 4-tier architecture as specified in ReturnGuard Risk Checkpoints.',
+    desc: 'Standard weights across 4 tier architecture as specified in ReturnGuard Risk Checkpoints.',
+    recommended: true,
+    icon: ShoppingBag,
+    iconBg: 'bg-indigo-50 text-indigo-600',
     weights: {
-      cod_refusal: 25,
-      return_frequency: 20,
+      cod_refusal: 18,
+      return_frequency: 32,
       multiple_variants: 15,
       high_value_cod: 10,
-      seasonal_signal: 10,
-      address_mismatch: 10,
+      seasonal_signal: 16,
+      address_mismatch: 12,
       device_reuse: 22,
       escalation_bonus: 8,
-      serial_mismatch: 50,
-      product_swap: 50,
-      wardrobing: 30,
-      damage_claim: 25,
-      damage_no_evidence: 20,
-      refund_ratio: 25,
-      unusual_quantity: 30,
-      missing_accessories: 15,
-      product_condition: 20,
-      packaging_mismatch: 20,
     },
-    thresholds: { low_max: 34, medium_max: 64, high_min: 65, critical_min: 85 },
+    thresholds: { low_max: 34, medium_max: 64, high_min: 65 },
   },
   wardrobing: {
+    id: 'wardrobing',
     name: 'Fashion & Festive (Wardrobing Protection)',
-    desc: 'Heavier penalties on multiple variants, return rate, wardrobing, and festive seasonal signals.',
+    desc: 'Heavier penalties on multiple variants, return rate, wardrobing, and festive signals.',
+    recommended: false,
+    icon: Shirt,
+    iconBg: 'bg-pink-50 text-pink-500',
     weights: {
       cod_refusal: 20,
-      return_frequency: 30,
+      return_frequency: 35,
       multiple_variants: 25,
       high_value_cod: 10,
       seasonal_signal: 20,
       address_mismatch: 10,
       device_reuse: 20,
       escalation_bonus: 10,
-      serial_mismatch: 50,
-      product_swap: 50,
-      wardrobing: 35,
-      damage_claim: 25,
-      damage_no_evidence: 25,
-      refund_ratio: 30,
-      unusual_quantity: 30,
-      missing_accessories: 15,
-      product_condition: 25,
-      packaging_mismatch: 20,
     },
-    thresholds: { low_max: 30, medium_max: 60, high_min: 61, critical_min: 85 },
+    thresholds: { low_max: 30, medium_max: 60, high_min: 61 },
   },
   electronics: {
+    id: 'electronics',
     name: 'Electronics & High-Value Physical Protection',
-    desc: 'Strict controls on serial/IMEI mismatches, product swaps, missing accessories, and high-value orders.',
+    desc: 'Strict controls on serial/IMEI mismatches, product swaps, missing accessories, and high value orders.',
+    recommended: false,
+    icon: Laptop,
+    iconBg: 'bg-cyan-50 text-cyan-600',
     weights: {
-      cod_refusal: 35,
-      return_frequency: 15,
+      cod_refusal: 25,
+      return_frequency: 20,
       multiple_variants: 10,
       high_value_cod: 25,
-      seasonal_signal: 5,
-      address_mismatch: 20,
+      seasonal_signal: 10,
+      address_mismatch: 18,
       device_reuse: 25,
       escalation_bonus: 12,
-      serial_mismatch: 50,
-      product_swap: 50,
-      wardrobing: 20,
-      damage_claim: 30,
-      damage_no_evidence: 30,
-      refund_ratio: 25,
-      unusual_quantity: 35,
-      missing_accessories: 25,
-      product_condition: 25,
-      packaging_mismatch: 25,
     },
-    thresholds: { low_max: 25, medium_max: 55, high_min: 56, critical_min: 85 },
+    thresholds: { low_max: 25, medium_max: 55, high_min: 56 },
   },
 }
 
 export default function MerchantFraudConfig() {
   const [config, setConfig] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [weights, setWeights] = useState({})
-  const [thresholds, setThresholds] = useState({})
+  const [selectedPreset, setSelectedPreset] = useState('baseline')
+  const [weights, setWeights] = useState({
+    cod_refusal: 18,
+    return_frequency: 32,
+    multiple_variants: 15,
+    high_value_cod: 10,
+    seasonal_signal: 16,
+    address_mismatch: 12,
+    device_reuse: 22,
+    escalation_bonus: 8,
+  })
+  const [thresholds, setThresholds] = useState({ low_max: 34, medium_max: 64, high_min: 65 })
   const [reviewEnabled, setReviewEnabled] = useState(true)
-  const [activeTab, setActiveTab] = useState('weights') // 'weights' | 'triggers' | 'simulator'
+  const [activeTab, setActiveTab] = useState('weights') // 'weights' | 'triggers' | 'simulator' | 'rules'
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
 
-  // Trigger Thresholds
+  // Trigger Thresholds (Tab 2)
   const [triggers, setTriggers] = useState({
     highValueCodLimit: 5000,
     multiVariantMin: 3,
@@ -122,7 +207,7 @@ export default function MerchantFraudConfig() {
     autoEscalateOnRefusal: true,
   })
 
-  // Live Simulator state
+  // Live Simulator state (Tab 3)
   const [simState, setSimState] = useState({
     returnRate: 0.5,
     codRefusals: 2,
@@ -135,46 +220,140 @@ export default function MerchantFraudConfig() {
     escalationLevel: 2,
   })
 
+  // VIP Rules (Tab 4)
+  const [rules, setRules] = useState([])
+  const [newRule, setNewRule] = useState({ rule_type: 'blacklist', entry_type: 'email', value: '', reason: '' })
+  const [addingRule, setAddingRule] = useState(false)
+
   useEffect(() => {
     api.getFraudConfig().then((data) => {
-      setConfig(data)
-      const rawWeights = (data && data.weights) || {}
-      const sanitized = {}
-      Object.entries(rawWeights).forEach(([k, v]) => {
-        const num = Number(v)
-        if (!isNaN(num)) {
-          sanitized[k] = num > 0 && num <= 1 ? Math.round(num * 100) : Math.round(num)
+      if (data) {
+        setConfig(data)
+        const rawWeights = data.weights || {}
+        const sanitized = {}
+        Object.entries(rawWeights).forEach(([k, v]) => {
+          const num = Number(v)
+          if (!isNaN(num)) {
+            sanitized[k] = num > 0 && num <= 1 ? Math.round(num * 100) : Math.round(num)
+          }
+        })
+        setWeights((prev) => ({
+          ...prev,
+          ...sanitized,
+        }))
+        if (data.thresholds) {
+          setThresholds(data.thresholds)
         }
-      })
-      const defaultWeights = {
-        cod_refusal: 25,
-        return_frequency: 20,
-        multiple_variants: 15,
-        high_value_cod: 10,
-        seasonal_signal: 10,
-        address_mismatch: 10,
-        device_reuse: 22,
-        escalation_bonus: 8,
-        ...sanitized,
+        if (typeof data.review_enabled === 'boolean') {
+          setReviewEnabled(data.review_enabled)
+        }
       }
-      setWeights(defaultWeights)
-      setThresholds(data.thresholds || { low_max: 34, medium_max: 64, high_min: 65 })
-      setReviewEnabled(data.review_enabled ?? true)
+      setLoading(false)
+    }).catch(() => {
       setLoading(false)
     })
-    api.getListRules().then((r) => setRules(r || [])).catch(() => {})
+
+    api.getListRules().then((r) => setRules(Array.isArray(r) ? r : [])).catch(() => {})
   }, [])
 
-  // VIP Whitelist & Blacklist State (Feature 2)
-  const [rules, setRules] = useState([])
-  const [ruleFilter, setRuleFilter] = useState('all') // 'all' | 'whitelist' | 'blacklist'
-  const [newRule, setNewRule] = useState({
-    rule_type: 'blacklist',
-    entry_type: 'email',
-    value: '',
-    reason: '',
-  })
-  const [addingRule, setAddingRule] = useState(false)
+  const applyPreset = (presetKey) => {
+    setSelectedPreset(presetKey)
+    const preset = PRESET_TEMPLATES[presetKey]
+    if (preset) {
+      setWeights({ ...preset.weights })
+      setThresholds({ ...preset.thresholds })
+    }
+  }
+
+  const resetWeights = () => {
+    const defaultVals = {}
+    Object.entries(SIGNAL_CONFIGS).forEach(([key, cfg]) => {
+      defaultVals[key] = cfg.defaultVal
+    })
+    setWeights(defaultVals)
+    setThresholds({ low_max: 34, medium_max: 64, high_min: 65 })
+    setSelectedPreset('baseline')
+  }
+
+  const save = async () => {
+    setError('')
+    setSaving(true)
+    try {
+      const updated = await api.updateFraudConfig({ weights, thresholds, review_enabled: reviewEnabled })
+      if (updated) setConfig(updated)
+      setSaved(true)
+      window.setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      setError(err.message || 'Failed to save configuration')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Live Simulator Score Calculation
+  const calculateSimScore = () => {
+    let score = 10
+    const signals = []
+
+    if (simState.returnRate > 0.4) {
+      score += weights.return_frequency || 32
+      signals.push(`High return frequency (+${weights.return_frequency || 32})`)
+    } else if (simState.returnRate > 0.2) {
+      score += Math.round((weights.return_frequency || 32) * 0.6)
+      signals.push(`Elevated return frequency (+${Math.round((weights.return_frequency || 32) * 0.6)})`)
+    }
+
+    if (simState.codRefusals >= 2) {
+      score += weights.cod_refusal || 18
+      signals.push(`Repeated COD refusals (${simState.codRefusals}) (+${weights.cod_refusal || 18})`)
+    }
+
+    if (simState.variants >= 3) {
+      score += weights.multiple_variants || 15
+      signals.push(`Over-ordering / Bracketing pattern (+${weights.multiple_variants || 15})`)
+    }
+
+    if (simState.isCod && simState.orderTotal > 5000) {
+      score += weights.high_value_cod || 10
+      signals.push(`High-value COD exposure (+${weights.high_value_cod || 10})`)
+    }
+
+    if (simState.isSeasonal) {
+      score += weights.seasonal_signal || 16
+      signals.push(`Festive seasonal return spike (+${weights.seasonal_signal || 16})`)
+    }
+
+    if (simState.addressMismatch > 0) {
+      score += weights.address_mismatch || 12
+      signals.push(`Address mismatch signal (+${weights.address_mismatch || 12})`)
+    }
+
+    if (simState.deviceReuse) {
+      score += weights.device_reuse || 22
+      signals.push(`Device fingerprint overlap (+${weights.device_reuse || 22})`)
+    }
+
+    if (simState.escalationLevel >= 2) {
+      score += weights.escalation_bonus || 8
+      signals.push(`Escalation level ${simState.escalationLevel} multiplier (+${weights.escalation_bonus || 8})`)
+    }
+
+    const cappedScore = Math.min(100, Math.max(0, Math.round(score)))
+    let tier = 'Low'
+    let action = 'Auto-Approve'
+
+    if (cappedScore >= (thresholds.high_min || 65)) {
+      tier = 'High'
+      action = reviewEnabled ? 'Manual Review Queue (Refund Withheld)' : 'Auto-Hold'
+    } else if (cappedScore > (thresholds.low_max || 34)) {
+      tier = 'Medium'
+      action = 'Doorstep Verification (OTP Required)'
+    }
+
+    return { score: cappedScore, tier, action, signals }
+  }
+
+  const simResult = calculateSimScore()
 
   const handleAddRule = async (e) => {
     e.preventDefault()
@@ -209,200 +388,230 @@ export default function MerchantFraudConfig() {
     }
   }
 
-  const applyPreset = (presetKey) => {
-    const preset = PRESET_TEMPLATES[presetKey]
-    if (preset) {
-      setWeights({ ...preset.weights })
-      setThresholds({ ...preset.thresholds })
-    }
-  }
-
-  const save = async () => {
-    setError('')
-    setSaving(true)
-    try {
-      const updated = await api.updateFraudConfig({ weights, thresholds, review_enabled: reviewEnabled })
-      setConfig(updated)
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 1500)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  // Calculate live simulated score based on current weights
-  const calculateSimScore = () => {
-    let score = 10
-    const signals = []
-
-    if (simState.returnRate > 0.4) {
-      score += weights.return_frequency || 20
-      signals.push(`High return frequency (+${weights.return_frequency || 20})`)
-    } else if (simState.returnRate > 0.2) {
-      score += (weights.return_frequency || 20) * 0.6
-      signals.push(`Elevated return frequency (+${Math.round((weights.return_frequency || 20) * 0.6)})`)
-    }
-
-    if (simState.codRefusals >= 2) {
-      score += weights.cod_refusal || 25
-      signals.push(`Repeated COD refusals (+${weights.cod_refusal || 25})`)
-    } else if (simState.codRefusals === 1) {
-      score += (weights.cod_refusal || 25) * 0.5
-      signals.push(`COD refusal history (+${Math.round((weights.cod_refusal || 25) * 0.5)})`)
-    }
-
-    if (simState.variants >= 3) {
-      score += weights.multiple_variants || 15
-      signals.push(`Multiple variants (${simState.variants}) (+${weights.multiple_variants || 15})`)
-    }
-
-    if (simState.isCod && simState.orderTotal >= 5000) {
-      score += weights.high_value_cod || 10
-      signals.push(`High-value COD (₹${simState.orderTotal}) (+${weights.high_value_cod || 10})`)
-    }
-
-    if (simState.isSeasonal) {
-      score += weights.seasonal_signal || 10
-      signals.push(`Seasonal / Festive signal (+${weights.seasonal_signal || 10})`)
-    }
-
-    if (simState.addressMismatch >= 1) {
-      score += weights.address_mismatch || 10
-      signals.push(`Address mismatch (+${weights.address_mismatch || 10})`)
-    }
-
-    if (simState.deviceReuse) {
-      score += weights.device_reuse || 22
-      signals.push(`Device reuse (+${weights.device_reuse || 22})`)
-    }
-
-    if (simState.escalationLevel >= 2) {
-      score += (weights.escalation_bonus || 8) * (simState.escalationLevel >= 3 ? 2 : 1)
-      signals.push(`Escalation Level ${simState.escalationLevel} (+${(weights.escalation_bonus || 8) * (simState.escalationLevel >= 3 ? 2 : 1)})`)
-    }
-
-    const finalScore = Math.max(0, Math.min(100, Math.round(score)))
-    const tier = finalScore > (thresholds.medium_max || 64) ? 'High' : finalScore > (thresholds.low_max || 34) ? 'Medium' : 'Low'
-    const action = tier === 'High' ? (simState.escalationLevel >= 3 ? 'Require Prepaid + Review' : 'Manual Review') : tier === 'Medium' ? 'Request OTP Verification' : 'Auto-Approve'
-
-    return { score: finalScore, tier, action, signals }
-  }
-
-  const simResult = calculateSimScore()
-
-  if (loading || !config) {
-    return <div className="h-72 animate-pulse rounded-2xl bg-slate-200" />
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-10 w-80 animate-pulse rounded bg-slate-200" />
+        <div className="h-32 animate-pulse rounded-2xl bg-slate-100" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="h-96 animate-pulse rounded-2xl bg-slate-100" />
+          <div className="h-96 animate-pulse rounded-2xl bg-slate-100" />
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-6 pb-24">
+      {/* ── TOP HEADER ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Fraud Rules & Risk Engine Configuration</h1>
-          <p className="text-sm text-slate-500">
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+            Fraud Rules & Risk Engine Configuration
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
             Configure weighted scoring signals, escalation triggers, preset templates, and test live with the Risk Simulator.
           </p>
         </div>
-        <span className="w-fit rounded-full bg-indigo-50 border border-indigo-200 px-3 py-1 text-xs font-semibold text-indigo-700">
-          Rule Engine: {config.rule_version || 'rg-rules-v0.4'}
-        </span>
-      </div>
 
-      {error && <div className="rounded-xl bg-rose-50 border border-rose-200 p-4 text-sm text-rose-700">{error}</div>}
-
-      {/* Preset Profiles Bar */}
-      <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-          <div>
-            <h2 className="text-xs font-bold uppercase tracking-wider text-indigo-900">1-Click Industry Presets</h2>
-            <p className="text-xs text-indigo-700">Quickly apply recommended weights calibrated for different merchant business models.</p>
+        {/* Top Right Rule Engine Badge & View Logs */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 rounded-2xl border border-indigo-100 bg-indigo-50/70 px-3.5 py-1.5 text-xs shadow-2xs">
+            <Sliders className="h-3.5 w-3.5 text-indigo-600" />
+            <span className="font-semibold text-indigo-950 font-mono">
+              Rule Engine: {config?.rule_version || 'rg-rules-v0.4'}
+            </span>
+            <span className="flex items-center gap-1 font-semibold text-emerald-600 bg-white px-2 py-0.5 rounded-full border border-emerald-200 text-[10px]">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Active
+            </span>
           </div>
-        </div>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-          {Object.entries(PRESET_TEMPLATES).map(([key, template]) => (
-            <button
-              key={key}
-              onClick={() => applyPreset(key)}
-              className="text-left rounded-xl border border-indigo-200 bg-white p-3 shadow-xs hover:border-indigo-500 hover:shadow-sm transition-all"
-            >
-              <div className="font-bold text-xs text-slate-900">{template.name}</div>
-              <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{template.desc}</p>
-            </button>
-          ))}
+          <Link
+            to="/merchant/audit-log"
+            className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors"
+          >
+            <span>View Logs</span>
+            <ArrowRight className="h-3 w-3" />
+          </Link>
         </div>
       </div>
 
-      {/* Configuration Tabs */}
-      <div className="flex border-b border-slate-200 text-sm font-semibold">
+      {error && (
+        <div className="rounded-xl bg-rose-50 border border-rose-200 p-3.5 text-xs text-rose-700">
+          {error}
+        </div>
+      )}
+
+      {/* ── 1-CLICK INDUSTRY PRESETS BAR ── */}
+      <div className="rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-50/60 via-purple-50/40 to-white p-5 shadow-2xs">
+        <div className="flex items-center gap-2 mb-1">
+          <Sparkles className="h-4 w-4 text-indigo-600" />
+          <h2 className="text-xs font-black uppercase tracking-wider text-indigo-950">
+            1-Click Industry Presets
+          </h2>
+        </div>
+        <p className="text-xs text-indigo-800/80 mb-4">
+          Quickly apply recommended weights calibrated for different merchant business models.
+        </p>
+
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+          {Object.entries(PRESET_TEMPLATES).map(([key, template]) => {
+            const isSelected = selectedPreset === key
+            const IconComp = template.icon
+            return (
+              <div
+                key={key}
+                onClick={() => applyPreset(key)}
+                className={`relative flex items-start gap-3.5 rounded-2xl border p-4 transition-all cursor-pointer ${
+                  isSelected
+                    ? 'border-indigo-500 bg-white shadow-sm ring-2 ring-indigo-500/20'
+                    : 'border-indigo-100 bg-white/80 hover:border-indigo-300 hover:bg-white shadow-2xs'
+                }`}
+              >
+                {/* Icon */}
+                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${template.iconBg}`}>
+                  <IconComp className="h-5 w-5" />
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 pr-6">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-bold text-slate-900">{template.name}</h3>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                    {template.desc}
+                  </p>
+                  {template.recommended && (
+                    <span className="mt-2 inline-block rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-600 border border-indigo-100">
+                      Recommended
+                    </span>
+                  )}
+                </div>
+
+                {/* Radio Checkmark */}
+                <div className="absolute right-4 top-4">
+                  {isSelected ? (
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-white shadow-xs">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    </div>
+                  ) : (
+                    <div className="h-5 w-5 rounded-full border-2 border-slate-300 bg-white" />
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── TABS NAVIGATION BAR ── */}
+      <div className="flex border-b border-slate-200 text-xs font-bold">
         <button
           onClick={() => setActiveTab('weights')}
-          className={`border-b-2 px-4 py-2.5 transition-colors ${
-            activeTab === 'weights' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+          className={`flex items-center gap-2 border-b-2 px-5 py-3 transition-colors cursor-pointer ${
+            activeTab === 'weights'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          Signal Weights & Risk Tiers
+          <BarChart2 className="h-4 w-4" />
+          <span>Signal Weights & Risk Tiers</span>
         </button>
+
         <button
           onClick={() => setActiveTab('triggers')}
-          className={`border-b-2 px-4 py-2.5 transition-colors ${
-            activeTab === 'triggers' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+          className={`flex items-center gap-2 border-b-2 px-5 py-3 transition-colors cursor-pointer ${
+            activeTab === 'triggers'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          Trigger Thresholds & Proof Rules
+          <Sliders className="h-4 w-4" />
+          <span>Trigger Thresholds & Proof Rules</span>
         </button>
+
         <button
           onClick={() => setActiveTab('simulator')}
-          className={`border-b-2 px-4 py-2.5 transition-colors ${
-            activeTab === 'simulator' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+          className={`flex items-center gap-2 border-b-2 px-5 py-3 transition-colors cursor-pointer ${
+            activeTab === 'simulator'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          ⚡ Live Risk Simulator & Playground
+          <Play className="h-3.5 w-3.5 fill-current" />
+          <span>Live Risk Simulator & Playground</span>
         </button>
+
         <button
           onClick={() => setActiveTab('rules')}
-          className={`border-b-2 px-4 py-2.5 transition-colors ${
-            activeTab === 'rules' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+          className={`flex items-center gap-2 border-b-2 px-5 py-3 transition-colors cursor-pointer ${
+            activeTab === 'rules'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          🛡️ VIP Whitelist & Blacklist ({rules.length})
+          <Users className="h-4 w-4" />
+          <span>VIP Whitelist & Blacklist ({rules.length})</span>
         </button>
       </div>
 
-      {/* TAB 1: WEIGHTS & THRESHOLDS */}
+      {/* ── TAB 1: SIGNAL WEIGHTS & RISK TIERS ── */}
       {activeTab === 'weights' && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Signal Weights */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h2 className="text-base font-bold text-slate-900">Signal Scoring Weights</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Points added to base score (0–100 scale) when signal is triggered.</p>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
+          {/* LEFT CARD: Signal Scoring Weights (7 cols) */}
+          <div className="lg:col-span-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-2xs">
+            {/* Header with Reset Button */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                  <BarChart3 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Signal Scoring Weights</h2>
+                  <p className="text-[11px] text-slate-500">Points added to base score (0–100 scale) when signal is triggered.</p>
+                </div>
               </div>
-              <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
-                MVP Weights
-              </span>
+
+              <button
+                type="button"
+                onClick={resetWeights}
+                className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50/50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100/70 transition-colors cursor-pointer"
+              >
+                <RotateCcw className="h-3 w-3" />
+                <span>Reset Weights</span>
+              </button>
             </div>
 
-            <div className="mt-5 space-y-4">
-              {Object.entries(weights).map(([key, value]) => {
-                const intVal = Math.round(Number(value)) || 0
+            {/* List of 8 Colored Sliders */}
+            <div className="space-y-3.5">
+              {Object.entries(SIGNAL_CONFIGS).map(([key, cfg]) => {
+                const IconComponent = cfg.icon
+                const currentVal = Math.round(Number(weights[key] !== undefined ? weights[key] : cfg.defaultVal))
                 return (
-                  <div key={key} className="rounded-xl bg-slate-50/70 p-3 border border-slate-100">
-                    <div className="flex justify-between text-xs font-semibold">
-                      <label className="text-slate-700">{weightLabels[key] || key}</label>
-                      <span className="font-mono text-indigo-600 font-bold">+{intVal} pts</span>
+                  <div
+                    key={key}
+                    className="flex flex-col rounded-2xl bg-slate-50/60 p-3.5 border border-slate-100 hover:border-slate-200 transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${cfg.iconBg} ${cfg.iconColor}`}>
+                          <IconComponent className="h-4 w-4" />
+                        </div>
+                        <label className="text-xs font-bold text-slate-800">{cfg.label}</label>
+                      </div>
+                      <span className={`px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold border ${cfg.badgeClass}`}>
+                        {currentVal} pts
+                      </span>
                     </div>
+
                     <input
                       type="range"
                       min="0"
-                      max={intVal > 40 ? 50 : 40}
+                      max={cfg.maxVal || 40}
                       step="1"
-                      value={intVal}
+                      value={currentVal}
                       onChange={(e) => setWeights({ ...weights, [key]: Number(e.target.value) })}
-                      className="mt-2 w-full accent-indigo-600 cursor-pointer"
+                      className={`w-full cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none ${cfg.accentColor}`}
                     />
                   </div>
                 )
@@ -410,84 +619,165 @@ export default function MerchantFraudConfig() {
             </div>
           </div>
 
-          {/* Risk Thresholds & Escalation Policies */}
-          <div className="space-y-6">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-base font-bold text-slate-900">Risk Tiers & Decision Routing</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Define cutoffs for Low (Auto-Approve), Medium (Verify), High (Manual Review).</p>
-
-              <div className="mt-5 space-y-4">
+          {/* RIGHT COLUMN: Risk Tiers & Progressive Escalation Ladder (6 cols) */}
+          <div className="lg:col-span-6 space-y-6">
+            {/* CARD 1: Risk Tiers & Decision Routing */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-2xs">
+              <div className="flex items-center gap-2.5 border-b border-slate-100 pb-4 mb-5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+                  <Target className="h-5 w-5" />
+                </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700">Low Tier Max (Auto-Approve Cutoff)</label>
+                  <h2 className="text-sm font-bold text-slate-900">Risk Tiers & Decision Routing</h2>
+                  <p className="text-[11px] text-slate-500">Define cutoffs for Low (Auto-Approve), Medium (Verify), High (Manual Review).</p>
+                </div>
+              </div>
+
+              {/* 3 Tier Rows */}
+              <div className="space-y-3.5">
+                {/* Low Tier Row */}
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-3.5 border border-slate-100">
+                  <div className="flex-1">
+                    <label className="text-xs font-bold text-slate-800">Low Tier Max (Auto-Approve Cutoff)</label>
+                    <p className="text-[11px] text-slate-400">Orders below or equal to this score are auto-approved.</p>
+                  </div>
                   <input
                     type="number"
                     min="0"
                     max="100"
                     value={thresholds.low_max || 34}
                     onChange={(e) => setThresholds({ ...thresholds, low_max: Number(e.target.value) })}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                    className="w-16 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-center text-xs font-bold text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
                   />
+                  <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-left shrink-0 min-w-[125px]">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <div>
+                      <div className="text-[11px] font-bold text-emerald-800">Auto-Approve</div>
+                      <div className="text-[9px] text-emerald-600">Fast & Frictionless</div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-700">Medium Tier Max (Verification Cutoff)</label>
+
+                {/* Medium Tier Row */}
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-3.5 border border-slate-100">
+                  <div className="flex-1">
+                    <label className="text-xs font-bold text-slate-800">Medium Tier Max (Verification Cutoff)</label>
+                    <p className="text-[11px] text-slate-400">Orders above low tier and up to this score go for verification.</p>
+                  </div>
                   <input
                     type="number"
                     min="0"
                     max="100"
                     value={thresholds.medium_max || 64}
                     onChange={(e) => setThresholds({ ...thresholds, medium_max: Number(e.target.value) })}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                    className="w-16 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-center text-xs font-bold text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
                   />
+                  <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-1.5 text-left shrink-0 min-w-[125px]">
+                    <Search className="h-4 w-4 text-amber-600 shrink-0" />
+                    <div>
+                      <div className="text-[11px] font-bold text-amber-800">Verify</div>
+                      <div className="text-[9px] text-amber-600">Ask for proof</div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-700">High Tier Min (Manual Review Queue)</label>
+
+                {/* High Tier Row */}
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-3.5 border border-slate-100">
+                  <div className="flex-1">
+                    <label className="text-xs font-bold text-slate-800">High Tier Min (Manual Review Queue)</label>
+                    <p className="text-[11px] text-slate-400">Orders above this score go to manual review.</p>
+                  </div>
                   <input
                     type="number"
                     min="0"
                     max="100"
                     value={thresholds.high_min || 65}
                     onChange={(e) => setThresholds({ ...thresholds, high_min: Number(e.target.value) })}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                    className="w-16 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-center text-xs font-bold text-slate-900 shadow-2xs focus:border-indigo-500 focus:outline-hidden"
                   />
+                  <div className="flex items-center gap-2 rounded-xl bg-rose-50 border border-rose-200 px-3 py-1.5 text-left shrink-0 min-w-[125px]">
+                    <UserCheck className="h-4 w-4 text-rose-600 shrink-0" />
+                    <div>
+                      <div className="text-[11px] font-bold text-rose-800">Manual Review</div>
+                      <div className="text-[9px] text-rose-600">Human decision</div>
+                    </div>
+                  </div>
                 </div>
+              </div>
 
-                <div className="rounded-xl bg-indigo-50/60 p-3.5 border border-indigo-100">
-                  <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-800 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={reviewEnabled}
-                      onChange={(e) => setReviewEnabled(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    />
+              {/* Styled Toggle Switch */}
+              <div className="mt-5 flex items-start gap-3 rounded-2xl bg-indigo-50/60 p-4 border border-indigo-100">
+                <button
+                  type="button"
+                  onClick={() => setReviewEnabled(!reviewEnabled)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                    reviewEnabled ? 'bg-indigo-600' : 'bg-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      reviewEnabled ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <div className="cursor-pointer" onClick={() => setReviewEnabled(!reviewEnabled)}>
+                  <h4 className="text-xs font-bold text-slate-900">
                     Enable Merchant Authority Review Queue for High-Risk Cases
-                  </label>
-                  <p className="text-[11px] text-slate-500 mt-1 pl-6">
+                  </h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
                     When checked, orders/returns exceeding risk thresholds are placed in the Flagged Queue for merchant decision.
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-base font-bold text-slate-900">Progressive Escalation Ladder</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Automated policy applied when repeat violations are confirmed.</p>
+            {/* CARD 2: Progressive Escalation Ladder */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-2xs">
+              <div className="flex items-center gap-2.5 border-b border-slate-100 pb-4 mb-4">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Progressive Escalation Ladder</h2>
+                  <p className="text-[11px] text-slate-500">Automated policy applied when repeat violations are confirmed.</p>
+                </div>
+              </div>
 
-              <div className="mt-4 space-y-2 text-xs">
-                <div className="flex items-center justify-between rounded-lg bg-slate-50 p-2.5">
-                  <span className="font-semibold text-slate-800">Level 1 (1st Incident):</span>
-                  <span className="text-slate-600 font-mono">Warning / OTP Verification</span>
+              <div className="space-y-2.5 text-xs">
+                {/* Level 1 */}
+                <div className="flex items-center justify-between rounded-xl bg-emerald-50/70 border border-emerald-100 px-3.5 py-2.5">
+                  <div className="flex items-center gap-2 font-bold text-emerald-900">
+                    <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>Level 1 (1st Incident)</span>
+                  </div>
+                  <span className="font-semibold text-emerald-800">Warning / OTP Verification</span>
                 </div>
-                <div className="flex items-center justify-between rounded-lg bg-amber-50 p-2.5 text-amber-900">
-                  <span className="font-semibold">Level 2 (2nd Incident):</span>
-                  <span className="font-mono">COD Restriction (Limit or Disable)</span>
+
+                {/* Level 2 */}
+                <div className="flex items-center justify-between rounded-xl bg-amber-50/70 border border-amber-100 px-3.5 py-2.5">
+                  <div className="flex items-center gap-2 font-bold text-amber-900">
+                    <CheckCircle className="h-3.5 w-3.5 text-amber-600" />
+                    <span>Level 2 (2nd Incident)</span>
+                  </div>
+                  <span className="font-semibold text-amber-800">COD Restriction (Limit or Disable)</span>
                 </div>
-                <div className="flex items-center justify-between rounded-lg bg-purple-50 p-2.5 text-purple-900">
-                  <span className="font-semibold">Level 3 (3rd Incident):</span>
-                  <span className="font-mono">Prepaid Only + Manual Review</span>
+
+                {/* Level 3 */}
+                <div className="flex items-center justify-between rounded-xl bg-purple-50/70 border border-purple-100 px-3.5 py-2.5">
+                  <div className="flex items-center gap-2 font-bold text-purple-900">
+                    <CheckCircle className="h-3.5 w-3.5 text-purple-600" />
+                    <span>Level 3 (3rd Incident)</span>
+                  </div>
+                  <span className="font-semibold text-purple-800">Prepaid Only + Manual Review</span>
                 </div>
-                <div className="flex items-center justify-between rounded-lg bg-rose-50 p-2.5 text-rose-900">
-                  <span className="font-semibold">Level 4-5 (Repeat Abuse):</span>
-                  <span className="font-mono">Temporary Account Suspension & Merchant Final Review</span>
+
+                {/* Level 4-5 */}
+                <div className="flex items-center justify-between rounded-xl bg-rose-50/70 border border-rose-100 px-3.5 py-2.5">
+                  <div className="flex items-center gap-2 font-bold text-rose-900">
+                    <CheckCircle className="h-3.5 w-3.5 text-rose-600" />
+                    <span>Level 4-5 (Repeat Abuse)</span>
+                  </div>
+                  <span className="font-semibold text-rose-800">Temporary Account Suspension & Merchant Final Review</span>
                 </div>
               </div>
             </div>
@@ -495,10 +785,10 @@ export default function MerchantFraudConfig() {
         </div>
       )}
 
-      {/* TAB 2: TRIGGER THRESHOLDS & PROOF RULES */}
+      {/* ── TAB 2: TRIGGER THRESHOLDS & PROOF RULES ── */}
       {activeTab === 'triggers' && (
         <div className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-2xs space-y-4">
             <h2 className="text-base font-bold text-slate-900">Specific Signal Trigger Cutoffs</h2>
             <p className="text-xs text-slate-500">Fine-tune exactly when an individual risk signal is triggered.</p>
 
@@ -508,7 +798,7 @@ export default function MerchantFraudConfig() {
                 type="number"
                 value={triggers.highValueCodLimit}
                 onChange={(e) => setTriggers({ ...triggers, highValueCodLimit: Number(e.target.value) })}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-hidden"
               />
               <span className="text-[11px] text-slate-400">COD orders at or above this value trigger high-value exposure signal.</span>
             </div>
@@ -519,7 +809,7 @@ export default function MerchantFraudConfig() {
                 type="number"
                 value={triggers.multiVariantMin}
                 onChange={(e) => setTriggers({ ...triggers, multiVariantMin: Number(e.target.value) })}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-hidden"
               />
               <span className="text-[11px] text-slate-400">Orders with this many items/variants trigger over-ordering (bracketing) signal.</span>
             </div>
@@ -530,7 +820,7 @@ export default function MerchantFraudConfig() {
                 type="number"
                 value={triggers.highReturnRatePct}
                 onChange={(e) => setTriggers({ ...triggers, highReturnRatePct: Number(e.target.value) })}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-hidden"
               />
               <span className="text-[11px] text-slate-400">Lifetime return percentage considered high risk.</span>
             </div>
@@ -541,18 +831,18 @@ export default function MerchantFraudConfig() {
                 type="number"
                 value={triggers.codRefusalCountMin}
                 onChange={(e) => setTriggers({ ...triggers, codRefusalCountMin: Number(e.target.value) })}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-hidden"
               />
               <span className="text-[11px] text-slate-400">Number of COD refusals before maximum 25 pts penalty is applied.</span>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-2xs space-y-4">
             <h2 className="text-base font-bold text-slate-900">Return Claims & Proof Policies</h2>
             <p className="text-xs text-slate-500">Automate physical evidence collection and delivery verification.</p>
 
             <div className="space-y-3">
-              <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3 cursor-pointer">
+              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={triggers.requirePhotoProof}
@@ -567,7 +857,7 @@ export default function MerchantFraudConfig() {
                 </div>
               </label>
 
-              <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3 cursor-pointer">
+              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={triggers.requireOtpLevel1}
@@ -582,7 +872,7 @@ export default function MerchantFraudConfig() {
                 </div>
               </label>
 
-              <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3 cursor-pointer">
+              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={triggers.autoEscalateOnRefusal}
@@ -590,9 +880,9 @@ export default function MerchantFraudConfig() {
                   className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                 />
                 <div>
-                  <span className="text-xs font-bold text-slate-900">Auto-Escalate on Confirmed Refusal</span>
+                  <span className="text-xs font-bold text-slate-900">Auto-Escalate Tier on Confirmed Doorstep Refusal</span>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Automatically advance escalation level when courier confirms doorstep refusal.
+                    Automatically bump customer escalation tier by +1 when a delivery partner logs a repeated doorstep rejection.
                   </p>
                 </div>
               </label>
@@ -601,374 +891,248 @@ export default function MerchantFraudConfig() {
         </div>
       )}
 
-      {/* TAB 3: LIVE RISK SIMULATOR */}
+      {/* ── TAB 3: LIVE RISK SIMULATOR & PLAYGROUND ── */}
       {activeTab === 'simulator' && (
-        <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-          {/* Simulator Inputs */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-slate-900">Scenario Builder</h2>
-            <p className="text-xs text-slate-500">Simulate customer orders to test how your configured weights calculate risk.</p>
+        <div className="grid gap-6 lg:grid-cols-12 items-start">
+          <div className="lg:col-span-7 rounded-3xl border border-slate-200 bg-white p-6 shadow-2xs space-y-4">
+            <h2 className="text-base font-bold text-slate-900">Scenario Parameter Controls</h2>
+            <p className="text-xs text-slate-500">Adjust synthetic customer behavior inputs to test your weight matrix live.</p>
 
-            <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="space-y-4 pt-2">
               <div>
-                <label className="font-semibold text-slate-700">Shopper Return Rate</label>
-                <select
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-slate-700">Customer Return Rate: {Math.round(simState.returnRate * 100)}%</span>
+                  <span className="text-indigo-600 font-mono font-bold">
+                    {simState.returnRate > 0.4 ? `+${weights.return_frequency || 32} pts` : '+0 pts'}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
                   value={simState.returnRate}
                   onChange={(e) => setSimState({ ...simState, returnRate: Number(e.target.value) })}
-                  className="mt-1 w-full rounded-xl border border-slate-300 p-2 focus:border-indigo-500 focus:outline-none"
-                >
-                  <option value={0.1}>Low (&lt;15%)</option>
-                  <option value={0.3}>Elevated (30%)</option>
-                  <option value={0.5}>High (50%)</option>
-                  <option value={0.8}>Very High (80%)</option>
-                </select>
+                  className="mt-2 w-full accent-indigo-600"
+                />
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700">COD Refusals Count</label>
-                <select
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-slate-700">Past COD Refusals: {simState.codRefusals}</span>
+                  <span className="text-indigo-600 font-mono font-bold">
+                    {simState.codRefusals >= 2 ? `+${weights.cod_refusal || 18} pts` : '+0 pts'}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="5"
+                  step="1"
                   value={simState.codRefusals}
                   onChange={(e) => setSimState({ ...simState, codRefusals: Number(e.target.value) })}
-                  className="mt-1 w-full rounded-xl border border-slate-300 p-2 focus:border-indigo-500 focus:outline-none"
-                >
-                  <option value={0}>0 refusals</option>
-                  <option value={1}>1 refusal</option>
-                  <option value={2}>2 refusals (Repeated)</option>
-                  <option value={4}>4+ refusals</option>
-                </select>
+                  className="mt-2 w-full accent-indigo-600"
+                />
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700">Order Items / Variants</label>
-                <select
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-slate-700">Variants Ordered: {simState.variants}</span>
+                  <span className="text-indigo-600 font-mono font-bold">
+                    {simState.variants >= 3 ? `+${weights.multiple_variants || 15} pts` : '+0 pts'}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="6"
+                  step="1"
                   value={simState.variants}
                   onChange={(e) => setSimState({ ...simState, variants: Number(e.target.value) })}
-                  className="mt-1 w-full rounded-xl border border-slate-300 p-2 focus:border-indigo-500 focus:outline-none"
-                >
-                  <option value={1}>1 item (Standard)</option>
-                  <option value={2}>2 items</option>
-                  <option value={3}>3 variants (Bracketing)</option>
-                  <option value={5}>5+ items</option>
-                </select>
+                  className="mt-2 w-full accent-indigo-600"
+                />
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700">Order Total (₹)</label>
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-slate-700">Order Total: ₹{simState.orderTotal}</span>
+                  <span className="text-indigo-600 font-mono font-bold">
+                    {simState.isCod && simState.orderTotal > 5000 ? `+${weights.high_value_cod || 10} pts` : '+0 pts'}
+                  </span>
+                </div>
                 <input
-                  type="number"
+                  type="range"
+                  min="500"
+                  max="25000"
+                  step="500"
                   value={simState.orderTotal}
                   onChange={(e) => setSimState({ ...simState, orderTotal: Number(e.target.value) })}
-                  className="mt-1 w-full rounded-xl border border-slate-300 p-2 focus:border-indigo-500 focus:outline-none"
+                  className="mt-2 w-full accent-indigo-600"
                 />
               </div>
-
-              <div>
-                <label className="font-semibold text-slate-700">Payment Method</label>
-                <select
-                  value={simState.isCod ? 'COD' : 'Prepaid'}
-                  onChange={(e) => setSimState({ ...simState, isCod: e.target.value === 'COD' })}
-                  className="mt-1 w-full rounded-xl border border-slate-300 p-2 focus:border-indigo-500 focus:outline-none"
-                >
-                  <option value="COD">Cash on Delivery (COD)</option>
-                  <option value="Prepaid">Prepaid / UPI</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700">Current Escalation Level</label>
-                <select
-                  value={simState.escalationLevel}
-                  onChange={(e) => setSimState({ ...simState, escalationLevel: Number(e.target.value) })}
-                  className="mt-1 w-full rounded-xl border border-slate-300 p-2 focus:border-indigo-500 focus:outline-none"
-                >
-                  <option value={0}>Level 0 (Normal)</option>
-                  <option value={1}>Level 1 (Warning)</option>
-                  <option value={2}>Level 2 (COD Restricted)</option>
-                  <option value={3}>Level 3 (Prepaid Only)</option>
-                  <option value={4}>Level 4 (Suspended)</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-4 pt-2 border-t border-slate-100 text-xs">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={simState.isSeasonal}
-                  onChange={(e) => setSimState({ ...simState, isSeasonal: e.target.checked })}
-                  className="rounded text-indigo-600"
-                />
-                Festive / Seasonal Category
-              </label>
-
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={simState.addressMismatch > 0}
-                  onChange={(e) => setSimState({ ...simState, addressMismatch: e.target.checked ? 1 : 0 })}
-                  className="rounded text-indigo-600"
-                />
-                Address Inconsistency
-              </label>
-
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={simState.deviceReuse}
-                  onChange={(e) => setSimState({ ...simState, deviceReuse: e.target.checked })}
-                  className="rounded text-indigo-600"
-                />
-                Device Fingerprint Reuse
-              </label>
             </div>
           </div>
 
-          {/* Simulator Live Output */}
-          <div className="rounded-2xl border border-slate-200 bg-slate-900 p-6 text-white shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                <span className="text-xs font-mono uppercase tracking-wider text-indigo-300">Live Engine Evaluation</span>
-                <span
-                  className={`rounded-full px-3 py-0.5 text-xs font-bold ${
-                    simResult.tier === 'High'
-                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                      : simResult.tier === 'Medium'
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                  }`}
-                >
-                  {simResult.tier.toUpperCase()} RISK
-                </span>
-              </div>
-
-              <div className="my-6 text-center">
-                <p className="text-xs text-slate-400">Calculated Composite Score</p>
-                <p className="text-5xl font-black text-white mt-1">
-                  {simResult.score}
-                  <span className="text-lg font-normal text-slate-400"> / 100</span>
-                </p>
-                <div className="mt-3 inline-block rounded-xl bg-white/10 px-4 py-2 backdrop-blur-sm">
-                  <p className="text-[11px] text-indigo-200">Recommended Decision:</p>
-                  <p className="text-sm font-bold text-white uppercase">{simResult.action}</p>
-                </div>
-              </div>
-
-              <div className="space-y-1.5 border-t border-white/10 pt-3">
-                <p className="text-xs font-semibold text-slate-300">Triggered Signals Breakdown:</p>
-                {simResult.signals.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">No adverse signals triggered (Base score: 10).</p>
-                ) : (
-                  simResult.signals.map((sig, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs text-slate-300">
-                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
-                      <span>{sig}</span>
-                    </div>
-                  ))
-                )}
+          <div className="lg:col-span-5 rounded-3xl bg-slate-900 text-white p-6 shadow-md space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-400">Live Risk Calculation</h3>
+            <div className="text-center py-6">
+              <div className="text-5xl font-black">{simResult.score} / 100</div>
+              <div className={`mt-3 inline-block rounded-full px-4 py-1 text-xs font-bold ${
+                simResult.tier === 'High'
+                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                  : simResult.tier === 'Medium'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+              }`}>
+                {simResult.tier.toUpperCase()} RISK
               </div>
             </div>
 
-            <p className="text-[11px] text-slate-400 border-t border-white/10 pt-3 mt-4">
-              Real-time calculation computed using your active slider weights.
-            </p>
+            <div className="rounded-2xl bg-white/5 p-4 text-xs space-y-1">
+              <div className="text-[11px] text-slate-400">Recommended Decision:</div>
+              <div className="font-bold text-white text-sm">{simResult.action}</div>
+            </div>
+
+            <div className="pt-2">
+              <div className="text-xs font-semibold text-slate-400 mb-2">Triggered Signals:</div>
+              <div className="space-y-1.5 text-xs">
+                {simResult.signals.map((s, i) => (
+                  <div key={i} className="flex items-center gap-2 text-slate-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                    <span>{s}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* TAB 4: VIP WHITELIST & BLACKLIST MANAGER (Feature 2) */}
+      {/* ── TAB 4: VIP WHITELIST & BLACKLIST ── */}
       {activeTab === 'rules' && (
         <div className="space-y-6">
-          {/* Add New Rule Form Card */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <span>➕</span> Add New Override Rule
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Whitelisted entries immediately bypass fraud checks (score = 0). Blacklisted entries are permanently blocked from checkout.
-            </p>
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-2xs">
+            <h2 className="text-base font-bold text-slate-900 mb-1">Add VIP Exemption or Blacklist Rule</h2>
+            <p className="text-xs text-slate-500 mb-4">Protect trusted VIPs from automated blocks or ban known abusive entities.</p>
 
-            <form onSubmit={handleAddRule} className="mt-4 grid gap-3 sm:grid-cols-4">
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">Rule Policy</label>
-                <select
-                  value={newRule.rule_type}
-                  onChange={(e) => setNewRule({ ...newRule, rule_type: e.target.value })}
-                  className="w-full rounded-xl border border-slate-300 p-2 text-xs font-semibold focus:border-indigo-500 focus:outline-none bg-white"
-                >
-                  <option value="blacklist">⛔ Permanent Blacklist (Block)</option>
-                  <option value="whitelist">⭐ VIP Whitelist (Bypass)</option>
-                </select>
-              </div>
+            <form onSubmit={handleAddRule} className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+              <select
+                value={newRule.rule_type}
+                onChange={(e) => setNewRule({ ...newRule, rule_type: e.target.value })}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold"
+              >
+                <option value="whitelist">Whitelist (VIP Exemption)</option>
+                <option value="blacklist">Blacklist (Immediate Block)</option>
+              </select>
 
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">Match On</label>
-                <select
-                  value={newRule.entry_type}
-                  onChange={(e) => setNewRule({ ...newRule, entry_type: e.target.value })}
-                  className="w-full rounded-xl border border-slate-300 p-2 text-xs font-semibold focus:border-indigo-500 focus:outline-none bg-white"
-                >
-                  <option value="email">Email Address</option>
-                  <option value="phone">Phone Number</option>
-                  <option value="pincode">Pincode / Postal Area</option>
-                  <option value="device_token">Device Fingerprint</option>
-                </select>
-              </div>
+              <select
+                value={newRule.entry_type}
+                onChange={(e) => setNewRule({ ...newRule, entry_type: e.target.value })}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold"
+              >
+                <option value="email">Email Address</option>
+                <option value="phone">Phone Number</option>
+                <option value="pincode">Pincode / Postal Zone</option>
+              </select>
 
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">Target Value</label>
-                <input
-                  type="text"
-                  required
-                  value={newRule.value}
-                  onChange={(e) => setNewRule({ ...newRule, value: e.target.value })}
-                  placeholder={newRule.entry_type === 'email' ? 'user@domain.com' : newRule.entry_type === 'phone' ? '+91 9876543210' : '110099'}
-                  className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
+              <input
+                type="text"
+                value={newRule.value}
+                onChange={(e) => setNewRule({ ...newRule, value: e.target.value })}
+                placeholder="e.g. vip@store.com or 560001"
+                required
+                className="rounded-xl border border-slate-300 px-3 py-2 text-xs"
+              />
 
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">Reason / Note</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newRule.reason}
-                    onChange={(e) => setNewRule({ ...newRule, reason: e.target.value })}
-                    placeholder="e.g. Serial fraudster or VIP"
-                    className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-indigo-500 focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    disabled={addingRule}
-                    className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50 cursor-pointer shrink-0"
-                  >
-                    {addingRule ? 'Adding…' : 'Add Rule'}
-                  </button>
-                </div>
-              </div>
+              <button
+                type="submit"
+                disabled={addingRule}
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-500 transition-colors"
+              >
+                {addingRule ? 'Adding…' : '+ Add List Rule'}
+              </button>
             </form>
           </div>
 
-          {/* Active Rules List */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-              <div>
-                <h2 className="text-base font-bold text-slate-900">Active Whitelist & Blacklist Entries ({rules.length})</h2>
-                <p className="text-xs text-slate-500">Live override rules applied during real-time fraud scoring and checkout validation.</p>
-              </div>
-
-              {/* Filter Tabs */}
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
-                <button
-                  type="button"
-                  onClick={() => setRuleFilter('all')}
-                  className={`px-3 py-1 rounded-lg transition cursor-pointer ${ruleFilter === 'all' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-500'}`}
-                >
-                  All ({rules.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRuleFilter('whitelist')}
-                  className={`px-3 py-1 rounded-lg transition cursor-pointer ${ruleFilter === 'whitelist' ? 'bg-white shadow-xs text-emerald-700 font-bold' : 'text-slate-500'}`}
-                >
-                  ⭐ Whitelist ({rules.filter((r) => r.rule_type === 'whitelist').length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRuleFilter('blacklist')}
-                  className={`px-3 py-1 rounded-lg transition cursor-pointer ${ruleFilter === 'blacklist' ? 'bg-white shadow-xs text-rose-700 font-bold' : 'text-slate-500'}`}
-                >
-                  ⛔ Blacklist ({rules.filter((r) => r.rule_type === 'blacklist').length})
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-4 overflow-x-auto">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-2xs">
+            <h3 className="text-sm font-bold text-slate-900 mb-3">Active Exemption & Blacklist Rules</h3>
+            <div className="divide-y divide-slate-100 text-xs">
               {rules.length === 0 ? (
-                <p className="text-xs text-slate-400 py-6 text-center italic">No override rules added yet. Add a whitelist or blacklist rule above.</p>
+                <p className="text-slate-400 italic py-3">No active list rules configured.</p>
               ) : (
-                <table className="min-w-full divide-y divide-slate-200 text-xs">
-                  <thead className="bg-slate-50 text-slate-500 font-semibold uppercase">
-                    <tr>
-                      <th className="px-3 py-2 text-left">Type</th>
-                      <th className="px-3 py-2 text-left">Matched Attribute</th>
-                      <th className="px-3 py-2 text-left">Target Value</th>
-                      <th className="px-3 py-2 text-left">Reason / Audit Note</th>
-                      <th className="px-3 py-2 text-left">Status</th>
-                      <th className="px-3 py-2 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {rules
-                      .filter((r) => (ruleFilter === 'all' ? true : r.rule_type === ruleFilter))
-                      .map((rule) => {
-                        const isWl = rule.rule_type === 'whitelist'
-                        return (
-                          <tr key={rule.id} className="hover:bg-slate-50">
-                            <td className="px-3 py-2.5">
-                              <span
-                                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
-                                  isWl ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                                }`}
-                              >
-                                {isWl ? '⭐ VIP Whitelist' : '⛔ Blacklist'}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2.5 font-semibold text-slate-700 capitalize">
-                              {rule.entry_type?.replaceAll('_', ' ')}
-                            </td>
-                            <td className="px-3 py-2.5 font-mono font-bold text-slate-900">
-                              {rule.value}
-                            </td>
-                            <td className="px-3 py-2.5 text-slate-600">
-                              {rule.reason || '—'}
-                            </td>
-                            <td className="px-3 py-2.5">
-                              <span
-                                className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
-                                  rule.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-400'
-                                }`}
-                              >
-                                {rule.is_active ? 'Active' : 'Paused'}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2.5 text-right space-x-2">
-                              <button
-                                type="button"
-                                onClick={() => handleToggleRule(rule.id)}
-                                className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer"
-                              >
-                                {rule.is_active ? 'Pause' : 'Activate'}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteRule(rule.id)}
-                                className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 cursor-pointer ml-2"
-                              >
-                                Delete
-                              </button>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                  </tbody>
-                </table>
+                rules.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                        r.rule_type === 'whitelist' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                      }`}>
+                        {r.rule_type.toUpperCase()}
+                      </span>
+                      <span className="font-mono text-slate-800 font-semibold">{r.value}</span>
+                      <span className="text-slate-400">({r.entry_type})</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleToggleRule(r.id)}
+                        className={`px-2 py-1 rounded text-[11px] font-semibold ${
+                          r.is_active ? 'bg-slate-100 text-slate-700' : 'bg-amber-100 text-amber-800'
+                        }`}
+                      >
+                        {r.is_active ? 'Active' : 'Paused'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRule(r.id)}
+                        className="text-rose-600 hover:text-rose-800 font-semibold px-2 py-1 text-[11px]"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </div>
         </div>
       )}
 
+      {/* ── FIXED / STICKY BOTTOM ACTION BAR ── */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur-md px-6 py-3.5 shadow-lg">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {/* Left Buttons & Live Status */}
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={save}
+              disabled={saving}
+              className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-indigo-200 hover:bg-indigo-500 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
+            >
+              <Save className="h-4 w-4" />
+              <span>{saving ? 'Saving...' : saved ? 'Saved Successfully!' : 'Save Risk Configuration'}</span>
+            </button>
 
-      {/* Save Button */}
-      <div className="flex items-center gap-3 pt-2">
-        <button
-          onClick={save}
-          disabled={saving}
-          className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-60 cursor-pointer"
-        >
-          {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save Risk Configuration'}
-        </button>
-        <p className="text-xs text-slate-400">Updates are immediately applied to the composite scoring engine.</p>
+            <button
+              type="button"
+              onClick={() => setActiveTab('simulator')}
+              className="flex items-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-xs font-bold text-indigo-700 shadow-2xs hover:bg-indigo-50 active:scale-[0.98] transition-all cursor-pointer"
+            >
+              <Play className="h-3.5 w-3.5 fill-current" />
+              <span>Test in Risk Simulator</span>
+            </button>
+
+            <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium pl-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              <span>Updates are immediately applied to the composite scoring engine.</span>
+            </div>
+          </div>
+
+          {/* Right Tip Box */}
+          <div className="hidden lg:flex items-center gap-2 rounded-xl bg-amber-50/80 border border-amber-200 px-3.5 py-1.5 text-xs text-amber-900">
+            <Lightbulb className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+            <span>
+              <strong>Tip:</strong> Start with a preset, fine-tune weights, and test with the simulator before saving.
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   )

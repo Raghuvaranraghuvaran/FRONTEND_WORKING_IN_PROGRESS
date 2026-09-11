@@ -512,15 +512,30 @@ class FraudConfigView(APIView):
             merchant=merchant,
             defaults={
                 "weights": {
-                    "return_frequency": 0.32,
-                    "cod_refusal": 0.18,
-                    "device_reuse": 0.22,
-                    "address_mismatch": 0.12,
-                    "seasonal_signal": 0.16,
+                    "cod_refusal": 18,
+                    "return_frequency": 32,
+                    "multiple_variants": 15,
+                    "high_value_cod": 10,
+                    "seasonal_signal": 16,
+                    "address_mismatch": 12,
+                    "device_reuse": 22,
+                    "escalation_bonus": 8,
                 },
                 "thresholds": {"low_max": 34, "medium_max": 64, "high_min": 65},
             },
         )
+        # Normalize any fractional weights
+        weights = dict(config.weights or {})
+        changed = False
+        for k, v in list(weights.items()):
+            num = float(v or 0)
+            if 0 < num <= 1:
+                weights[k] = round(num * 100)
+                changed = True
+        if changed:
+            config.weights = weights
+            config.save(update_fields=["weights"])
+
         return success(FraudConfigSerializer(config).data)
 
     def patch(self, request):
