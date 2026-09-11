@@ -3300,6 +3300,7 @@ export const api = {
       ...patch,
       weights: { ...store.fraudConfig.weights, ...(patch.weights || {}) },
       thresholds: { ...store.fraudConfig.thresholds, ...(patch.thresholds || {}) },
+      triggers: { ...(store.fraudConfig.triggers || {}), ...(patch.triggers || {}) },
       updated_at: new Date().toISOString(),
     }
     store.auditLog.unshift({

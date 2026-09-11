@@ -29,7 +29,17 @@ import {
   Smartphone,
   AlertTriangle,
   ArrowRight,
-  Shield
+  Shield,
+  IndianRupee,
+  Percent,
+  SlidersHorizontal,
+  ShieldCheck,
+  Image,
+  PhoneCall,
+  Truck,
+  Info,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react'
 
 const SIGNAL_CONFIGS = {
@@ -252,6 +262,11 @@ export default function MerchantFraudConfig() {
         if (data.thresholds) {
           setThresholds(data.thresholds)
         }
+        if (data.triggers) {
+          setTriggers((prev) => ({ ...prev, ...data.triggers }))
+        } else if (data.thresholds && data.thresholds.triggers) {
+          setTriggers((prev) => ({ ...prev, ...data.thresholds.triggers }))
+        }
         if (typeof data.review_enabled === 'boolean') {
           setReviewEnabled(data.review_enabled)
         }
@@ -287,7 +302,12 @@ export default function MerchantFraudConfig() {
     setError('')
     setSaving(true)
     try {
-      const updated = await api.updateFraudConfig({ weights, thresholds, review_enabled: reviewEnabled })
+      const updated = await api.updateFraudConfig({ 
+        weights, 
+        thresholds, 
+        triggers, 
+        review_enabled: reviewEnabled 
+      })
       if (updated) setConfig(updated)
       setSaved(true)
       window.setTimeout(() => setSaved(false), 2000)
@@ -825,105 +845,335 @@ export default function MerchantFraudConfig() {
 
       {/* ── TAB 2: TRIGGER THRESHOLDS & PROOF RULES ── */}
       {activeTab === 'triggers' && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-2xs space-y-4">
-            <h2 className="text-base font-bold text-slate-900">Specific Signal Trigger Cutoffs</h2>
-            <p className="text-xs text-slate-500">Fine-tune exactly when an individual risk signal is triggered.</p>
+        <div className="grid gap-6 lg:grid-cols-2 items-start">
+          {/* ── LEFT CARD: Specific Signal Trigger Cutoffs ── */}
+          <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-2xs space-y-4">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100/80 shrink-0 shadow-2xs">
+                  <SlidersHorizontal className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 leading-tight">Specific Signal Trigger Cutoffs</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Fine-tune exactly when an individual risk signal is triggered.</p>
+                </div>
+              </div>
 
-            <div>
-              <label className="text-xs font-semibold text-slate-700">High-Value COD Threshold (₹)</label>
-              <input
-                type="number"
-                value={triggers.highValueCodLimit}
-                onChange={(e) => setTriggers({ ...triggers, highValueCodLimit: Number(e.target.value) })}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-hidden"
-              />
-              <span className="text-[11px] text-slate-400">COD orders at or above this value trigger high-value exposure signal.</span>
+              {/* Decorative Graphic Badge */}
+              <div className="hidden sm:flex items-center gap-2 rounded-xl bg-purple-50/70 border border-purple-100 px-3 py-1.5 text-left shrink-0">
+                <div className="flex items-end gap-0.5 h-5 w-5 text-purple-600">
+                  <span className="w-1 bg-purple-300 rounded-xs h-2" />
+                  <span className="w-1 bg-purple-500 rounded-xs h-3.5" />
+                  <span className="w-1 bg-purple-700 rounded-xs h-5" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-purple-950 leading-tight">Set thresholds.</div>
+                  <div className="text-[9px] text-purple-600 leading-tight">Detect risks early.</div>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-slate-700">Multiple-Variant Order Threshold (Items)</label>
-              <input
-                type="number"
-                value={triggers.multiVariantMin}
-                onChange={(e) => setTriggers({ ...triggers, multiVariantMin: Number(e.target.value) })}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-hidden"
-              />
-              <span className="text-[11px] text-slate-400">Orders with this many items/variants trigger over-ordering (bracketing) signal.</span>
+            {/* Row 1: High-Value COD Threshold (₹) */}
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-sky-100 bg-sky-50/40 p-3.5 transition-colors hover:border-sky-200">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-600 shrink-0 shadow-2xs">
+                  <IndianRupee className="h-5 w-5" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-900 leading-tight">High-Value COD Threshold (₹)</label>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                    COD orders at or above this value trigger high-value exposure signal.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden shrink-0">
+                <input
+                  type="number"
+                  value={triggers.highValueCodLimit}
+                  onChange={(e) => setTriggers({ ...triggers, highValueCodLimit: Number(e.target.value) })}
+                  className="w-20 py-2 text-center text-sm font-black font-mono-num text-slate-900 focus:outline-hidden"
+                />
+                <div className="flex flex-col border-l border-slate-100 divide-y divide-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setTriggers({ ...triggers, highValueCodLimit: Number(triggers.highValueCodLimit || 0) + 500 })}
+                    className="p-1 hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition"
+                  >
+                    <ChevronUp className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTriggers({ ...triggers, highValueCodLimit: Math.max(0, Number(triggers.highValueCodLimit || 0) - 500) })}
+                    className="p-1 hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition"
+                  >
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-slate-700">High Return Rate Cutoff (%)</label>
-              <input
-                type="number"
-                value={triggers.highReturnRatePct}
-                onChange={(e) => setTriggers({ ...triggers, highReturnRatePct: Number(e.target.value) })}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-hidden"
-              />
-              <span className="text-[11px] text-slate-400">Lifetime return percentage considered high risk.</span>
+            {/* Row 2: Multiple-Variant Order Threshold (Items) */}
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3.5 transition-colors hover:border-emerald-200">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 shrink-0 shadow-2xs">
+                  <Package className="h-5 w-5" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-900 leading-tight">Multiple-Variant Order Threshold (Items)</label>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                    Orders with this many items/variants trigger over-ordering (bracketing) signal.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden shrink-0">
+                <input
+                  type="number"
+                  value={triggers.multiVariantMin}
+                  onChange={(e) => setTriggers({ ...triggers, multiVariantMin: Number(e.target.value) })}
+                  className="w-20 py-2 text-center text-sm font-black font-mono-num text-slate-900 focus:outline-hidden"
+                />
+                <div className="flex flex-col border-l border-slate-100 divide-y divide-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setTriggers({ ...triggers, multiVariantMin: Number(triggers.multiVariantMin || 0) + 1 })}
+                    className="p-1 hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition"
+                  >
+                    <ChevronUp className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTriggers({ ...triggers, multiVariantMin: Math.max(1, Number(triggers.multiVariantMin || 0) - 1) })}
+                    className="p-1 hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition"
+                  >
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-slate-700">Repeated COD Refusals Trigger Count</label>
-              <input
-                type="number"
-                value={triggers.codRefusalCountMin}
-                onChange={(e) => setTriggers({ ...triggers, codRefusalCountMin: Number(e.target.value) })}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-hidden"
-              />
-              <span className="text-[11px] text-slate-400">Number of COD refusals before maximum 25 pts penalty is applied.</span>
+            {/* Row 3: High Return Rate Cutoff (%) */}
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-rose-100 bg-rose-50/40 p-3.5 transition-colors hover:border-rose-200">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 text-rose-600 shrink-0 shadow-2xs">
+                  <Percent className="h-5 w-5" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-900 leading-tight">High Return Rate Cutoff (%)</label>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                    Lifetime return percentage considered high risk.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden shrink-0">
+                <input
+                  type="number"
+                  value={triggers.highReturnRatePct}
+                  onChange={(e) => setTriggers({ ...triggers, highReturnRatePct: Number(e.target.value) })}
+                  className="w-20 py-2 text-center text-sm font-black font-mono-num text-slate-900 focus:outline-hidden"
+                />
+                <div className="flex flex-col border-l border-slate-100 divide-y divide-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setTriggers({ ...triggers, highReturnRatePct: Math.min(100, Number(triggers.highReturnRatePct || 0) + 5) })}
+                    className="p-1 hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition"
+                  >
+                    <ChevronUp className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTriggers({ ...triggers, highReturnRatePct: Math.max(0, Number(triggers.highReturnRatePct || 0) - 5) })}
+                    className="p-1 hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition"
+                  >
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Row 4: Repeated COD Refusals Trigger Count */}
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50/40 p-3.5 transition-colors hover:border-amber-200">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600 shrink-0 shadow-2xs">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-900 leading-tight">Repeated COD Refusals Trigger Count</label>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                    Number of COD refusals before maximum 25 pts penalty is applied.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden shrink-0">
+                <input
+                  type="number"
+                  value={triggers.codRefusalCountMin}
+                  onChange={(e) => setTriggers({ ...triggers, codRefusalCountMin: Number(e.target.value) })}
+                  className="w-20 py-2 text-center text-sm font-black font-mono-num text-slate-900 focus:outline-hidden"
+                />
+                <div className="flex flex-col border-l border-slate-100 divide-y divide-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setTriggers({ ...triggers, codRefusalCountMin: Number(triggers.codRefusalCountMin || 0) + 1 })}
+                    className="p-1 hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition"
+                  >
+                    <ChevronUp className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTriggers({ ...triggers, codRefusalCountMin: Math.max(1, Number(triggers.codRefusalCountMin || 0) - 1) })}
+                    className="p-1 hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition"
+                  >
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Tip Banner */}
+            <div className="rounded-2xl border border-purple-100/80 bg-purple-50/50 p-3.5 flex items-center gap-3 text-xs">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-600 text-white shrink-0 shadow-2xs">
+                <Info className="h-3.5 w-3.5" />
+              </div>
+              <p className="text-purple-900">
+                <span className="font-bold">Tip:</span>{' '}
+                <span className="text-purple-700">Adjust these thresholds based on your business model and test with the Risk Simulator before saving.</span>
+              </p>
             </div>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-2xs space-y-4">
-            <h2 className="text-base font-bold text-slate-900">Return Claims & Proof Policies</h2>
-            <p className="text-xs text-slate-500">Automate physical evidence collection and delivery verification.</p>
-
-            <div className="space-y-3">
-              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={triggers.requirePhotoProof}
-                  onChange={(e) => setTriggers({ ...triggers, requirePhotoProof: e.target.checked })}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                />
+          {/* ── RIGHT CARD: Return Claims & Proof Policies ── */}
+          <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-2xs space-y-4">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100/80 shrink-0 shadow-2xs">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
                 <div>
-                  <span className="text-xs font-bold text-slate-900">Require Photo / Unboxing Proof for High-Risk Returns</span>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <h2 className="text-base font-bold text-slate-900 leading-tight">Return Claims & Proof Policies</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Automate physical evidence collection and delivery verification.</p>
+                </div>
+              </div>
+
+              {/* Graphic Badge with ID card and checkmark */}
+              <div className="hidden sm:flex items-center gap-2 rounded-xl bg-emerald-50/70 border border-emerald-100 px-3 py-1.5 shrink-0">
+                <div className="relative flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-2xs">
+                  <CheckCircle2 className="h-4 w-4" />
+                </div>
+              </div>
+            </div>
+
+            {/* Policy Row 1: Require Photo / Unboxing Proof for High-Risk Returns */}
+            <div className="flex items-center justify-between gap-4 rounded-2xl border border-sky-100 bg-sky-50/40 p-4 transition-colors hover:border-sky-200">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-600 shrink-0 shadow-2xs">
+                  <Image className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900 leading-tight">Require Photo / Unboxing Proof for High-Risk Returns</h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
                     Shoppers in High risk tier must upload unboxing photo evidence before return pickup is scheduled.
                   </p>
                 </div>
-              </label>
+              </div>
 
-              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={triggers.requireOtpLevel1}
-                  onChange={(e) => setTriggers({ ...triggers, requireOtpLevel1: e.target.checked })}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                />
+              <div className="flex flex-col items-center shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setTriggers({ ...triggers, requirePhotoProof: !triggers.requirePhotoProof })}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                    triggers.requirePhotoProof ? 'bg-indigo-600' : 'bg-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      triggers.requirePhotoProof ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <span className={`text-[10px] font-bold mt-1 ${triggers.requirePhotoProof ? 'text-indigo-600' : 'text-slate-400'}`}>
+                  {triggers.requirePhotoProof ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+            </div>
+
+            {/* Policy Row 2: Require OTP Confirmation for Escalation Level 1+ Customers */}
+            <div className="flex items-center justify-between gap-4 rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 transition-colors hover:border-emerald-200">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 shrink-0 shadow-2xs">
+                  <PhoneCall className="h-5 w-5" />
+                </div>
                 <div>
-                  <span className="text-xs font-bold text-slate-900">Require OTP Confirmation for Escalation Level 1+ Customers</span>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <h3 className="text-xs font-bold text-slate-900 leading-tight">Require OTP Confirmation for Escalation Level 1+ Customers</h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
                     Requires two-factor phone verification before processing orders for customers with a warning or restriction.
                   </p>
                 </div>
-              </label>
+              </div>
 
-              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={triggers.autoEscalateOnRefusal}
-                  onChange={(e) => setTriggers({ ...triggers, autoEscalateOnRefusal: e.target.checked })}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                />
+              <div className="flex flex-col items-center shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setTriggers({ ...triggers, requireOtpLevel1: !triggers.requireOtpLevel1 })}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                    triggers.requireOtpLevel1 ? 'bg-indigo-600' : 'bg-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      triggers.requireOtpLevel1 ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <span className={`text-[10px] font-bold mt-1 ${triggers.requireOtpLevel1 ? 'text-indigo-600' : 'text-slate-400'}`}>
+                  {triggers.requireOtpLevel1 ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+            </div>
+
+            {/* Policy Row 3: Auto-Escalate Tier on Confirmed Doorstep Refusal */}
+            <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-100 bg-amber-50/40 p-4 transition-colors hover:border-amber-200">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600 shrink-0 shadow-2xs">
+                  <Truck className="h-5 w-5" />
+                </div>
                 <div>
-                  <span className="text-xs font-bold text-slate-900">Auto-Escalate Tier on Confirmed Doorstep Refusal</span>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <h3 className="text-xs font-bold text-slate-900 leading-tight">Auto-Escalate Tier on Confirmed Doorstep Refusal</h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
                     Automatically bump customer escalation tier by +1 when a delivery partner logs a repeated doorstep rejection.
                   </p>
                 </div>
-              </label>
+              </div>
+
+              <div className="flex flex-col items-center shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setTriggers({ ...triggers, autoEscalateOnRefusal: !triggers.autoEscalateOnRefusal })}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                    triggers.autoEscalateOnRefusal ? 'bg-indigo-600' : 'bg-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      triggers.autoEscalateOnRefusal ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <span className={`text-[10px] font-bold mt-1 ${triggers.autoEscalateOnRefusal ? 'text-indigo-600' : 'text-slate-400'}`}>
+                  {triggers.autoEscalateOnRefusal ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+            </div>
+
+            {/* Bottom Guarantee Banner */}
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3.5 flex items-center gap-2.5">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white shrink-0 shadow-2xs">
+                <CheckCircle2 className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-medium text-emerald-800">
+                These policies help reduce return abuse and ensure genuine returns.
+              </p>
             </div>
           </div>
         </div>

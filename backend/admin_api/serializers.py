@@ -38,10 +38,27 @@ class ReviewReturnSerializer(serializers.Serializer):
 
 
 class FraudConfigSerializer(serializers.ModelSerializer):
+    triggers = serializers.SerializerMethodField()
+
     class Meta:
         model = FraudConfiguration
-        fields = ("rule_version", "weights", "thresholds", "review_enabled", "updated_at")
+        fields = ("rule_version", "weights", "thresholds", "triggers", "review_enabled", "updated_at")
         read_only_fields = ("rule_version", "updated_at")
+
+    def get_triggers(self, obj):
+        thresholds = obj.thresholds or {}
+        trig = thresholds.get("triggers")
+        if isinstance(trig, dict) and trig:
+            return trig
+        return {
+            "highValueCodLimit": 5000,
+            "multiVariantMin": 3,
+            "highReturnRatePct": 40,
+            "codRefusalCountMin": 2,
+            "requirePhotoProof": True,
+            "requireOtpLevel1": True,
+            "autoEscalateOnRefusal": True,
+        }
 
 
 class AdminCategorySerializer(serializers.ModelSerializer):

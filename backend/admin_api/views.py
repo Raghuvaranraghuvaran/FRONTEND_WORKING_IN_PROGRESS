@@ -541,6 +541,11 @@ class FraudConfigView(APIView):
     def patch(self, request):
         merchant = require_merchant_context(request)
         config, _ = FraudConfiguration.objects.get_or_create(merchant=merchant)
+        if "triggers" in request.data:
+            thresholds = dict(config.thresholds or {})
+            thresholds["triggers"] = request.data["triggers"]
+            config.thresholds = thresholds
+            config.save(update_fields=["thresholds"])
         serializer = FraudConfigSerializer(config, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -550,7 +555,7 @@ class FraudConfigView(APIView):
             actor=actor_email,
             action="updated",
             target="Fraud rule configuration",
-            notes="Rule weights or thresholds changed.",
+            notes="Rule weights, trigger thresholds, or proof policies changed.",
         )
         return success(FraudConfigSerializer(config).data)
 
