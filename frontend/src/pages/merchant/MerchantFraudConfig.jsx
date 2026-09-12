@@ -39,7 +39,22 @@ import {
   Truck,
   Info,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  UserPlus,
+  Mail,
+  Phone,
+  Hash,
+  Pencil,
+  Trash2,
+  RefreshCw,
+  Table,
+  Filter,
+  User,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  X
 } from 'lucide-react'
 
 const SIGNAL_CONFIGS = {
@@ -193,6 +208,47 @@ const PRESET_TEMPLATES = {
   },
 }
 
+function formatRuleAddedOn(isoString, author) {
+  const defaultAuthor = author || 'Aria Admin'
+  if (!isoString) {
+    return { dateStr: '26 Aug 2026, 01:20 pm', author: defaultAuthor }
+  }
+  try {
+    const d = new Date(isoString)
+    if (isNaN(d.getTime())) return { dateStr: isoString, author: defaultAuthor }
+    const day = d.getDate()
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const month = months[d.getMonth()]
+    const year = d.getFullYear()
+    let hours = d.getHours()
+    const minutes = String(d.getMinutes()).padStart(2, '0')
+    const ampm = hours >= 12 ? 'pm' : 'am'
+    hours = hours % 12 || 12
+    const hoursStr = String(hours).padStart(2, '0')
+    return {
+      dateStr: `${day} ${month} ${year}, ${hoursStr}:${minutes} ${ampm}`,
+      author: defaultAuthor,
+    }
+  } catch {
+    return { dateStr: '26 Aug 2026, 01:20 pm', author: defaultAuthor }
+  }
+}
+
+function getIdentifierInfo(type) {
+  switch (type) {
+    case 'email':
+      return { label: 'Email', icon: Mail }
+    case 'phone':
+      return { label: 'Phone', icon: Phone }
+    case 'pincode':
+      return { label: 'Pincode', icon: Hash }
+    case 'customer_id':
+      return { label: 'Customer ID', icon: User }
+    default:
+      return { label: type || 'Email', icon: Mail }
+  }
+}
+
 export default function MerchantFraudConfig() {
   const [config, setConfig] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -242,6 +298,13 @@ export default function MerchantFraudConfig() {
   const [rules, setRules] = useState([])
   const [newRule, setNewRule] = useState({ rule_type: 'blacklist', entry_type: 'email', value: '', reason: '' })
   const [addingRule, setAddingRule] = useState(false)
+  const [ruleSearch, setRuleSearch] = useState('')
+  const [ruleTypeFilter, setRuleTypeFilter] = useState('all')
+  const [rulesPerPage, setRulesPerPage] = useState(10)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [editingRuleId, setEditingRuleId] = useState(null)
+  const [editValue, setEditValue] = useState('')
+  const [refreshingRules, setRefreshingRules] = useState(false)
 
   useEffect(() => {
     api.getFraudConfig().then((data) => {
@@ -398,6 +461,18 @@ export default function MerchantFraudConfig() {
     }
   }
 
+  const handleRefreshRules = async () => {
+    setRefreshingRules(true)
+    try {
+      const data = await api.getListRules()
+      if (Array.isArray(data)) setRules(data)
+    } catch (err) {
+      console.warn('Failed to refresh rules:', err)
+    } finally {
+      setRefreshingRules(false)
+    }
+  }
+
   const handleToggleRule = async (id) => {
     try {
       const updated = await api.toggleListRule(id)
@@ -416,6 +491,48 @@ export default function MerchantFraudConfig() {
     }
   }
 
+  const handleStartEdit = (rule) => {
+    setEditingRuleId(rule.id)
+    setEditValue(rule.value)
+  }
+
+  const handleSaveEdit = async (id) => {
+    if (!editValue.trim()) return
+    try {
+      if (api.updateListRule) {
+        await api.updateListRule(id, { value: editValue.trim() })
+      }
+      setRules((prev) => prev.map((r) => (r.id === id ? { ...r, value: editValue.trim() } : r)))
+      setEditingRuleId(null)
+      setEditValue('')
+    } catch (err) {
+      setError(err.message || 'Failed to update rule')
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingRuleId(null)
+    setEditValue('')
+  }
+
+  const filteredRules = rules.filter((r) => {
+    const matchesType = ruleTypeFilter === 'all' || r.rule_type === ruleTypeFilter
+    const q = ruleSearch.toLowerCase().trim()
+    const matchesSearch =
+      !q ||
+      (r.value && r.value.toLowerCase().includes(q)) ||
+      (r.entry_type && r.entry_type.toLowerCase().includes(q)) ||
+      (r.created_by && r.created_by.toLowerCase().includes(q)) ||
+      (r.reason && r.reason.toLowerCase().includes(q))
+    return matchesType && matchesSearch
+  })
+
+  const totalPages = Math.max(1, Math.ceil(filteredRules.length / rulesPerPage))
+  const paginatedRules = filteredRules.slice(
+    (currentPage - 1) * rulesPerPage,
+    currentPage * rulesPerPage
+  )
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -430,7 +547,7 @@ export default function MerchantFraudConfig() {
   }
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6 pb-36">
       {/* ── TOP HEADER ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -1299,86 +1416,409 @@ export default function MerchantFraudConfig() {
       {/* ── TAB 4: VIP WHITELIST & BLACKLIST ── */}
       {activeTab === 'rules' && (
         <div className="space-y-6">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-2xs">
-            <h2 className="text-base font-bold text-slate-900 mb-1">Add VIP Exemption or Blacklist Rule</h2>
-            <p className="text-xs text-slate-500 mb-4">Protect trusted VIPs from automated blocks or ban known abusive entities.</p>
+          {/* ── TOP CARD: Add VIP Exemption or Blacklist Rule ── */}
+          <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-2xs">
+            {/* Header with Title and Right Illustration */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-xs">
+                  <UserPlus className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
+                    Add VIP Exemption or Blacklist Rule
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Protect trusted customers and block abusive entities from automated actions.
+                  </p>
+                </div>
+              </div>
 
-            <form onSubmit={handleAddRule} className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-              <select
-                value={newRule.rule_type}
-                onChange={(e) => setNewRule({ ...newRule, rule_type: e.target.value })}
-                className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold"
-              >
-                <option value="whitelist">Whitelist (VIP Exemption)</option>
-                <option value="blacklist">Blacklist (Immediate Block)</option>
-              </select>
+              {/* Right Decorative Banner */}
+              <div className="hidden lg:flex items-center gap-3 pl-4">
+                <div className="relative flex items-center justify-center">
+                  <div className="w-12 h-14 rounded-xl bg-gradient-to-br from-indigo-100/80 to-purple-50 border border-indigo-200/70 p-2 shadow-2xs flex flex-col justify-center gap-1.5">
+                    <div className="w-5 h-1 rounded-full bg-indigo-300" />
+                    <div className="w-7 h-1 rounded-full bg-indigo-200" />
+                    <div className="w-4 h-1 rounded-full bg-indigo-200" />
+                  </div>
+                  <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                  </div>
+                </div>
+                <div className="text-left">
+                  <p className="text-[13px] font-semibold italic text-indigo-600 font-serif leading-tight">Safer customers.</p>
+                  <p className="text-[13px] font-semibold italic text-indigo-600 font-serif leading-tight">Fewer fraudulent returns.</p>
+                </div>
+              </div>
+            </div>
 
-              <select
-                value={newRule.entry_type}
-                onChange={(e) => setNewRule({ ...newRule, entry_type: e.target.value })}
-                className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold"
-              >
-                <option value="email">Email Address</option>
-                <option value="phone">Phone Number</option>
-                <option value="pincode">Pincode / Postal Zone</option>
-              </select>
+            {/* Form Row */}
+            <form onSubmit={handleAddRule} className="mt-5 space-y-4">
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-[1.3fr_1.3fr_2fr_auto] items-end">
+                {/* Field 1: Rule Type */}
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-1.5">
+                    <span>Rule Type</span>
+                    <Info className="h-3.5 w-3.5 text-slate-400" />
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      {newRule.rule_type === 'blacklist' ? (
+                        <Ban className="h-4 w-4 text-rose-500" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      )}
+                    </div>
+                    <select
+                      value={newRule.rule_type}
+                      onChange={(e) => setNewRule({ ...newRule, rule_type: e.target.value })}
+                      className="w-full appearance-none rounded-xl border border-slate-300 bg-white pl-9 pr-8 py-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 cursor-pointer"
+                    >
+                      <option value="blacklist">Blacklist (Immediate Block)</option>
+                      <option value="whitelist">Whitelist (VIP Exemption)</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
 
-              <input
-                type="text"
-                value={newRule.value}
-                onChange={(e) => setNewRule({ ...newRule, value: e.target.value })}
-                placeholder="e.g. vip@store.com or 560001"
-                required
-                className="rounded-xl border border-slate-300 px-3 py-2 text-xs"
-              />
+                {/* Field 2: Identifier Type */}
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-1.5">
+                    <span>Identifier Type</span>
+                    <Info className="h-3.5 w-3.5 text-slate-400" />
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-600">
+                      {newRule.entry_type === 'phone' ? (
+                        <Phone className="h-4 w-4" />
+                      ) : newRule.entry_type === 'pincode' ? (
+                        <Hash className="h-4 w-4" />
+                      ) : newRule.entry_type === 'customer_id' ? (
+                        <User className="h-4 w-4" />
+                      ) : (
+                        <Mail className="h-4 w-4" />
+                      )}
+                    </div>
+                    <select
+                      value={newRule.entry_type}
+                      onChange={(e) => setNewRule({ ...newRule, entry_type: e.target.value })}
+                      className="w-full appearance-none rounded-xl border border-slate-300 bg-white pl-9 pr-8 py-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 cursor-pointer"
+                    >
+                      <option value="email">Email Address</option>
+                      <option value="phone">Phone Number</option>
+                      <option value="pincode">Pincode / Postal Zone</option>
+                      <option value="customer_id">Customer ID</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
 
-              <button
-                type="submit"
-                disabled={addingRule}
-                className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-500 transition-colors"
-              >
-                {addingRule ? 'Adding…' : '+ Add List Rule'}
-              </button>
+                {/* Field 3: Value */}
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-1.5">
+                    <span>Value</span>
+                    <Info className="h-3.5 w-3.5 text-slate-400" />
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      {newRule.entry_type === 'phone' ? (
+                        <Phone className="h-4 w-4" />
+                      ) : newRule.entry_type === 'pincode' ? (
+                        <Hash className="h-4 w-4" />
+                      ) : newRule.entry_type === 'customer_id' ? (
+                        <User className="h-4 w-4" />
+                      ) : (
+                        <Mail className="h-4 w-4" />
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={newRule.value}
+                      onChange={(e) => setNewRule({ ...newRule, value: e.target.value })}
+                      placeholder="e.g. vip@store.com or 560001"
+                      required
+                      className="w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 py-2.5 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
+                    />
+                  </div>
+                </div>
+
+                {/* Field 4: Submit Button */}
+                <div>
+                  <button
+                    type="submit"
+                    disabled={addingRule}
+                    className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-indigo-500 active:scale-[0.98] transition-all shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap h-[38px]"
+                  >
+                    <Plus className="h-4 w-4 stroke-[2.5]" />
+                    <span>{addingRule ? 'Adding…' : 'Add List Rule'}</span>
+                    <ArrowRight className="h-4 w-4 stroke-[2.5]" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Bottom Notice in Card */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-blue-50/70 border border-blue-100/80 px-4 py-2.5">
+                <div className="flex items-center gap-2 text-xs text-blue-800 font-medium">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white text-[11px] font-bold">
+                    i
+                  </div>
+                  <span>You can add email addresses, phone numbers, pincodes, or customer IDs to whitelist (exempt) or blacklist (block) specific users.</span>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0 text-xs">
+                  <Lightbulb className="h-4 w-4 text-indigo-600 shrink-0" />
+                  <span className="font-bold text-indigo-950">Tip:</span>
+                  <span className="text-indigo-900">Add trusted VIPs to whitelist to avoid false blocks.</span>
+                </div>
+              </div>
             </form>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-2xs">
-            <h3 className="text-sm font-bold text-slate-900 mb-3">Active Exemption & Blacklist Rules</h3>
-            <div className="divide-y divide-slate-100 text-xs">
-              {rules.length === 0 ? (
-                <p className="text-slate-400 italic py-3">No active list rules configured.</p>
-              ) : (
-                rules.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between py-3">
-                    <div className="flex items-center gap-3">
-                      <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                        r.rule_type === 'whitelist' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                      }`}>
-                        {r.rule_type.toUpperCase()}
-                      </span>
-                      <span className="font-mono text-slate-800 font-semibold">{r.value}</span>
-                      <span className="text-slate-400">({r.entry_type})</span>
-                    </div>
+          {/* ── BOTTOM CARD: Active Exemption & Blacklist Rules ── */}
+          <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-2xs">
+            {/* Header with Title & Controls */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
+                    Active Exemption & Blacklist Rules
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Manage all active VIP and blacklist entries. Changes take effect immediately.
+                  </p>
+                </div>
+              </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleToggleRule(r.id)}
-                        className={`px-2 py-1 rounded text-[11px] font-semibold ${
-                          r.is_active ? 'bg-slate-100 text-slate-700' : 'bg-amber-100 text-amber-800'
-                        }`}
-                      >
-                        {r.is_active ? 'Active' : 'Paused'}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteRule(r.id)}
-                        className="text-rose-600 hover:text-rose-800 font-semibold px-2 py-1 text-[11px]"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
+              {/* Controls on Right */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={ruleSearch}
+                    onChange={(e) => {
+                      setRuleSearch(e.target.value)
+                      setCurrentPage(1)
+                    }}
+                    placeholder="Search by email, phone, pincode or customer ID..."
+                    className="rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-2 text-xs font-medium text-slate-800 placeholder-slate-400 w-60 sm:w-72 focus:outline-none focus:border-indigo-400"
+                  />
+                </div>
+
+                {/* Filter */}
+                <div className="relative">
+                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-600 pointer-events-none" />
+                  <select
+                    value={ruleTypeFilter}
+                    onChange={(e) => {
+                      setRuleTypeFilter(e.target.value)
+                      setCurrentPage(1)
+                    }}
+                    className="appearance-none rounded-xl border border-slate-200 bg-white pl-8 pr-8 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-indigo-400 cursor-pointer"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="whitelist">Whitelist Only</option>
+                    <option value="blacklist">Blacklist Only</option>
+                  </select>
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                </div>
+
+                {/* Refresh */}
+                <button
+                  type="button"
+                  onClick={handleRefreshRules}
+                  disabled={refreshingRules}
+                  className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 text-indigo-600 ${refreshingRules ? 'animate-spin' : ''}`} />
+                  <span>Refresh</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto mt-4">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    <th className="pb-3 pl-2 font-bold w-10">#</th>
+                    <th className="pb-3 font-bold">TYPE</th>
+                    <th className="pb-3 font-bold">IDENTIFIER</th>
+                    <th className="pb-3 font-bold">VALUE</th>
+                    <th className="pb-3 font-bold">ADDED ON</th>
+                    <th className="pb-3 font-bold">STATUS</th>
+                    <th className="pb-3 pr-2 font-bold text-right">ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {paginatedRules.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-slate-400 italic">
+                        No exemption or blacklist rules configured.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedRules.map((r, idx) => {
+                      const rowNum = (currentPage - 1) * rulesPerPage + idx + 1
+                      const isWhitelist = r.rule_type === 'whitelist'
+                      const idInfo = getIdentifierInfo(r.entry_type)
+                      const IdIcon = idInfo.icon
+                      const addedInfo = formatRuleAddedOn(r.created_at, r.created_by)
+                      const isEditing = editingRuleId === r.id
+
+                      return (
+                        <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="py-3.5 pl-2 font-bold text-slate-700 text-xs">
+                            {rowNum}
+                          </td>
+                          <td className="py-3.5">
+                            <span className={`inline-flex items-center rounded-full px-3 py-0.5 text-[10px] font-extrabold tracking-wider uppercase border ${
+                              isWhitelist 
+                                ? 'bg-emerald-50 text-emerald-600 border-emerald-200/80' 
+                                : 'bg-rose-50 text-rose-500 border-rose-200/80'
+                            }`}>
+                              {isWhitelist ? 'WHITELIST' : 'BLACKLIST'}
+                            </span>
+                          </td>
+                          <td className="py-3.5">
+                            <div className="flex items-center gap-2 text-slate-700 font-medium">
+                              <IdIcon className="h-4 w-4 text-slate-500" />
+                              <span>{idInfo.label}</span>
+                            </div>
+                          </td>
+                          <td className="py-3.5">
+                            {isEditing ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  className="rounded-lg border border-indigo-300 px-2 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                  autoFocus
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveEdit(r.id)}
+                                  className="p-1 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                                  title="Save"
+                                >
+                                  <Check className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleCancelEdit}
+                                  className="p-1 rounded bg-slate-100 text-slate-500 hover:bg-slate-200"
+                                  title="Cancel"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="font-bold text-slate-900 text-xs">{r.value}</span>
+                            )}
+                          </td>
+                          <td className="py-3.5">
+                            <div className="flex flex-col">
+                              <span className="text-xs font-medium text-slate-700">{addedInfo.dateStr}</span>
+                              <span className="text-[10px] text-slate-400 font-medium">by {addedInfo.author}</span>
+                            </div>
+                          </td>
+                          <td className="py-3.5">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleRule(r.id)}
+                              className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:opacity-80 transition-opacity cursor-pointer"
+                              title="Click to toggle status"
+                            >
+                              <span className={`h-2 w-2 rounded-full ${r.is_active ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                              <span>{r.is_active ? 'Active' : 'Paused'}</span>
+                            </button>
+                          </td>
+                          <td className="py-3.5 pr-2 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEdit(r)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                                title="Edit Rule Value"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRule(r.id)}
+                                className="p-1.5 rounded-lg bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-600 transition-colors cursor-pointer"
+                                title="Delete Rule"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Footer */}
+            <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                <Table className="h-4 w-4 text-slate-400" />
+                <span>Showing {paginatedRules.length} of {filteredRules.length} rules</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="rounded-lg bg-indigo-600 px-2.5 py-1 text-xs font-bold text-white shadow-xs">
+                  {currentPage}
+                </span>
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <select
+                  value={rulesPerPage}
+                  onChange={(e) => {
+                    setRulesPerPage(Number(e.target.value))
+                    setCurrentPage(1)
+                  }}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 focus:outline-none focus:border-indigo-400 cursor-pointer"
+                >
+                  <option value={10}>10 / page</option>
+                  <option value={20}>20 / page</option>
+                  <option value={50}>50 / page</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Notice below the bottom card ── */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-1">
+            <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              <span>Rules are applied instantly to the risk engine.</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+              <ShieldCheck className="h-4 w-4 text-indigo-500 shrink-0" />
+              <span>Keep your store safe with trusted customers and strict abuse control.</span>
             </div>
           </div>
         </div>

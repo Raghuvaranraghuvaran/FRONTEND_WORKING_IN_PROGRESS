@@ -41,13 +41,19 @@ def get_merchant_from_user(user):
             slug = f"{base_slug}-{counter}"
             counter += 1
 
-        merchant, _ = Merchant.objects.get_or_create(
+        merchant, created = Merchant.objects.get_or_create(
             store_slug=slug,
             defaults={
                 "business_name": f"{user.name or user.email.split('@')[0]}'s Store",
                 "admin_email": user.email,
             },
         )
+        if created:
+            try:
+                from common.seed_merchant_data import ensure_merchant_sample_data
+                ensure_merchant_sample_data(merchant)
+            except Exception:
+                pass
         MerchantProfile.objects.update_or_create(user=user, defaults={"merchant": merchant})
         return merchant
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Search, Edit2, Trash2, Check, X, AlertTriangle, Package, IndianRupee, Tag, UploadCloud, FileSpreadsheet, Download, RefreshCw, Image as ImageIcon, Link as LinkIcon, Star } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, Check, X, AlertTriangle, Package, IndianRupee, Tag, UploadCloud, FileSpreadsheet, Download, RefreshCw, Image as ImageIcon, Link as LinkIcon, Star, Eye, Copy, ChevronLeft, ChevronRight, ShoppingBag, CheckCircle2, Info, ArrowRight } from 'lucide-react'
 import { api } from '../../mock/api'
 import { CATEGORIES } from '../../mock/seed'
 import { INR } from '../../lib/format'
@@ -341,6 +341,51 @@ export default function MerchantProducts() {
   const lowStockCount = products.filter((p) => Number(p.stock) <= 5).length
   const inventoryValue = products.reduce((sum, p) => sum + Number(p.price || 0) * Number(p.stock || 0), 0)
 
+  // Category color mapping for vibrant badges
+  const catColorMap = {
+    'Ethnic Wear': { bg: 'bg-orange-100', text: 'text-orange-700', icon: '👗' },
+    'Daily Wear': { bg: 'bg-pink-100', text: 'text-pink-700', icon: '👕' },
+    'Electronics': { bg: 'bg-blue-100', text: 'text-blue-700', icon: '🎧' },
+    'Home & Living': { bg: 'bg-teal-100', text: 'text-teal-700', icon: '🏠' },
+    'Footwear': { bg: 'bg-purple-100', text: 'text-purple-700', icon: '👟' },
+  }
+  const getCatStyle = (name) => catColorMap[name] || { bg: 'bg-slate-100', text: 'text-slate-700', icon: '📦' }
+
+  // Generate SKU from product
+  const getSku = (product) => {
+    if (product.sku) return product.sku
+    const catMap = { cat_ethnic: 'EW', cat_daily: 'DW', cat_electronics: 'EB', cat_home: 'HL', cat_footwear: 'FW' }
+    const prefix = catMap[product.category_id] || 'NK'
+    const num = String(product.id || '').replace(/[^0-9]/g, '').slice(-3).padStart(3, '0')
+    return `${prefix}-${num}`
+  }
+
+  // Duplicate handler
+  const handleDuplicate = async (product) => {
+    try {
+      const payload = {
+        name: `${product.name} (Copy)`,
+        category_id: product.category_id || null,
+        price: product.price,
+        stock: product.stock || 0,
+        image: product.image || '',
+        description: product.description || '',
+        is_active: true,
+      }
+      await api.createProduct(payload)
+      showToast(`Duplicated "${product.name}" successfully!`)
+      loadData()
+    } catch (err) {
+      alert(err.message || 'Failed to duplicate product.')
+    }
+  }
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+  const totalPages = Math.max(1, Math.ceil(products.length / itemsPerPage))
+  const paginatedProducts = products.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
   return (
     <div className="space-y-6">
       {/* Toast Notification */}
@@ -353,16 +398,21 @@ export default function MerchantProducts() {
 
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Products & Catalog</h1>
-          <p className="text-sm text-slate-500">
-            Manage your product inventory, pricing, descriptions, and sales status.
-          </p>
+        <div className="flex items-center gap-3.5">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-xs">
+            <Package className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Products & Catalog</h1>
+            <p className="text-xs sm:text-sm text-slate-500">
+              Manage your product inventory, pricing, descriptions, and sales status.
+            </p>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={() => setCategoryModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-2xs cursor-pointer transition"
           >
             <Tag className="h-4 w-4 text-slate-500" />
             New Category
@@ -373,14 +423,14 @@ export default function MerchantProducts() {
               setBulkError('')
               setBulkModalOpen(true)
             }}
-            className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors"
+            className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer"
           >
             <UploadCloud className="h-4 w-4 text-emerald-600" />
             Bulk Upload (CSV)
           </button>
           <button
             onClick={openAddModal}
-            className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors"
+            className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             Add Product
@@ -388,43 +438,67 @@ export default function MerchantProducts() {
         </div>
       </div>
 
-      {/* Metrics Cards */}
+      {/* ── Vibrant Gradient Metric Cards ────────────────────── */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold uppercase tracking-wider">
-            <Package className="h-4 w-4 text-indigo-500" />
-            Total Products
+        {/* Total Products — Blue/Indigo Gradient */}
+        <div className="relative overflow-hidden rounded-2xl p-5 text-white shadow-md" style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' }}>
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+              <ShoppingBag className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-white/80">Total Products</p>
+              <p className="text-2xl sm:text-3xl font-bold">{totalCount}</p>
+            </div>
           </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{totalCount}</p>
+          <p className="mt-2 text-[11px] text-white/70">All products in catalog</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold uppercase tracking-wider">
-            <Check className="h-4 w-4 text-emerald-500" />
-            Active for Sale
+        {/* Active for Sale — Green Gradient */}
+        <div className="relative overflow-hidden rounded-2xl p-5 text-white shadow-md" style={{ background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' }}>
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-white/80">Active for Sale</p>
+              <p className="text-2xl sm:text-3xl font-bold">{activeCount}</p>
+            </div>
           </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{activeCount}</p>
+          <p className="mt-2 text-[11px] text-white/70">Products currently active</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold uppercase tracking-wider">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-            Low / Out of Stock
+        {/* Low / Out of Stock — Coral/Red Gradient */}
+        <div className="relative overflow-hidden rounded-2xl p-5 text-white shadow-md" style={{ background: 'linear-gradient(135deg, #f97316 0%, #ef4444 100%)' }}>
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-white/80">Low / Out of Stock</p>
+              <p className="text-2xl sm:text-3xl font-bold">{lowStockCount}</p>
+            </div>
           </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{lowStockCount}</p>
+          <p className="mt-2 text-[11px] text-white/70">Products need attention</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold uppercase tracking-wider">
-            <IndianRupee className="h-4 w-4 text-blue-500" />
-            Catalog Inventory
+        {/* Catalog Inventory Value — Teal/Emerald Gradient */}
+        <div className="relative overflow-hidden rounded-2xl p-5 text-white shadow-md" style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #10b981 100%)' }}>
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+              <IndianRupee className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-white/80">Catalog Inventory Value</p>
+              <p className="text-2xl sm:text-3xl font-bold">{INR.format(inventoryValue)}</p>
+            </div>
           </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{INR.format(inventoryValue)}</p>
+          <p className="mt-2 text-[11px] text-white/70">Total stock value</p>
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* ── Filter and Search Bar ────────────────────────────── */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 sm:flex-row sm:items-center sm:justify-between shadow-2xs">
         <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <input
@@ -440,12 +514,11 @@ export default function MerchantProducts() {
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 pr-8 text-sm text-slate-700 focus:border-indigo-500 focus:bg-white focus:outline-none"
+            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 pr-8 text-sm text-slate-700 focus:border-indigo-500 focus:bg-white focus:outline-none cursor-pointer"
             style={{
               appearance: 'auto',
               WebkitAppearance: 'menulist',
               MozAppearance: 'menulist',
-              cursor: 'pointer',
               minWidth: 160,
             }}
           >
@@ -457,26 +530,32 @@ export default function MerchantProducts() {
             ))}
           </select>
 
-          <div className="flex flex-wrap gap-1">
-            {statusFilters.map((sf) => (
-              <button
-                key={sf.id}
-                onClick={() => setSelectedStatus(sf.id)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                  selectedStatus === sf.id
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {sf.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap gap-1.5">
+            {statusFilters.map((sf) => {
+              let pillClass = 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              if (selectedStatus === sf.id) {
+                if (sf.id === 'all') pillClass = 'bg-indigo-600 text-white shadow-xs'
+                else if (sf.id === 'active') pillClass = 'bg-indigo-600 text-white shadow-xs'
+                else if (sf.id === 'inactive') pillClass = 'bg-slate-800 text-white shadow-xs'
+                else if (sf.id === 'low_stock') pillClass = 'bg-amber-500 text-white shadow-xs'
+                else if (sf.id === 'out_of_stock') pillClass = 'bg-rose-500 text-white shadow-xs'
+              }
+              return (
+                <button
+                  key={sf.id}
+                  onClick={() => { setSelectedStatus(sf.id); setCurrentPage(1) }}
+                  className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${pillClass}`}
+                >
+                  {sf.label}
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>
 
-      {/* Products Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {/* ── Products Table ────────────────────────────────────── */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
         {loading ? (
           <div className="p-12 text-center text-slate-500">
             <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent mb-2" />
@@ -491,28 +570,32 @@ export default function MerchantProducts() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50">
-                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <table className="min-w-full divide-y divide-slate-200/80 text-sm">
+              <thead className="bg-slate-50/70 border-b border-slate-200/70">
+                <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   <th className="px-5 py-3.5">Product</th>
                   <th className="px-4 py-3.5">Category</th>
                   <th className="px-4 py-3.5">Price</th>
                   <th className="px-4 py-3.5">Stock</th>
                   <th className="px-4 py-3.5">Status</th>
+                  <th className="px-4 py-3.5">Status</th>
                   <th className="px-4 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {products.map((product) => {
+                {paginatedProducts.map((product) => {
                   const isLow = Number(product.stock) <= 5 && Number(product.stock) > 0
                   const isOut = Number(product.stock) === 0
                   const catName =
                     product.category_name ||
                     categories.find((c) => c.id === product.category_id)?.name ||
                     'General'
+                  const catStyle = getCatStyle(catName)
+                  const sku = getSku(product)
 
                   return (
-                    <tr key={product.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={product.id} className="hover:bg-slate-50/70 transition-colors">
+                      {/* Product — image + name + description + SKU */}
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
@@ -533,40 +616,44 @@ export default function MerchantProducts() {
                             )}
                           </div>
                           <div>
-                            <p className="font-semibold text-slate-900">{product.name}</p>
+                            <p className="font-bold text-slate-900 text-sm">{product.name}</p>
                             <p className="line-clamp-1 max-w-xs text-xs text-slate-500">
                               {product.description || 'No description provided.'}
                             </p>
+                            <p className="text-[11px] font-mono text-slate-400 mt-0.5">SKU: {sku}</p>
                           </div>
                         </div>
                       </td>
 
+                      {/* Category — colorful pill with icon */}
                       <td className="px-4 py-4">
-                        <span className="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${catStyle.bg} ${catStyle.text}`}>
+                          <span>{catStyle.icon}</span>
                           {catName}
                         </span>
                       </td>
 
-                      <td className="px-4 py-4 font-semibold text-slate-900">
+                      {/* Price */}
+                      <td className="px-4 py-4 font-bold text-slate-900">
                         {INR.format(product.price)}
                       </td>
 
+                      {/* Stock — colored pill */}
                       <td className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              isOut
-                                ? 'bg-rose-100 text-rose-700'
-                                : isLow
-                                ? 'bg-amber-100 text-amber-700'
-                                : 'bg-emerald-100 text-emerald-700'
-                            }`}
-                          >
-                            {isOut ? 'Out of stock' : `${product.stock} units`}
-                          </span>
-                        </div>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
+                            isOut
+                              ? 'bg-rose-100 text-rose-700'
+                              : isLow
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-emerald-100 text-emerald-700'
+                          }`}
+                        >
+                          {isOut ? 'Out of stock' : `${product.stock} units`}
+                        </span>
                       </td>
 
+                      {/* Active Toggle */}
                       <td className="px-4 py-4">
                         <button
                           type="button"
@@ -583,21 +670,43 @@ export default function MerchantProducts() {
                         </button>
                       </td>
 
+                      {/* View link */}
+                      <td className="px-4 py-4">
+                        <button
+                          onClick={() => openEditModal(product)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer transition"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          View
+                        </button>
+                      </td>
+
+                      {/* Actions — Edit / Duplicate / Delete */}
                       <td className="px-4 py-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => openEditModal(product)}
-                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
+                            className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 transition-colors cursor-pointer"
                             title="Edit Product"
                           >
-                            <Edit2 className="h-4 w-4" />
+                            <Edit2 className="h-3.5 w-3.5" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDuplicate(product)}
+                            className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-sky-50 hover:text-sky-700 transition-colors cursor-pointer"
+                            title="Duplicate Product"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                            Duplicate
                           </button>
                           <button
                             onClick={() => setDeleteProductTarget(product)}
-                            className="rounded-lg p-2 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                            className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors cursor-pointer"
                             title="Delete Product"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -608,6 +717,56 @@ export default function MerchantProducts() {
             </table>
           </div>
         )}
+      </div>
+
+      {/* ── Pagination Footer ─────────────────────────────────── */}
+      {products.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500">
+          <p>
+            Showing <span className="font-semibold text-slate-700">{Math.min((currentPage - 1) * itemsPerPage + 1, products.length)}–{Math.min(currentPage * itemsPerPage, products.length)}</span> of{' '}
+            <span className="font-semibold text-slate-700">{products.length}</span> products
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 disabled:opacity-40 cursor-pointer transition shadow-2xs"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, 5).map((pg) => (
+              <button
+                key={pg}
+                onClick={() => setCurrentPage(pg)}
+                className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium cursor-pointer transition shadow-2xs ${
+                  currentPage === pg
+                    ? 'bg-blue-600 font-bold text-white shadow-xs'
+                    : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {pg}
+              </button>
+            ))}
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 disabled:opacity-40 cursor-pointer transition shadow-2xs"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bottom Tip Banner ─────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl bg-emerald-50 border border-emerald-200/80 px-5 py-3.5 shadow-2xs">
+        <div className="flex items-center gap-2 text-xs text-emerald-800">
+          <Info className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span><strong>Tip:</strong> Keep your product information updated and monitor low stock items to avoid missed sales.</span>
+        </div>
+        <button className="flex items-center gap-1.5 rounded-lg bg-white border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition cursor-pointer shadow-2xs whitespace-nowrap">
+          View Inventory Report <ArrowRight className="h-3.5 w-3.5" />
+        </button>
       </div>
 
       {/* Add / Edit Product Modal */}

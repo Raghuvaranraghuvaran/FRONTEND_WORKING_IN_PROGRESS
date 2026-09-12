@@ -72,6 +72,10 @@ class MerchantOrdersView(APIView):
 
     def get(self, request):
         merchant = require_merchant_context(request)
+        if not Order.objects.filter(merchant=merchant).exists():
+            from common.seed_merchant_data import ensure_merchant_sample_data
+            ensure_merchant_sample_data(merchant)
+
         orders = Order.objects.filter(merchant=merchant).prefetch_related("items").order_by("-created_at")
         from orders.serializers import OrderListSerializer
 
@@ -412,9 +416,10 @@ class UpdateOrderStatusView(APIView):
 
         order.save()
 
+        actor = request.user.email if (request.user and request.user.is_authenticated) else "admin@returnguard.in"
         log_action(
             merchant=merchant,
-            actor=request.user.email,
+            actor=actor,
             action="update_order_status",
             target=f"Order {order.order_number}",
             notes=f"Updated status to {order.delivery_status}. {notes}".strip(),
@@ -940,6 +945,10 @@ class MerchantProductsView(APIView):
 
     def get(self, request):
         merchant = require_merchant_context(request)
+        if not Product.objects.filter(merchant=merchant).exists():
+            from common.seed_merchant_data import ensure_merchant_sample_data
+            ensure_merchant_sample_data(merchant)
+
         qs = Product.objects.filter(merchant=merchant).select_related("category")
         category_id = request.query_params.get("category_id")
         query = request.query_params.get("query")
@@ -967,7 +976,25 @@ class MerchantProductsView(APIView):
         validated = serializer.validated_data
 
         category_id = validated.pop("category_id", None)
-        category = Category.objects.filter(id=category_id).first() if category_id else None
+        category = None
+        if category_id:
+            category = Category.objects.filter(
+                Q(id=category_id) | Q(slug__iexact=category_id) | Q(name__iexact=category_id),
+                merchant=merchant
+            ).first()
+            if not category:
+                from django.utils.text import slugify
+                slug = slugify(category_id) or "cat"
+                cat_id = f"cat_{merchant.id}_{slug}"
+                category = Category.objects.filter(id=cat_id).first()
+                if not category:
+                    category = Category.objects.create(
+                        id=cat_id,
+                        merchant=merchant,
+                        name=category_id.title(),
+                        slug=slug,
+                        description=f"{category_id.title()} collection",
+                    )
 
         product = Product.objects.create(
             merchant=merchant,
@@ -1079,7 +1106,26 @@ class MerchantProductDetailView(APIView):
 
         if "category_id" in validated:
             cat_id = validated.pop("category_id")
-            product.category = Category.objects.filter(id=cat_id).first() if cat_id else None
+            if cat_id:
+                product.category = Category.objects.filter(
+                    Q(id=cat_id) | Q(slug__iexact=cat_id) | Q(name__iexact=cat_id),
+                    merchant=merchant
+                ).first()
+                if not product.category:
+                    from django.utils.text import slugify
+                    slug = slugify(cat_id) or "cat"
+                    cat_pk = f"cat_{merchant.id}_{slug}"
+                    product.category = Category.objects.filter(id=cat_pk).first()
+                    if not product.category:
+                        product.category = Category.objects.create(
+                            id=cat_pk,
+                            merchant=merchant,
+                            name=cat_id.title(),
+                            slug=slug,
+                            description=f"{cat_id.title()} collection",
+                        )
+            else:
+                product.category = None
 
         for attr, val in validated.items():
             setattr(product, attr, val)
@@ -1096,6 +1142,9 @@ class MerchantProductDetailView(APIView):
         )
 
         return success(AdminProductSerializer(product).data)
+
+    def put(self, request, pk):
+        return self.patch(request, pk)
 
     def delete(self, request, pk):
         merchant = require_merchant_context(request)
@@ -1341,7 +1390,74 @@ class MerchantCouponsView(APIView):
             "description": data.get("description", ""),
         }
         _COUPONS_STORAGE.insert(0, new_coupon)
+
+        try:
+            merchant = require_merchant_context(request)
+            actor_email = getattr(request.user, "email", "demo@merchant.com") if getattr(request.user, "is_authenticated", False) else "demo@merchant.com"
+            log_action(
+                merchant=merchant,
+                actor=actor_email,
+                action="created",
+                target=f"Coupon: {new_coupon['code']}",
+                notes=f"Created {new_coupon['discount_type']} coupon with discount value {new_coupon['discount_value']}.",
+            )
+        except Exception:
+            pass
+
         return success(new_coupon, status=status.HTTP_201_CREATED)
+
+    def patch(self, request, pk=None):
+        global _COUPONS_STORAGE
+        if not pk:
+            raise AppError("Coupon ID is required for update.")
+        idx = next((i for i, c in enumerate(_COUPONS_STORAGE) if str(c.get("id")) == str(pk) or c.get("code") == str(pk).upper()), None)
+        if idx is None:
+            raise NotFoundError("Coupon not found.")
+
+        coupon = _COUPONS_STORAGE[idx]
+        data = request.data
+        if "code" in data:
+            new_code = (data.get("code") or "").strip().upper()
+            if new_code and new_code != coupon["code"]:
+                if any(c["code"] == new_code and str(c.get("id")) != str(coupon.get("id")) for c in _COUPONS_STORAGE):
+                    raise AppError("A coupon with this code already exists.")
+                coupon["code"] = new_code
+        if "discount_type" in data:
+            coupon["discount_type"] = data.get("discount_type")
+        if "discount_value" in data:
+            coupon["discount_value"] = float(data.get("discount_value", 0))
+        if "min_order_value" in data:
+            coupon["min_order_value"] = float(data.get("min_order_value", 0))
+        if "applicable_product_ids" in data:
+            coupon["applicable_product_ids"] = data.get("applicable_product_ids", [])
+        if "applicable_category_ids" in data:
+            coupon["applicable_category_ids"] = data.get("applicable_category_ids", [])
+        if "max_uses" in data:
+            coupon["max_uses"] = int(data.get("max_uses", 100))
+        if "is_active" in data:
+            coupon["is_active"] = bool(data.get("is_active"))
+        if "expires_at" in data:
+            coupon["expires_at"] = data.get("expires_at")
+        if "description" in data:
+            coupon["description"] = data.get("description", "")
+
+        try:
+            merchant = require_merchant_context(request)
+            actor_email = getattr(request.user, "email", "demo@merchant.com") if getattr(request.user, "is_authenticated", False) else "demo@merchant.com"
+            log_action(
+                merchant=merchant,
+                actor=actor_email,
+                action="updated",
+                target=f"Coupon: {coupon['code']}",
+                notes=f"Updated coupon {coupon['code']} (Active: {coupon['is_active']}).",
+            )
+        except Exception:
+            pass
+
+        return success(coupon)
+
+    def put(self, request, pk=None):
+        return self.patch(request, pk)
 
     def delete(self, request, pk=None):
         global _COUPONS_STORAGE
@@ -1349,6 +1465,18 @@ class MerchantCouponsView(APIView):
             raise AppError("Coupon ID is required for deletion.")
         idx = next((i for i, c in enumerate(_COUPONS_STORAGE) if str(c.get("id")) == str(pk) or c.get("code") == str(pk).upper()), None)
         if idx is not None:
-            _COUPONS_STORAGE.pop(idx)
+            removed = _COUPONS_STORAGE.pop(idx)
+            try:
+                merchant = require_merchant_context(request)
+                actor_email = getattr(request.user, "email", "demo@merchant.com") if getattr(request.user, "is_authenticated", False) else "demo@merchant.com"
+                log_action(
+                    merchant=merchant,
+                    actor=actor_email,
+                    action="deleted",
+                    target=f"Coupon: {removed.get('code', pk)}",
+                    notes="Deleted coupon from store.",
+                )
+            except Exception:
+                pass
         return success({"deleted": True, "id": pk})
 

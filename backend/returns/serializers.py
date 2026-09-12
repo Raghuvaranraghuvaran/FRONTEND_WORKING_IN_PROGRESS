@@ -23,12 +23,54 @@ class ReturnLineSerializer(serializers.ModelSerializer):
 
 
 class ReturnRequestSerializer(serializers.ModelSerializer):
-    return_lines = ReturnLineSerializer(many=True, read_only=True)
+    return_lines = serializers.SerializerMethodField()
+    order_items = serializers.SerializerMethodField()
     timeline = serializers.SerializerMethodField()
     order_number = serializers.CharField(source="order.order_number", read_only=True)
     customer_email = serializers.CharField(source="user.email", read_only=True)
     order_total = serializers.DecimalField(source="order.total", max_digits=12, decimal_places=2, read_only=True)
     delivered_at = serializers.DateTimeField(source="order.delivered_at", read_only=True)
+
+    def get_return_lines(self, obj):
+        lines = list(obj.return_lines.all())
+        if lines:
+            return ReturnLineSerializer(lines, many=True).data
+        if obj.order and obj.order.items.exists():
+            res = []
+            for item in obj.order.items.all():
+                img = ""
+                if item.product and item.product.image:
+                    img = item.product.image
+                elif getattr(item, "image", None):
+                    img = item.image
+                res.append({
+                    "product_id": item.product_id or f"prod_{item.id}",
+                    "name": item.name,
+                    "quantity": item.quantity,
+                    "price": float(item.price) if item.price is not None else 0.0,
+                    "image": img or "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=400&q=80",
+                })
+            return res
+        return []
+
+    def get_order_items(self, obj):
+        if obj.order and obj.order.items.exists():
+            res = []
+            for item in obj.order.items.all():
+                img = ""
+                if item.product and item.product.image:
+                    img = item.product.image
+                elif getattr(item, "image", None):
+                    img = item.image
+                res.append({
+                    "product_id": item.product_id or f"prod_{item.id}",
+                    "name": item.name,
+                    "quantity": item.quantity,
+                    "price": float(item.price) if item.price is not None else 0.0,
+                    "image": img or "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=400&q=80",
+                })
+            return res
+        return []
 
     class Meta:
         model = ReturnRequest
@@ -57,6 +99,7 @@ class ReturnRequestSerializer(serializers.ModelSerializer):
             "signals",
             "checkpoint_signals",
             "return_lines",
+            "order_items",
             "pickup_slot",
             "proof_image_url",
             "proof_verified",

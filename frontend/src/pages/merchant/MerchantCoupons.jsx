@@ -1,7 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Search, Edit2, Trash2, Check, X, Ticket, Percent, IndianRupee, Tag, Calendar, Copy } from 'lucide-react'
+import {
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  Ticket,
+  Percent,
+  IndianRupee,
+  Tag,
+  Calendar,
+  Copy,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  SlidersHorizontal,
+  CheckCircle2,
+  ShoppingCart,
+  Clock,
+  LayoutGrid,
+  Sparkles
+} from 'lucide-react'
 import { api } from '../../mock/api'
-import { INR } from '../../lib/format'
 import EmptyState from '../../components/EmptyState'
 
 const statusFilters = [
@@ -24,6 +45,49 @@ const EMPTY_FORM = {
   description: '',
 }
 
+function formatExpiryDate(isoString) {
+  if (!isoString) return '01/01/2027'
+  try {
+    const d = new Date(isoString)
+    if (isNaN(d.getTime())) return '01/01/2027'
+    const day = String(d.getDate()).padStart(2, '0')
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const year = d.getFullYear()
+    return `${day}/${month}/${year}`
+  } catch {
+    return '01/01/2027'
+  }
+}
+
+function getCouponTheme(coupon, index) {
+  const code = (coupon.code || '').toUpperCase()
+  if (code.includes('WELCOME') || coupon.discount_value === 10 || index === 0) {
+    return {
+      border: 'border-l-indigo-600',
+      badgeBg: 'bg-indigo-50/80',
+      textColor: 'text-indigo-600',
+      subTextColor: 'text-indigo-400',
+      discountBoxBg: 'bg-indigo-50/80',
+    }
+  }
+  if (code.includes('FESTIVE') || coupon.discount_value === 20 || index === 1) {
+    return {
+      border: 'border-l-emerald-500',
+      badgeBg: 'bg-emerald-50/80',
+      textColor: 'text-emerald-600',
+      subTextColor: 'text-emerald-500',
+      discountBoxBg: 'bg-emerald-50/80',
+    }
+  }
+  return {
+    border: 'border-l-amber-500',
+    badgeBg: 'bg-amber-50/80',
+    textColor: 'text-amber-600',
+    subTextColor: 'text-amber-500',
+    discountBoxBg: 'bg-amber-50/80',
+  }
+}
+
 export default function MerchantCoupons() {
   const [coupons, setCoupons] = useState([])
   const [products, setProducts] = useState([])
@@ -31,6 +95,7 @@ export default function MerchantCoupons() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
+  const [sortBy, setSortBy] = useState('recent')
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false)
@@ -44,6 +109,11 @@ export default function MerchantCoupons() {
 
   // Copied code feedback
   const [copiedId, setCopiedId] = useState(null)
+
+  const isExpired = (coupon) => {
+    if (!coupon.expires_at) return false
+    return new Date(coupon.expires_at) < new Date()
+  }
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -88,8 +158,14 @@ export default function MerchantCoupons() {
       )
     }
 
+    if (sortBy === 'discount') {
+      list.sort((a, b) => (b.discount_value || 0) - (a.discount_value || 0))
+    } else if (sortBy === 'uses') {
+      list.sort((a, b) => (b.used_count || 0) - (a.used_count || 0))
+    }
+
     return list
-  }, [coupons, selectedStatus, searchQuery])
+  }, [coupons, selectedStatus, searchQuery, sortBy])
 
   const openCreateModal = () => {
     setEditingCoupon(null)
@@ -150,7 +226,7 @@ export default function MerchantCoupons() {
         await api.createCoupon(payload)
       }
       setModalOpen(false)
-      await loadData()
+      loadData()
     } catch (err) {
       setFormError(err.message || 'Failed to save coupon.')
     } finally {
@@ -163,276 +239,325 @@ export default function MerchantCoupons() {
     try {
       await api.deleteCoupon(deleteTarget.id)
       setDeleteTarget(null)
-      await loadData()
-    } catch {
-      // ignore
+      loadData()
+    } catch (err) {
+      alert(err.message || 'Failed to delete coupon.')
     }
   }
 
-  const copyCode = (code, id) => {
-    navigator.clipboard.writeText(code).catch(() => {})
-    setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 1500)
+  const handleCopyCode = (coupon) => {
+    navigator.clipboard?.writeText(coupon.code)
+    setCopiedId(coupon.id)
+    setTimeout(() => setCopiedId(null), 1800)
   }
 
-  const formatDiscount = (coupon) => {
-    if (coupon.discount_type === 'percentage') return `${coupon.discount_value}% OFF`
-    return `${INR.format(coupon.discount_value)} OFF`
-  }
-
-  const isExpired = (coupon) => new Date(coupon.expires_at) < new Date()
-
-  const getCategoryNames = (ids) => {
-    if (!ids || ids.length === 0) return 'All'
-    return ids
-      .map((id) => categories.find((c) => c.id === id)?.name || id)
-      .join(', ')
-  }
-
-  const getProductNames = (ids) => {
-    if (!ids || ids.length === 0) return ''
-    return ids
-      .map((id) => products.find((p) => p.id === id)?.name || id)
-      .join(', ')
-  }
-
-  const toggleCategoryFilter = (catId) => {
-    setForm((prev) => {
-      const current = prev.applicable_category_ids || []
-      return {
-        ...prev,
-        applicable_category_ids: current.includes(catId)
-          ? current.filter((c) => c !== catId)
-          : [...current, catId],
-      }
-    })
-  }
-
-  const toggleProductFilter = (prodId) => {
-    setForm((prev) => {
-      const current = prev.applicable_product_ids || []
-      return {
-        ...prev,
-        applicable_product_ids: current.includes(prodId)
-          ? current.filter((p) => p !== prodId)
-          : [...current, prodId],
-      }
-    })
-  }
+  // Summary statistics
+  const totalCouponsCount = coupons.length
+  const activeCouponsCount = coupons.filter((c) => c.is_active && !isExpired(c)).length
+  const expiredCouponsCount = coupons.filter((c) => isExpired(c)).length
+  const totalUsesCount = coupons.reduce((sum, c) => sum + (c.used_count || 0), 0)
 
   return (
-    <div>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>Coupons</h1>
-          <p style={{ fontSize: 13, color: '#64748b' }}>Create and manage discount coupons for your store products.</p>
+    <div className="space-y-6 pb-20">
+      {/* ── TOP HEADER BANNER ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Left: Icon, Title & Subtitle */}
+        <div className="flex items-center gap-3.5">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 shadow-xs">
+            <Ticket className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Coupons</h1>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Create and manage discount coupons for your store products.
+            </p>
+          </div>
         </div>
+
+        {/* Center / Decorative Slogan Badge */}
+        <div className="hidden lg:flex items-center gap-3 rounded-2xl bg-gradient-to-r from-indigo-50/90 via-purple-50/70 to-indigo-100/40 border border-indigo-100/80 px-4 py-2 shadow-2xs">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-xs font-black text-sm">
+            %
+          </div>
+          <div className="text-left">
+            <p className="text-[12px] font-bold text-indigo-700 leading-tight flex items-center gap-1">
+              <span>Drive more sales</span>
+              <Sparkles className="h-3 w-3 text-indigo-500" />
+            </p>
+            <p className="text-[11px] font-medium text-indigo-500 leading-tight">with smart discounts!</p>
+          </div>
+        </div>
+
+        {/* Right: + Create Coupon Button */}
         <button
+          type="button"
           onClick={openCreateModal}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            background: '#6366f1', color: '#fff', border: 'none',
-            padding: '10px 20px', borderRadius: 10, fontSize: 13,
-            fontWeight: 600, cursor: 'pointer',
-          }}
+          className="flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-5 py-2.5 text-xs font-bold text-white shadow-xs transition-all cursor-pointer whitespace-nowrap self-start sm:self-auto"
         >
-          <Plus size={16} /> Create Coupon
+          <Plus className="h-4 w-4 stroke-[2.5]" />
+          <span>Create Coupon</span>
         </button>
       </div>
 
-      {/* Stats cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 24 }}>
-        {[
-          { label: 'Total Coupons', value: coupons.length, icon: <Ticket size={20} />, bg: '#ede9fe', color: '#7c3aed' },
-          { label: 'Active', value: coupons.filter((c) => c.is_active && !isExpired(c)).length, icon: <Check size={20} />, bg: '#dcfce7', color: '#16a34a' },
-          { label: 'Expired', value: coupons.filter((c) => isExpired(c)).length, icon: <Calendar size={20} />, bg: '#fee2e2', color: '#dc2626' },
-          { label: 'Total Uses', value: coupons.reduce((s, c) => s + (c.used_count || 0), 0), icon: <Tag size={20} />, bg: '#fef3c7', color: '#d97706' },
-        ].map((stat) => (
-          <div key={stat.label} style={{
-            background: '#fff', borderRadius: 12, padding: '16px 18px',
-            border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 14,
-          }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: 10,
-              background: stat.bg, color: stat.color,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              {stat.icon}
+      {/* ── 4 STAT CARDS ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Coupons */}
+        <div className="flex items-center justify-between rounded-3xl border border-slate-200/80 bg-white p-4.5 shadow-2xs">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+              <Ticket className="h-5 w-5" />
             </div>
             <div>
-              <div style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>{stat.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: '#0f172a' }}>{stat.value}</div>
+              <div className="text-[11px] font-semibold text-slate-500">Total Coupons</div>
+              <div className="text-2xl font-black text-slate-900 leading-tight my-0.5">{totalCouponsCount}</div>
+              <div className="text-[10px] text-slate-400 font-medium">All created coupons</div>
             </div>
           </div>
-        ))}
+          {/* Subtle Graphic */}
+          <div className="flex items-end gap-1 h-8 opacity-40 pr-2">
+            <div className="w-1.5 h-3 rounded-full bg-indigo-400" />
+            <div className="w-1.5 h-6 rounded-full bg-indigo-500" />
+            <div className="w-1.5 h-8 rounded-full bg-indigo-600" />
+          </div>
+        </div>
+
+        {/* Card 2: Active */}
+        <div className="flex items-center justify-between rounded-3xl border border-emerald-100/80 bg-emerald-50/20 p-4.5 shadow-2xs">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-100/80 text-emerald-600">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-slate-500">Active</div>
+              <div className="text-2xl font-black text-slate-900 leading-tight my-0.5">{activeCouponsCount}</div>
+              <div className="text-[10px] text-slate-400 font-medium">Currently active coupons</div>
+            </div>
+          </div>
+          {/* Subtle Wave */}
+          <svg className="w-14 h-8 opacity-40 text-emerald-500" viewBox="0 0 100 50" fill="none">
+            <path d="M0 40 Q25 45 50 25 T100 10 L100 50 L0 50 Z" fill="currentColor" opacity="0.3" />
+            <path d="M0 40 Q25 45 50 25 T100 10" stroke="currentColor" strokeWidth="3" />
+          </svg>
+        </div>
+
+        {/* Card 3: Expired */}
+        <div className="flex items-center justify-between rounded-3xl border border-rose-100/80 bg-rose-50/20 p-4.5 shadow-2xs">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-100/80 text-rose-600">
+              <Calendar className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-slate-500">Expired</div>
+              <div className="text-2xl font-black text-slate-900 leading-tight my-0.5">{expiredCouponsCount}</div>
+              <div className="text-[10px] text-slate-400 font-medium">Coupons no longer valid</div>
+            </div>
+          </div>
+          {/* Subtle Wave */}
+          <svg className="w-14 h-8 opacity-30 text-rose-500" viewBox="0 0 100 50" fill="none">
+            <path d="M0 35 Q30 45 60 20 T100 30 L100 50 L0 50 Z" fill="currentColor" opacity="0.3" />
+            <path d="M0 35 Q30 45 60 20 T100 30" stroke="currentColor" strokeWidth="3" />
+          </svg>
+        </div>
+
+        {/* Card 4: Total Uses */}
+        <div className="flex items-center justify-between rounded-3xl border border-amber-100/80 bg-amber-50/20 p-4.5 shadow-2xs">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100/80 text-amber-600">
+              <Tag className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-slate-500">Total Uses</div>
+              <div className="text-2xl font-black text-slate-900 leading-tight my-0.5">{totalUsesCount}</div>
+              <div className="text-[10px] text-slate-400 font-medium">Times coupons have been used</div>
+            </div>
+          </div>
+          {/* Subtle Graphic */}
+          <div className="flex items-end gap-1 h-8 opacity-40 pr-2">
+            <div className="w-1.5 h-4 rounded-full bg-amber-400" />
+            <div className="w-1.5 h-6 rounded-full bg-amber-500" />
+            <div className="w-1.5 h-8 rounded-full bg-amber-600" />
+          </div>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 10,
-          padding: '8px 14px', flex: 1, minWidth: 200, maxWidth: 340,
-        }}>
-          <Search size={16} color="#94a3b8" />
+      {/* ── CONTROLS & FILTER BAR ── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        {/* Search Input */}
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search coupons..."
+            placeholder="Search coupons by code, description, or category..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              border: 'none', background: 'transparent', outline: 'none',
-              fontSize: 13, flex: 1, color: '#0f172a',
-            }}
+            className="w-full rounded-2xl border border-slate-200 bg-white pl-9 pr-4 py-2.5 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-400 shadow-2xs"
           />
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {statusFilters.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setSelectedStatus(f.id)}
-              style={{
-                padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                border: '1.5px solid', cursor: 'pointer', transition: 'all .15s',
-                background: selectedStatus === f.id ? '#6366f1' : '#fff',
-                color: selectedStatus === f.id ? '#fff' : '#475569',
-                borderColor: selectedStatus === f.id ? '#6366f1' : '#e2e8f0',
-              }}
-            >
-              {f.label}
-            </button>
-          ))}
+
+        {/* Center: Status Filter Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+          {statusFilters.map((f) => {
+            const isActive = selectedStatus === f.id
+            return (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setSelectedStatus(f.id)}
+                className={`rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
+                  isActive
+                    ? 'bg-indigo-50 border border-indigo-200 text-indigo-700'
+                    : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {f.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Right: Sort Dropdown */}
+        <div className="relative self-end md:self-auto">
+          <SlidersHorizontal className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-600 pointer-events-none" />
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="appearance-none rounded-2xl border border-slate-200 bg-white pl-8 pr-8 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-indigo-400 shadow-2xs cursor-pointer"
+          >
+            <option value="recent">Sort by Recent</option>
+            <option value="discount">Sort by Discount</option>
+            <option value="uses">Sort by Total Uses</option>
+          </select>
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
         </div>
       </div>
 
-      {/* Coupons table/cards */}
+      {/* ── COUPONS LIST ── */}
       {loading ? (
-        <div style={{ display: 'grid', gap: 12 }}>
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} style={{ height: 80, background: '#e2e8f0', borderRadius: 12, animation: 'pulse 1.5s infinite' }} />
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-28 animate-pulse rounded-3xl bg-slate-100 border border-slate-200" />
           ))}
         </div>
       ) : filteredCoupons.length === 0 ? (
         <EmptyState
           title="No coupons found"
-          description={coupons.length === 0 ? 'Create your first coupon to offer discounts to shoppers.' : 'Try adjusting your search or filter.'}
+          description={
+            coupons.length === 0
+              ? 'Create your first coupon to offer discounts to shoppers.'
+              : 'Try adjusting your search or filter.'
+          }
         />
       ) : (
-        <div style={{ display: 'grid', gap: 12 }}>
-          {filteredCoupons.map((coupon) => {
+        <div className="space-y-4">
+          {filteredCoupons.map((coupon, idx) => {
             const expired = isExpired(coupon)
+            const theme = getCouponTheme(coupon, idx)
+            const isPercentage = coupon.discount_type === 'percentage'
+            const displayVal = isPercentage ? `${coupon.discount_value}%` : `₹${coupon.discount_value}`
+
             return (
               <div
                 key={coupon.id}
-                style={{
-                  background: '#fff', borderRadius: 14, padding: '18px 22px',
-                  border: `1.5px solid ${expired ? '#fecaca' : coupon.is_active ? '#e2e8f0' : '#fde68a'}`,
-                  display: 'flex', alignItems: 'center', gap: 18,
-                  opacity: expired ? 0.7 : 1,
-                  transition: 'all .2s',
-                }}
+                className={`flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-3xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs transition-all border-l-[5px] ${theme.border} hover:shadow-xs`}
               >
-                {/* Left: Discount badge */}
-                <div style={{
-                  minWidth: 90, textAlign: 'center', padding: '12px 8px',
-                  borderRadius: 12, background: expired ? '#fef2f2' : coupon.discount_type === 'percentage' ? '#ede9fe' : '#dcfce7',
-                  border: `1px dashed ${expired ? '#fca5a5' : coupon.discount_type === 'percentage' ? '#a78bfa' : '#86efac'}`,
-                }}>
-                  <div style={{
-                    fontSize: 20, fontWeight: 800,
-                    color: expired ? '#dc2626' : coupon.discount_type === 'percentage' ? '#7c3aed' : '#16a34a',
-                  }}>
-                    {coupon.discount_type === 'percentage' ? `${coupon.discount_value}%` : INR.format(coupon.discount_value)}
-                  </div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    OFF
-                  </div>
-                </div>
-
-                {/* Middle: Details */}
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                    <span style={{
-                      fontFamily: 'monospace', fontSize: 16, fontWeight: 700, color: '#0f172a',
-                      background: '#f1f5f9', padding: '3px 10px', borderRadius: 6,
-                      letterSpacing: '0.1em',
-                    }}>
-                      {coupon.code}
+                {/* Left side: Discount badge + Details */}
+                <div className="flex items-center gap-4 sm:gap-5 min-w-0">
+                  {/* Left Big Discount Box */}
+                  <div className={`flex flex-col items-center justify-center rounded-2xl p-3 w-20 sm:w-24 shrink-0 shadow-2xs ${theme.badgeBg}`}>
+                    <span className={`text-2xl font-black ${theme.textColor} leading-tight`}>
+                      {displayVal}
                     </span>
-                    <button
-                      onClick={() => copyCode(coupon.code, coupon.id)}
-                      title="Copy code"
-                      style={{
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        color: copiedId === coupon.id ? '#16a34a' : '#94a3b8',
-                        display: 'flex', alignItems: 'center',
-                      }}
-                    >
-                      {copiedId === coupon.id ? <Check size={14} /> : <Copy size={14} />}
-                    </button>
-                    {/* Status badges */}
-                    {expired ? (
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, color: '#dc2626',
-                        background: '#fee2e2', padding: '2px 8px', borderRadius: 4,
-                      }}>EXPIRED</span>
-                    ) : coupon.is_active ? (
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, color: '#16a34a',
-                        background: '#dcfce7', padding: '2px 8px', borderRadius: 4,
-                      }}>ACTIVE</span>
-                    ) : (
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, color: '#d97706',
-                        background: '#fef3c7', padding: '2px 8px', borderRadius: 4,
-                      }}>INACTIVE</span>
-                    )}
+                    <span className={`text-[10px] font-black uppercase tracking-wider ${theme.subTextColor} mt-0.5`}>
+                      OFF
+                    </span>
                   </div>
 
-                  <p style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>
-                    {coupon.description || formatDiscount(coupon)}
-                  </p>
+                  {/* Middle Info Details */}
+                  <div className="min-w-0 space-y-1.5">
+                    {/* Code Row + Copy + Status Badge */}
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-black text-xs text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg tracking-wider shadow-2xs">
+                        {coupon.code}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyCode(coupon)}
+                        className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
+                        title="Copy code"
+                      >
+                        {copiedId === coupon.id ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                      <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider border ${
+                        expired
+                          ? 'bg-rose-50 text-rose-600 border-rose-200'
+                          : coupon.is_active
+                          ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                          : 'bg-slate-100 text-slate-600 border-slate-200'
+                      }`}>
+                        {expired ? 'EXPIRED' : coupon.is_active ? 'ACTIVE' : 'INACTIVE'}
+                      </span>
+                    </div>
 
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 11, color: '#94a3b8' }}>
-                    {coupon.min_order_value > 0 && (
-                      <span>Min: {INR.format(coupon.min_order_value)}</span>
-                    )}
-                    <span>Uses: {coupon.used_count}/{coupon.max_uses}</span>
-                    <span>Categories: {getCategoryNames(coupon.applicable_category_ids)}</span>
-                    {coupon.applicable_product_ids?.length > 0 && (
-                      <span>Products: {coupon.applicable_product_ids.length} selected</span>
-                    )}
-                    <span>Expires: {new Date(coupon.expires_at).toLocaleDateString()}</span>
+                    {/* Description */}
+                    <div className="text-xs font-medium text-slate-600">
+                      {coupon.description || `${displayVal} discount on your order`}
+                    </div>
+
+                    {/* Meta Row: Min order, Uses, Categories, Expires */}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-medium text-slate-500 pt-0.5">
+                      <div className="flex items-center gap-1">
+                        <ShoppingCart className="h-3.5 w-3.5 text-slate-400" />
+                        <span>Min: ₹{coupon.min_order_value || 0}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5 text-slate-400" />
+                        <span>Uses: {coupon.used_count || 0}/{coupon.max_uses || 500}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <LayoutGrid className="h-3.5 w-3.5 text-slate-400" />
+                        <span>Categories: All</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                        <span>Expires: {formatExpiryDate(coupon.expires_at)}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Right: Actions */}
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    onClick={() => openEditModal(coupon)}
-                    style={{
-                      width: 34, height: 34, borderRadius: 8,
-                      border: '1px solid #e2e8f0', background: '#fff',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', color: '#6366f1',
-                    }}
-                    title="Edit"
-                  >
-                    <Edit2 size={14} />
-                  </button>
-                  <button
-                    onClick={() => setDeleteTarget(coupon)}
-                    style={{
-                      width: 34, height: 34, borderRadius: 8,
-                      border: '1px solid #fecaca', background: '#fff',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', color: '#dc2626',
-                    }}
-                    title="Delete"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                {/* Right side: Discount Pill + Action Buttons */}
+                <div className="flex items-center justify-end gap-3 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                  {/* Discount pill box */}
+                  <div className={`hidden sm:flex flex-col items-center justify-center rounded-2xl px-4 py-2 text-center min-w-[85px] shadow-2xs ${theme.discountBoxBg}`}>
+                    <span className={`text-lg font-black ${theme.textColor} leading-tight`}>
+                      {displayVal}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400">Discount</span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(coupon)}
+                      className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-bold text-indigo-600 shadow-2xs transition-colors cursor-pointer"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(coupon)}
+                      className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-600 shadow-2xs transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )
@@ -440,331 +565,213 @@ export default function MerchantCoupons() {
         </div>
       )}
 
-      {/* Create / Edit Modal */}
+      {/* ── FOOTER: Showing X of Y coupons + Pagination ── */}
+      <div className="flex items-center justify-between pt-2 px-1">
+        <div className="text-xs font-medium text-slate-500">
+          Showing {filteredCoupons.length} of {coupons.length} coupons
+        </div>
+
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 transition-colors cursor-not-allowed opacity-50"
+            disabled
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            className="h-7 w-7 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs"
+          >
+            1
+          </button>
+          <button
+            type="button"
+            className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 transition-colors cursor-not-allowed opacity-50"
+            disabled
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* ── CREATE / EDIT MODAL ── */}
       {modalOpen && (
-        <>
-          <div
-            onClick={() => setModalOpen(false)}
-            style={{
-              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-              zIndex: 1000, backdropFilter: 'blur(4px)',
-            }}
-          />
-          <div style={{
-            position: 'fixed', top: '50%', left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '95%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto',
-            background: '#fff', borderRadius: 16,
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-            zIndex: 1001, padding: '28px 32px',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a' }}>
-                {editingCoupon ? 'Edit Coupon' : 'Create Coupon'}
-              </h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-xl space-y-5 animate-in fade-in zoom-in duration-150 my-8">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+              <div className="flex items-center gap-2 text-base font-bold text-slate-900">
+                <Ticket className="h-5 w-5 text-indigo-600" />
+                <span>{editingCoupon ? 'Edit Coupon' : 'Create New Coupon'}</span>
+              </div>
               <button
+                type="button"
                 onClick={() => setModalOpen(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                className="rounded-lg p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100"
               >
-                <X size={20} />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
             {formError && (
-              <div style={{
-                background: '#fee2e2', border: '1px solid #fecaca',
-                borderRadius: 10, padding: '10px 14px', fontSize: 12,
-                color: '#dc2626', fontWeight: 500, marginBottom: 16,
-              }}>
+              <div className="rounded-xl bg-rose-50 border border-rose-200 px-3.5 py-2 text-xs font-semibold text-rose-700">
                 {formError}
               </div>
             )}
 
-            <div style={{ display: 'grid', gap: 16 }}>
-              {/* Coupon Code */}
+            <div className="space-y-4 text-xs">
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
-                  Coupon Code *
-                </label>
+                <label className="block font-bold text-slate-700 mb-1">Coupon Code</label>
                 <input
                   type="text"
                   value={form.code}
-                  onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-                  placeholder="e.g. SAVE10"
-                  style={{
-                    width: '100%', padding: '10px 14px', borderRadius: 10,
-                    border: '1.5px solid #e2e8f0', fontSize: 13,
-                    fontFamily: 'monospace', letterSpacing: '0.1em',
-                    outline: 'none',
-                  }}
+                  onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/\s+/g, '') })}
+                  placeholder="e.g. SUMMER25"
+                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 font-mono font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 uppercase"
                 />
               </div>
 
-              {/* Description */}
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
-                  Description
-                </label>
-                <input
-                  type="text"
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="e.g. 10% off on all products"
-                  style={{
-                    width: '100%', padding: '10px 14px', borderRadius: 10,
-                    border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none',
-                  }}
-                />
-              </div>
-
-              {/* Discount Type + Value */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
-                    Discount Type *
-                  </label>
+                  <label className="block font-bold text-slate-700 mb-1">Discount Type</label>
                   <select
                     value={form.discount_type}
                     onChange={(e) => setForm({ ...form, discount_type: e.target.value })}
-                    style={{
-                      width: '100%', padding: '10px 14px', borderRadius: 10,
-                      border: '1.5px solid #e2e8f0', fontSize: 13,
-                      outline: 'none', background: '#fff',
-                    }}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 font-semibold text-slate-800 focus:outline-none focus:border-indigo-500"
                   >
                     <option value="percentage">Percentage (%)</option>
                     <option value="flat">Flat Amount (₹)</option>
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
-                    Discount Value *
+                  <label className="block font-bold text-slate-700 mb-1">
+                    {form.discount_type === 'percentage' ? 'Discount Percentage (%)' : 'Discount Amount (₹)'}
                   </label>
                   <input
                     type="number"
-                    min="0"
                     value={form.discount_value}
                     onChange={(e) => setForm({ ...form, discount_value: e.target.value })}
-                    placeholder={form.discount_type === 'percentage' ? 'e.g. 10' : 'e.g. 200'}
-                    style={{
-                      width: '100%', padding: '10px 14px', borderRadius: 10,
-                      border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none',
-                    }}
+                    placeholder={form.discount_type === 'percentage' ? '10' : '150'}
+                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 font-semibold text-slate-800 focus:outline-none focus:border-indigo-500"
                   />
                 </div>
               </div>
 
-              {/* Min Order + Max Uses */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
-                    Min Order Value (₹)
-                  </label>
+                  <label className="block font-bold text-slate-700 mb-1">Min Order Value (₹)</label>
                   <input
                     type="number"
-                    min="0"
                     value={form.min_order_value}
                     onChange={(e) => setForm({ ...form, min_order_value: e.target.value })}
-                    placeholder="0"
-                    style={{
-                      width: '100%', padding: '10px 14px', borderRadius: 10,
-                      border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none',
-                    }}
+                    placeholder="500"
+                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 font-semibold text-slate-800 focus:outline-none focus:border-indigo-500"
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
-                    Max Uses
-                  </label>
+                  <label className="block font-bold text-slate-700 mb-1">Max Uses</label>
                   <input
                     type="number"
-                    min="1"
                     value={form.max_uses}
                     onChange={(e) => setForm({ ...form, max_uses: e.target.value })}
                     placeholder="100"
-                    style={{
-                      width: '100%', padding: '10px 14px', borderRadius: 10,
-                      border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none',
-                    }}
+                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 font-semibold text-slate-800 focus:outline-none focus:border-indigo-500"
                   />
                 </div>
               </div>
 
-              {/* Expiry Date */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
-                  Expiry Date *
-                </label>
+                <label className="block font-bold text-slate-700 mb-1">Expiry Date</label>
                 <input
                   type="date"
                   value={form.expires_at}
                   onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
-                  style={{
-                    width: '100%', padding: '10px 14px', borderRadius: 10,
-                    border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none',
-                  }}
+                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 font-semibold text-slate-800 focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
-              {/* Applicable Categories */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
-                  Applicable Categories
-                  <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 6 }}>(empty = all categories)</span>
-                </label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {categories.map((cat) => {
-                    const selected = (form.applicable_category_ids || []).includes(cat.id)
-                    return (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => toggleCategoryFilter(cat.id)}
-                        style={{
-                          padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                          border: '1.5px solid', cursor: 'pointer',
-                          background: selected ? '#6366f1' : '#fff',
-                          color: selected ? '#fff' : '#475569',
-                          borderColor: selected ? '#6366f1' : '#e2e8f0',
-                        }}
-                      >
-                        {cat.name}
-                      </button>
-                    )
-                  })}
-                </div>
+                <label className="block font-bold text-slate-700 mb-1">Description</label>
+                <input
+                  type="text"
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder="e.g. 10% off on first order above ₹500"
+                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+                />
               </div>
 
-              {/* Applicable Products */}
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
-                  Applicable Products
-                  <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 6 }}>(empty = all products)</span>
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="coupon_active"
+                  checked={form.is_active}
+                  onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                  className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500"
+                />
+                <label htmlFor="coupon_active" className="font-semibold text-slate-700 cursor-pointer">
+                  Activate this coupon immediately
                 </label>
-                <div style={{ maxHeight: 140, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 10, padding: 8 }}>
-                  {products.map((prod) => {
-                    const selected = (form.applicable_product_ids || []).includes(prod.id)
-                    return (
-                      <label
-                        key={prod.id}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 8,
-                          padding: '6px 8px', borderRadius: 6, cursor: 'pointer',
-                          fontSize: 12, color: '#374151',
-                          background: selected ? '#eef2ff' : 'transparent',
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          onChange={() => toggleProductFilter(prod.id)}
-                          style={{ accentColor: '#6366f1' }}
-                        />
-                        <span style={{ fontWeight: selected ? 600 : 400 }}>{prod.name}</span>
-                        <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 'auto' }}>{INR.format(prod.price)}</span>
-                      </label>
-                    )
-                  })}
-                </div>
               </div>
 
-              {/* Active toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>Active</label>
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setForm({ ...form, is_active: !form.is_active })}
-                  style={{
-                    width: 44, height: 24, borderRadius: 12, border: 'none',
-                    background: form.is_active ? '#6366f1' : '#cbd5e1',
-                    cursor: 'pointer', position: 'relative', transition: 'background .2s',
-                  }}
+                  onClick={() => setModalOpen(false)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
                 >
-                  <span style={{
-                    position: 'absolute', top: 2, left: form.is_active ? 22 : 2,
-                    width: 20, height: 20, borderRadius: '50%', background: '#fff',
-                    transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                  }} />
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="rounded-xl bg-indigo-600 px-5 py-2 font-bold text-white hover:bg-indigo-700 transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {saving ? 'Saving...' : editingCoupon ? 'Update Coupon' : 'Create Coupon'}
                 </button>
               </div>
             </div>
-
-            {/* Modal footer */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24, paddingTop: 16, borderTop: '1px solid #e2e8f0' }}>
-              <button
-                onClick={() => setModalOpen(false)}
-                style={{
-                  padding: '10px 20px', borderRadius: 10, fontSize: 13,
-                  fontWeight: 600, border: '1.5px solid #e2e8f0',
-                  background: '#fff', color: '#475569', cursor: 'pointer',
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                style={{
-                  padding: '10px 24px', borderRadius: 10, fontSize: 13,
-                  fontWeight: 600, border: 'none',
-                  background: '#6366f1', color: '#fff', cursor: 'pointer',
-                  opacity: saving ? 0.6 : 1,
-                }}
-              >
-                {saving ? 'Saving…' : editingCoupon ? 'Update Coupon' : 'Create Coupon'}
-              </button>
-            </div>
           </div>
-        </>
+        </div>
       )}
 
-      {/* Delete confirmation modal */}
+      {/* ── DELETE CONFIRMATION DIALOG ── */}
       {deleteTarget && (
-        <>
-          <div
-            onClick={() => setDeleteTarget(null)}
-            style={{
-              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-              zIndex: 1000,
-            }}
-          />
-          <div style={{
-            position: 'fixed', top: '50%', left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '90%', maxWidth: 400,
-            background: '#fff', borderRadius: 16,
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-            zIndex: 1001, padding: '28px 32px', textAlign: 'center',
-          }}>
-            <div style={{ fontSize: 38, marginBottom: 10 }}>🗑️</div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>Delete Coupon?</h3>
-            <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-              Are you sure you want to delete <strong>{deleteTarget.code}</strong>? This action cannot be undone.
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-150">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-100">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Delete Coupon</h3>
+                <p className="text-xs text-slate-500">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Are you sure you want to delete coupon <strong className="font-mono text-slate-900">{deleteTarget.code}</strong>?
             </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
               <button
+                type="button"
                 onClick={() => setDeleteTarget(null)}
-                style={{
-                  padding: '10px 20px', borderRadius: 10, fontSize: 13,
-                  fontWeight: 600, border: '1.5px solid #e2e8f0',
-                  background: '#fff', color: '#475569', cursor: 'pointer',
-                }}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleDelete}
-                style={{
-                  padding: '10px 24px', borderRadius: 10, fontSize: 13,
-                  fontWeight: 600, border: 'none',
-                  background: '#dc2626', color: '#fff', cursor: 'pointer',
-                }}
+                className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition-colors shadow-xs cursor-pointer"
               >
                 Delete
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   )

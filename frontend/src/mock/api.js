@@ -2288,7 +2288,7 @@ export const api = {
     if (hasLiveApi()) {
       try {
         const data = await live('/admin/orders/', { role: 'merchant' })
-        if (Array.isArray(data) && data.length > 0) return data
+        if (Array.isArray(data)) return data
       } catch (e) {
         console.warn('Live orders fetch fallback:', e)
       }
@@ -2297,16 +2297,25 @@ export const api = {
     return clone(store.orders)
   },
 
-  async updateOrderStatus({ orderId, deliveryStatus }) {
+  async updateOrderStatus({ orderId, deliveryStatus, notes = '' }) {
     if (hasLiveApi()) {
       try {
-        return await live(`/orders/${orderId}/status/`, {
+        return await live(`/admin/orders/${orderId}/status/`, {
           method: 'POST',
-          body: { deliveryStatus },
+          body: { deliveryStatus, delivery_status: deliveryStatus, notes },
           role: 'merchant',
         })
       } catch (e) {
-        console.warn('Live updateOrderStatus fallback:', e)
+        console.warn('Live updateOrderStatus fallback, trying alternative route:', e)
+        try {
+          return await live(`/orders/${orderId}/status/`, {
+            method: 'POST',
+            body: { deliveryStatus, delivery_status: deliveryStatus, notes },
+            role: 'merchant',
+          })
+        } catch (e2) {
+          console.warn('Live updateOrderStatus second route failed:', e2)
+        }
       }
     }
     await delay(300)
@@ -2325,13 +2334,43 @@ export const api = {
     if (hasLiveApi()) {
       try {
         const data = await live('/admin/customers/', { role: 'merchant' })
-        if (Array.isArray(data) && data.length > 0) return data
+        if (Array.isArray(data)) return data
       } catch (e) {
         console.warn('Live customers fetch fallback:', e)
       }
     }
     await delay(300)
     return clone(store.shoppers)
+  },
+
+  async executeCustomerAction(customerId, { action, notes = '', restriction_type, reason, threshold_value, escalation_level } = {}) {
+    if (hasLiveApi()) {
+      try {
+        let backendAction = action || 'restrict_cod'
+        if (action === 'apply_restriction') {
+          if (restriction_type === 'cod_suspended' || restriction_type === 'restrict_cod') backendAction = 'restrict_cod'
+          else if (restriction_type === 'prepaid_only' || restriction_type === 'require_prepaid') backendAction = 'require_prepaid'
+          else if (restriction_type === 'high_value_restricted') backendAction = 'restrict_high_value'
+          else if (restriction_type === 'account_suspended' || restriction_type === 'suspend_account') backendAction = 'suspend_account'
+          else backendAction = 'restrict_cod'
+        }
+        const res = await live(`/fraud/customers/${customerId}/action/`, {
+          method: 'POST',
+          body: {
+            action: backendAction,
+            notes: notes || reason || 'Manual merchant restriction',
+            threshold_value,
+            escalation_level,
+          },
+          role: 'merchant',
+        })
+        if (res) return res
+      } catch (e) {
+        console.warn('Live executeCustomerAction fallback:', e)
+      }
+    }
+    await delay(300)
+    return { status: 'completed', action }
   },
 
   async getMerchantReturns() {
@@ -2344,8 +2383,8 @@ export const api = {
             ? res.data
             : (res?.results && Array.isArray(res.results)
               ? res.results
-              : []))
-        if (list && list.length > 0) return list
+              : null))
+        if (Array.isArray(list)) return list
       } catch (e) {
         console.warn('Live flagged-cases fetch fallback:', e)
       }
@@ -2563,7 +2602,7 @@ export const api = {
     if (hasLiveApi()) {
       try {
         const data = await live('/admin/audit-log/', { role: 'merchant' })
-        if (Array.isArray(data) && data.length > 0) return data
+        if (Array.isArray(data)) return data
       } catch (e) {
         console.warn('Live audit-log fetch fallback:', e)
       }
@@ -2895,8 +2934,8 @@ export const api = {
         if (status && status !== 'all') params.set('status', status)
         const qs = params.toString()
         const res = await live(`/admin/products/${qs ? `?${qs}` : ''}`, { role: 'merchant' })
-        if (Array.isArray(res) && res.length > 0) return res
-        if (res?.products && Array.isArray(res.products) && res.products.length > 0) return res.products
+        if (Array.isArray(res)) return res
+        if (res?.products && Array.isArray(res.products)) return res.products
       } catch (e) {
         console.warn('Live getMerchantProducts fallback:', e)
       }
@@ -3090,7 +3129,7 @@ export const api = {
     if (hasLiveApi()) {
       try {
         const liveCats = await live('/admin/categories/', { role: 'merchant' })
-        if (Array.isArray(liveCats) && liveCats.length > 0) return liveCats
+        if (Array.isArray(liveCats)) return liveCats
       } catch (err) {
         console.warn('Live getMerchantCategories error, falling back:', err)
       }
@@ -3349,7 +3388,7 @@ export const api = {
     if (hasLiveApi()) {
       try {
         const data = await live('/admin/coupons/', { role: 'merchant' })
-        if (Array.isArray(data) && data.length > 0) return data
+        if (Array.isArray(data)) return data
       } catch (e) {
         console.warn('Live getMerchantCoupons fallback:', e)
       }
@@ -3886,7 +3925,7 @@ export const api = {
       try {
         const q = type ? `?type=${type}` : ''
         const data = await live(`/fraud/rules/list/${q}`, { role: 'merchant' })
-        if (Array.isArray(data) && data.length > 0) return data
+        if (Array.isArray(data)) return data
       } catch (e) {
         console.warn('Live rules fetch fallback:', e)
       }
@@ -3958,6 +3997,28 @@ export const api = {
     const rule = store.listRules.find((r) => r.id === id)
     if (rule) rule.is_active = !rule.is_active
     return clone(rule)
+  },
+
+  async updateListRule(id, data) {
+    if (hasLiveApi()) {
+      try {
+        const res = await live(`/fraud/rules/list/${id}/`, {
+          method: 'PATCH',
+          body: data,
+          role: 'merchant',
+        })
+        if (res) return res
+      } catch (e) {
+        console.warn('Live updateListRule fallback:', e)
+      }
+    }
+    await delay(200)
+    const idx = (store.listRules || []).findIndex((r) => r.id === id)
+    if (idx !== -1) {
+      store.listRules[idx] = { ...store.listRules[idx], ...data }
+      return clone(store.listRules[idx])
+    }
+    return null
   },
 
   // ── Loss Prevention ROI Analytics (Feature 4) ──

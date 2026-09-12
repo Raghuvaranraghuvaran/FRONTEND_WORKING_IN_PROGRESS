@@ -10,4 +10,5 @@ urlpatterns = [
     path("verify-otp/", views.MerchantOTPVerifyView.as_view(), name="merchant-verify-otp"),
     path("change-password/", views.MerchantChangePasswordView.as_view(), name="merchant-change-password"),
     path("me/", views.MerchantMeView.as_view(), name="merchant-me"),
+    path("profile/", views.MerchantMeView.as_view(), name="merchant-profile"),
 ]

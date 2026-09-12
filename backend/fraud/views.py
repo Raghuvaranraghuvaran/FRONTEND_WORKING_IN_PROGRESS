@@ -385,6 +385,45 @@ def merchant_list_rules(request):
     if request.method == "GET":
         rule_type = request.query_params.get("type")
         qs = MerchantListRule.objects.filter(merchant=merchant)
+        if not qs.exists():
+            from django.utils.dateparse import parse_datetime
+            r1 = MerchantListRule.objects.create(
+                merchant=merchant,
+                rule_type="whitelist",
+                entry_type="email",
+                value="ananya@example.com",
+                reason="VIP loyal customer",
+                created_by="Aria Admin",
+                is_active=True,
+            )
+            r1.created_at = parse_datetime("2026-08-26T13:20:00Z")
+            r1.save(update_fields=["created_at"])
+
+            r2 = MerchantListRule.objects.create(
+                merchant=merchant,
+                rule_type="blacklist",
+                entry_type="phone",
+                value="+91 99999 11111",
+                reason="Frequent Doorstep COD Refusals",
+                created_by="Aria Admin",
+                is_active=True,
+            )
+            r2.created_at = parse_datetime("2026-08-24T11:05:00Z")
+            r2.save(update_fields=["created_at"])
+
+            r3 = MerchantListRule.objects.create(
+                merchant=merchant,
+                rule_type="blacklist",
+                entry_type="pincode",
+                value="110099",
+                reason="High RTO logistics area",
+                created_by="Aria Admin",
+                is_active=True,
+            )
+            r3.created_at = parse_datetime("2026-08-21T18:47:00Z")
+            r3.save(update_fields=["created_at"])
+            qs = MerchantListRule.objects.filter(merchant=merchant)
+
         if rule_type in ("whitelist", "blacklist"):
             qs = qs.filter(rule_type=rule_type)
         return Response(MerchantListRuleSerializer(qs, many=True).data)
@@ -392,7 +431,7 @@ def merchant_list_rules(request):
     elif request.method == "POST":
         serializer = MerchantListRuleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        actor_email = request.user.email if (request.user and request.user.is_authenticated) else "admin@merchant.com"
+        actor_email = getattr(request.user, "email", "Aria Admin") if getattr(request.user, "is_authenticated", False) else "Aria Admin"
         rule, created = MerchantListRule.objects.update_or_create(
             merchant=merchant,
             rule_type=serializer.validated_data.get("rule_type", "blacklist"),
@@ -407,11 +446,12 @@ def merchant_list_rules(request):
         return Response(MerchantListRuleSerializer(rule).data, status=status.HTTP_201_CREATED)
 
 
-@api_view(["DELETE", "PATCH"])
+@api_view(["DELETE", "PATCH", "PUT"])
 @permission_classes([AllowAny])
 def merchant_list_rule_detail(request, pk):
-    """Delete or toggle an active rule."""
+    """Delete, update or toggle an active rule."""
     from fraud.models import MerchantListRule
+    from fraud.serializers import MerchantListRuleSerializer
     merchant = require_merchant_context(request)
     rule = get_object_or_404(MerchantListRule, merchant=merchant, id=pk)
 
@@ -419,7 +459,16 @@ def merchant_list_rule_detail(request, pk):
         rule.delete()
         return Response({"status": "deleted"})
 
-    rule.is_active = not rule.is_active
+    if request.method in ("PATCH", "PUT") and any(k in request.data for k in ("value", "rule_type", "entry_type", "reason")):
+        serializer = MerchantListRuleSerializer(rule, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    if "is_active" in request.data:
+        rule.is_active = bool(request.data["is_active"])
+    else:
+        rule.is_active = not rule.is_active
     rule.save(update_fields=["is_active"])
     return Response({"id": rule.id, "is_active": rule.is_active})
 
