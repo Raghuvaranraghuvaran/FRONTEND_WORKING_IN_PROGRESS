@@ -86,9 +86,15 @@ class LoginView(APIView):
                     }
                 )
             else:
-                user.set_password("demo123")
-                user.role = User.ROLE_SHOPPER
-                user.save()
+                need_save = False
+                if not user.check_password("demo123"):
+                    user.set_password("demo123")
+                    need_save = True
+                if user.role != User.ROLE_SHOPPER:
+                    user.role = User.ROLE_SHOPPER
+                    need_save = True
+                if need_save:
+                    user.save()
             return success({"tokens": tokens_for_user(user), "user": ShopperSerializer(user).data})
 
         user = authenticate(

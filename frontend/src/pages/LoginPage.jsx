@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Eye, EyeOff } from 'lucide-react'
 import { api } from '../mock/api'
@@ -51,7 +51,9 @@ const A = '#6f5cf0'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { setShopper } = useApp()
+  const targetDestination = location.state?.from || '/dashboard'
 
   const [activeTab, setActiveTab] = useState('pw')
   const [form, setForm] = useState({ email: 'demo@shopper.com', password: 'demo123' })
@@ -81,17 +83,17 @@ export default function LoginPage() {
       if (googleButtonRef.current) {
         initializeGoogleSignIn('shopper-google-signin', async (credential) => {
           setError(''); setSubmitting(true)
-          try { const s = await api.googleSignIn(credential); setShopper(s); navigate('/shop') }
+          try { const s = await api.googleSignIn(credential); setShopper(s); navigate(targetDestination) }
           catch (e) { setError(e.message) }
           finally { setSubmitting(false) }
         })
       }
     })
-  }, [navigate, setShopper, activeTab])
+  }, [navigate, setShopper, activeTab, targetDestination])
 
   const submitPassword = async (e) => {
     e.preventDefault(); setError(''); setSubmitting(true)
-    try { const s = await api.login(form); setShopper(s); navigate('/shop') }
+    try { const s = await api.login(form); setShopper(s); navigate(targetDestination) }
     catch (e) { setError(e.message) }
     finally { setSubmitting(false) }
   }
@@ -114,7 +116,7 @@ export default function LoginPage() {
     try {
       const clean = otpEmail.trim()
       const s = await api.verifyLoginOTP({ email: clean, challengeId: otpChallengeId, code: otpCode })
-      setShopper(s); navigate('/shop')
+      setShopper(s); navigate(targetDestination)
     } catch (e) { setError(e.message) }
     finally { setSubmitting(false) }
   }
@@ -151,7 +153,7 @@ export default function LoginPage() {
     try {
       await api.resetPassword({ email: resetEmail, challengeId: resetChallengeId, code: resetCode, newPassword })
       const shopper = await api.login({ email: resetEmail, password: newPassword })
-      setShopper(shopper); navigate('/shop')
+      setShopper(shopper); navigate(targetDestination)
     } catch (err) { setError(err.message) }
     finally { setSubmitting(false) }
   }

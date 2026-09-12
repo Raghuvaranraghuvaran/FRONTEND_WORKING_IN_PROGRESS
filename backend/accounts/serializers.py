@@ -27,13 +27,15 @@ class ShopperSerializer(serializers.ModelSerializer):
     joined_at = serializers.SerializerMethodField()
 
     def _get_profile(self, obj):
-        profile = getattr(obj, "shopper_profile", None)
-        if profile is None and obj.is_shopper:
-            profile, _ = ShopperProfile.objects.get_or_create(
-                user=obj,
-                defaults={"customer_id": f"CUST-{obj.id + 1000}", "reward_points": 1000},
-            )
-        return profile
+        if not hasattr(obj, "_cached_profile"):
+            profile = getattr(obj, "shopper_profile", None)
+            if profile is None and obj.is_shopper:
+                profile, _ = ShopperProfile.objects.get_or_create(
+                    user=obj,
+                    defaults={"customer_id": f"CUST-{obj.id + 1000}", "reward_points": 1000},
+                )
+            obj._cached_profile = profile
+        return obj._cached_profile
 
     def get_customer_id(self, obj):
         p = self._get_profile(obj)

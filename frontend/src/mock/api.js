@@ -140,7 +140,7 @@ async function live(path, { method = 'GET', body, role = 'shopper' } = {}) {
   }
 }
 
-const delay = (ms = 450) => new Promise((resolve) => setTimeout(resolve, ms))
+const delay = (ms = 20) => new Promise((resolve) => setTimeout(resolve, Math.min(ms, 60)))
 
 function clone(data) {
   return JSON.parse(JSON.stringify(data))
@@ -1097,7 +1097,7 @@ export const api = {
         saveSession()
         return user
       } catch (err) {
-        const isNetworkErr = !err.status || err.name === 'TypeError' || String(err.message || '').toLowerCase().includes('fetch') || String(err.message || '').toLowerCase().includes('network')
+        const isNetworkErr = !err.status || err.name === 'TypeError' || err.status === 408 || String(err.message || '').toLowerCase().includes('fetch') || String(err.message || '').toLowerCase().includes('network') || String(err.message || '').toLowerCase().includes('timed out')
         // If demo credentials or backend unreachable ("Failed to fetch"), seamlessly fallback to mock demo shopper
         if (cleanEmail === 'demo@shopper.com' || isNetworkErr) {
           console.warn('Live login failed/unreachable, using mock shopper session:', err)
@@ -1112,7 +1112,7 @@ export const api = {
         throw err
       }
     }
-    await delay(500)
+    await delay(20)
     if (!password || password.length < 1) {
       throw new Error('Password is required.')
     }
@@ -1368,7 +1368,7 @@ export const api = {
         saveSession()
         return { admin: result.admin, merchant: result.merchant }
       } catch (err) {
-        const isNetworkErr = !err.status || err.name === 'TypeError' || String(err.message || '').toLowerCase().includes('fetch') || String(err.message || '').toLowerCase().includes('network')
+        const isNetworkErr = !err.status || err.name === 'TypeError' || err.status === 408 || String(err.message || '').toLowerCase().includes('fetch') || String(err.message || '').toLowerCase().includes('network') || String(err.message || '').toLowerCase().includes('timed out')
         // If demo credentials or network unreachable ("Failed to fetch"), allow mock fallback
         if (['ARIAFASHION4827', 'ADMIN@RETURNGUARD.IN', 'DEMO@MERCHANT.COM'].includes(cleanUsername) || isNetworkErr) {
           console.warn('Live merchant login failed/unreachable, checking registered mock merchants:', err)
@@ -1388,7 +1388,7 @@ export const api = {
         throw err
       }
     }
-    await delay(500)
+    await delay(20)
     const list = loadMerchantsList()
     const matched = list.find((m) => (m.merchant_username || '').toUpperCase() === cleanUsername || (m.email || '').toUpperCase() === cleanUsername)
     if (matched && password === matched.password) {
@@ -1441,7 +1441,7 @@ export const api = {
         console.warn('Could not fetch live shopper profile, keeping active session:', err)
       }
     }
-    await delay(100)
+    await delay(10)
     if (session.shopper && session.shopper.reward_points === undefined) {
       session.shopper.reward_points = 1000
     }
@@ -1463,7 +1463,7 @@ export const api = {
         console.warn('Could not fetch live merchant profile, keeping active session:', err)
       }
     }
-    await delay(100)
+    await delay(10)
     return clone(session.merchant)
   },
 

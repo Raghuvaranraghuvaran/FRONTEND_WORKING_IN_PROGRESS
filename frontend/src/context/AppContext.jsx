@@ -68,7 +68,7 @@ export function AppProvider({ children }) {
     preferred_brands: ['Nike', 'Zara', 'H&M'],
   })
   const [deviceReady, setDeviceReady] = useState(false)
-  const [authReady, setAuthReady] = useState(false)
+  const [authReady, setAuthReady] = useState(true)
 
   useEffect(() => {
     const context = getDeviceContext()

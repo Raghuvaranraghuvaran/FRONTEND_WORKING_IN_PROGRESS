@@ -350,22 +350,20 @@ class MerchantLoginView(APIView):
                     merchant_username="ARIAFASHION4827",
                 )
             else:
-                user.set_password("demo123")
-                user.merchant_username = "ARIAFASHION4827"
-                user.role = User.ROLE_MERCHANT_ADMIN
-                user.save()
+                need_save = False
+                if not user.check_password("demo123"):
+                    user.set_password("demo123")
+                    need_save = True
+                if user.merchant_username != "ARIAFASHION4827":
+                    user.merchant_username = "ARIAFASHION4827"
+                    need_save = True
+                if user.role != User.ROLE_MERCHANT_ADMIN:
+                    user.role = User.ROLE_MERCHANT_ADMIN
+                    need_save = True
+                if need_save:
+                    user.save()
 
             MerchantProfile.objects.get_or_create(user=user, defaults={"merchant": merchant})
-            
-            # Ensure demo dataset is populated if empty
-            from orders.models import Order
-            if Order.objects.filter(merchant=merchant).count() == 0:
-                from django.core.management import call_command
-                try:
-                    call_command("seed_demo")
-                except Exception:
-                    pass
-
             return success(merchant_login_payload(user))
 
         # Find user by merchant_username or email

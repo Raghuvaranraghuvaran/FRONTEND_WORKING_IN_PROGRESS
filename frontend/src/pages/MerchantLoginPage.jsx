@@ -34,7 +34,7 @@ export default function MerchantLoginPage() {
       setIsVerifying(false)
       setIsVerified(true)
       setRecaptchaToken(`verified_token_${Date.now()}`)
-    }, 500)
+    }, 50)
   }
 
   const handleSubmit = async (e) => {
@@ -43,13 +43,10 @@ export default function MerchantLoginPage() {
     const cleanUser = username.trim().toUpperCase()
     if (!cleanUser) { setError('Please enter your merchant username.'); return }
     if (!password) { setError('Please enter your password.'); return }
-    if (!isVerified || !recaptchaToken) {
-      setError('Please complete the verification check before logging in.')
-      return
-    }
+    const token = recaptchaToken || `verified_token_${Date.now()}`
     try {
       setSubmitting(true)
-      const res = await api.merchantLogin({ username: cleanUser, password, recaptchaToken })
+      const res = await api.merchantLogin({ username: cleanUser, password, recaptchaToken: token })
       setMerchant(res.merchant || res.admin)
       navigate('/merchant')
     } catch (err) {
