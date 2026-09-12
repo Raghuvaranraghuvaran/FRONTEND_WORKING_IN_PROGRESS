@@ -34,7 +34,12 @@ export function AppProvider({ children }) {
   })
   const [wishlist, setWishlist] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('returnguard_wishlist') || '[]')
+      const stored = JSON.parse(localStorage.getItem('returnguard_wishlist') || 'null')
+      if (Array.isArray(stored) && stored.length > 0) return stored
+      return [
+        { id: 'prod_1', product_id: 'prod_1', name: 'Embroidered Lehenga Set', price: 6499, original_price: 8999, image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=600&q=80', is_returnable: true },
+        { id: 'prod_7', product_id: 'prod_7', name: 'Wireless Earbuds', price: 3999, original_price: 5999, image: 'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?auto=format&fit=crop&w=600&q=80', is_returnable: true },
+      ]
     } catch {
       return []
     }

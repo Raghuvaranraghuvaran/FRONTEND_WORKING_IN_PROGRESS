@@ -143,29 +143,59 @@ export default function MerchantLoginPage() {
 
             {/* Demo indicator & quick refill */}
             <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: 'rgba(13,148,136,0.08)', border: '1px solid rgba(13,148,136,0.2)',
-              borderRadius: 8, padding: '7px 11px', marginTop: 14, marginBottom: 4,
-              fontSize: 12, color: '#0f766e',
+              background: 'linear-gradient(135deg, rgba(13,148,136,0.08) 0%, rgba(15,118,110,0.12) 100%)',
+              border: '1.5px solid rgba(13,148,136,0.28)',
+              borderRadius: 12, padding: '12px 14px', marginTop: 14, marginBottom: 16,
             }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 500 }}>
-                ⚡ Demo credentials loaded
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: '#0d9488', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  ⚡ Demo Merchant Credentials
+                </span>
+                <span style={{ fontSize: 11, background: '#ccfbf1', color: '#0f766e', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>
+                  Ready to Sign In
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: '#334155', fontFamily: 'monospace', marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div>Username: <strong style={{ color: '#134e4a' }}>ARIAFASHION4827</strong> (or demo@merchant.com)</div>
+                <div>Password: <strong style={{ color: '#134e4a' }}>demo123</strong></div>
+              </div>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   setUsername('ARIAFASHION4827')
                   setPassword('demo123')
                   setIsVerified(true)
                   setRecaptchaToken('verified_token_demo')
                   setError('')
+                  setSubmitting(true)
+                  try {
+                    const res = await api.merchantLogin({ username: 'ARIAFASHION4827', password: 'demo123' })
+                    setMerchant(res.merchant || res.admin)
+                    navigate('/merchant')
+                  } catch (err) {
+                    setError(err.message || 'Invalid username or password.')
+                  } finally {
+                    setSubmitting(false)
+                  }
                 }}
                 style={{
-                  background: A, color: '#fff', border: 'none', borderRadius: 5,
-                  padding: '3px 8px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  width: '100%',
+                  background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(13,148,136,0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
                 }}
               >
-                Refill Demo
+                ⚡ Fill & Instant Login to Merchant Dashboard
               </button>
             </div>
 

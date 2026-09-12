@@ -461,6 +461,63 @@ export default function LoginPage() {
 
 
 
+            {/* ── Demo Credentials Helper Card ───────────────────────────── */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(124,58,237,0.12) 100%)',
+              border: '1.5px solid rgba(99,102,241,0.28)',
+              borderRadius: 12,
+              padding: '12px 14px',
+              marginBottom: 16,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: '#4f46e5', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  ⚡ Demo Shopper Credentials
+                </span>
+                <span style={{ fontSize: 11, background: '#e0e7ff', color: '#4338ca', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>
+                  Ready to Sign In
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: '#334155', fontFamily: 'monospace', marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div>Email: <strong style={{ color: '#1e1b4b' }}>demo@shopper.com</strong></div>
+                <div>Password: <strong style={{ color: '#1e1b4b' }}>demo123</strong></div>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  setForm({ email: 'demo@shopper.com', password: 'demo123' })
+                  setError('')
+                  setSubmitting(true)
+                  try {
+                    const s = await api.login({ email: 'demo@shopper.com', password: 'demo123' })
+                    setShopper(s)
+                    navigate(targetDestination)
+                  } catch (e) {
+                    setError(e.message)
+                  } finally {
+                    setSubmitting(false)
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(79,70,229,0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+              >
+                ⚡ Fill & Instant Login as Demo Shopper
+              </button>
+            </div>
+
             {/* ── Password tab ─────────────────────────────────────────── */}
             {activeTab === 'pw' && (
               <form onSubmit={submitPassword}>

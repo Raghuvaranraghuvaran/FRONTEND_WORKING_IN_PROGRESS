@@ -1088,6 +1088,19 @@ export const api = {
 
   async login({ email, password }) {
     const cleanEmail = String(email || '').trim().toLowerCase()
+    // For demo shopper accounts, ALWAYS log in immediately with rich demo data intact
+    if (cleanEmail === 'demo@shopper.com' || cleanEmail === 'shopper@example.com') {
+      const shopper = findShopperByEmail('demo@shopper.com') || store.shoppers.find(s => s.email === 'demo@shopper.com') || store.shoppers[0]
+      if (shopper) {
+        shopper.reward_points = shopper.reward_points ?? 1250
+        shopper.total_orders = shopper.total_orders || 8
+        shopper.total_returns = shopper.total_returns || 1
+        session.shopper = clone(shopper)
+        saveSession()
+        return clone(shopper)
+      }
+    }
+
     if (hasLiveApi()) {
       try {
         const result = await live('/auth/login/', { method: 'POST', body: { email, password } })
@@ -1098,12 +1111,13 @@ export const api = {
         return user
       } catch (err) {
         const isNetworkErr = !err.status || err.name === 'TypeError' || err.status === 408 || String(err.message || '').toLowerCase().includes('fetch') || String(err.message || '').toLowerCase().includes('network') || String(err.message || '').toLowerCase().includes('timed out')
-        // If demo credentials or backend unreachable ("Failed to fetch"), seamlessly fallback to mock demo shopper
         if (cleanEmail === 'demo@shopper.com' || isNetworkErr) {
           console.warn('Live login failed/unreachable, using mock shopper session:', err)
           const shopper = findShopperByEmail(cleanEmail) || store.shoppers.find(s => s.email === 'demo@shopper.com') || store.shoppers[0]
           if (shopper) {
-            shopper.reward_points = shopper.reward_points ?? 1000
+            shopper.reward_points = shopper.reward_points ?? 1250
+            shopper.total_orders = shopper.total_orders || 8
+            shopper.total_returns = shopper.total_returns || 1
             session.shopper = clone(shopper)
             saveSession()
             return clone(shopper)
@@ -1357,6 +1371,14 @@ export const api = {
 
   async merchantLogin({ username, password }) {
     const cleanUsername = String(username || '').trim().toUpperCase()
+    // For demo merchant accounts, ALWAYS log in immediately with rich demo data intact
+    if (['ARIAFASHION4827', 'ADMIN@RETURNGUARD.IN', 'DEMO@MERCHANT.COM'].includes(cleanUsername)) {
+      session.merchant = clone(store.merchantAdmin)
+      persistMerchant(store.merchant)
+      saveSession()
+      return { admin: clone(session.merchant), merchant: clone(store.merchant) }
+    }
+
     if (hasLiveApi()) {
       try {
         const result = await live('/merchants/login/', { method: 'POST', body: { username: cleanUsername, password }, role: 'merchant' })
@@ -1527,7 +1549,10 @@ export const api = {
   },
 
   async getShopperOrders(params = {}) {
-    if (hasLiveApi()) {
+    const shopperEmail = (session.shopper?.email || '').toLowerCase()
+    const isDemo = shopperEmail === 'demo@shopper.com' || shopperEmail === 'shopper@example.com'
+
+    if (!isDemo && hasLiveApi()) {
       try {
         const queryParams = new URLSearchParams()
         if (params.status && params.status !== 'all') queryParams.set('status', params.status)
@@ -1546,9 +1571,8 @@ export const api = {
         console.warn('Live getShopperOrders error, falling back to local store:', err)
       }
     }
-    await delay(300)
+    await delay(10)
     const shopperId = session.shopper?.id
-    const shopperEmail = (session.shopper?.email || '').toLowerCase()
     let orders = clone(store.orders).filter(
       (o) => (shopperId && String(o.user_id) === String(shopperId)) || (shopperEmail && (String(o.customer_email || '').toLowerCase() === shopperEmail || String(o.user?.email || '').toLowerCase() === shopperEmail))
     )
@@ -1581,7 +1605,10 @@ export const api = {
   },
 
   async getShopperReturns() {
-    if (hasLiveApi()) {
+    const shopperEmail = (session.shopper?.email || '').toLowerCase()
+    const isDemo = shopperEmail === 'demo@shopper.com' || shopperEmail === 'shopper@example.com'
+
+    if (!isDemo && hasLiveApi()) {
       try {
         const liveReturns = await live('/returns/')
         if (Array.isArray(liveReturns)) {
@@ -1594,9 +1621,8 @@ export const api = {
         console.warn('Live getShopperReturns error, falling back to local store:', err)
       }
     }
-    await delay(300)
+    await delay(10)
     const shopperId = session.shopper?.id
-    const shopperEmail = (session.shopper?.email || '').toLowerCase()
     let returns = clone(store.returns).filter(
       (r) => (shopperId && String(r.user_id) === String(shopperId)) || (shopperEmail && String(r.customer_email || '').toLowerCase() === shopperEmail)
     )
@@ -2265,7 +2291,8 @@ export const api = {
 
   // ---- Merchant ----
   async getMerchantDashboard() {
-    if (hasLiveApi()) {
+    const isDemo = session.merchant?.merchant_username === 'ARIAFASHION4827' || session.merchant?.email === 'demo@merchant.com'
+    if (!isDemo && hasLiveApi()) {
       try {
         const data = await live('/admin/dashboard/', { role: 'merchant' })
         if (data && typeof data === 'object') return data
@@ -2273,19 +2300,23 @@ export const api = {
         console.warn('Live getMerchantDashboard error, falling back:', err)
       }
     }
-    await delay(300)
+    await delay(10)
     const flagged = store.returns.filter((r) => r.status === 'manual_review').length
     const pendingReview = store.orders.filter((o) => o.status === 'Review').length + flagged
     return {
-      totalOrders: store.orders.length,
-      flaggedCases: flagged,
-      pendingReview,
+      totalOrders: 17,
+      totalRevenue: 63552,
+      flaggedCases: 3,
+      pendingReview: 4,
+      returnRate: 29.4,
+      riskTier: 'High',
       recentFlagged: clone(store.returns.filter((r) => r.status === 'manual_review').slice(0, 5)),
     }
   },
 
   async getMerchantOrders() {
-    if (hasLiveApi()) {
+    const isDemo = session.merchant?.merchant_username === 'ARIAFASHION4827' || session.merchant?.email === 'demo@merchant.com'
+    if (!isDemo && hasLiveApi()) {
       try {
         const data = await live('/admin/orders/', { role: 'merchant' })
         if (Array.isArray(data)) return data
@@ -2293,7 +2324,7 @@ export const api = {
         console.warn('Live orders fetch fallback:', e)
       }
     }
-    await delay(300)
+    await delay(10)
     return clone(store.orders)
   },
 
@@ -2314,24 +2345,26 @@ export const api = {
             role: 'merchant',
           })
         } catch (e2) {
-          console.warn('Live updateOrderStatus second route failed:', e2)
+          console.warn('Alternative updateOrderStatus also failed:', e2)
         }
       }
     }
-    await delay(300)
-    const order = store.orders.find((o) => o.id === orderId || o.order_number === orderId)
-    if (order) {
-      order.delivery_status = deliveryStatus
-      if (deliveryStatus === 'Delivered') {
-        order.status = 'Delivered'
-        order.delivered_at = new Date().toISOString()
+    await delay(50)
+    const ord = store.orders.find((o) => String(o.id) === String(orderId) || String(o.order_number) === String(orderId))
+    if (ord) {
+      ord.delivery_status = deliveryStatus
+      ord.status = deliveryStatus === 'Delivered' ? 'Delivered' : ord.status
+      if (deliveryStatus === 'Delivered' && !ord.delivered_at) {
+        ord.delivered_at = new Date().toISOString()
       }
+      return clone(ord)
     }
     return { status: 'success', orderId, deliveryStatus }
   },
 
   async getMerchantCustomers() {
-    if (hasLiveApi()) {
+    const isDemo = session.merchant?.merchant_username === 'ARIAFASHION4827' || session.merchant?.email === 'demo@merchant.com'
+    if (!isDemo && hasLiveApi()) {
       try {
         const data = await live('/admin/customers/', { role: 'merchant' })
         if (Array.isArray(data)) return data
@@ -2339,7 +2372,7 @@ export const api = {
         console.warn('Live customers fetch fallback:', e)
       }
     }
-    await delay(300)
+    await delay(10)
     return clone(store.shoppers)
   },
 
@@ -2369,12 +2402,13 @@ export const api = {
         console.warn('Live executeCustomerAction fallback:', e)
       }
     }
-    await delay(300)
+    await delay(50)
     return { status: 'completed', action }
   },
 
   async getMerchantReturns() {
-    if (hasLiveApi()) {
+    const isDemo = session.merchant?.merchant_username === 'ARIAFASHION4827' || session.merchant?.email === 'demo@merchant.com'
+    if (!isDemo && hasLiveApi()) {
       try {
         const res = await live('/admin/flagged-cases/', { role: 'merchant' })
         const list = Array.isArray(res)
@@ -2389,7 +2423,7 @@ export const api = {
         console.warn('Live flagged-cases fetch fallback:', e)
       }
     }
-    await delay(300)
+    await delay(10)
     return clone(store.returns)
   },
 
@@ -4023,7 +4057,8 @@ export const api = {
 
   // ── Loss Prevention ROI Analytics (Feature 4) ──
   async getLossPreventionROI() {
-    if (hasLiveApi()) {
+    const isDemo = session.merchant?.merchant_username === 'ARIAFASHION4827' || session.merchant?.email === 'demo@merchant.com'
+    if (!isDemo && hasLiveApi()) {
       try {
         const res = await live(`/fraud/analytics/roi/`, { role: 'merchant' })
         if (res && typeof res === 'object') return res
@@ -4031,7 +4066,6 @@ export const api = {
         console.warn('Live getLossPreventionROI fallback:', e)
       }
     }
-    await delay(200)
     return clone(LOSS_PREVENTION_ROI)
   },
 
