@@ -65,7 +65,7 @@ export default function MerchantLayout() {
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       {/* ── Mobile & Desktop Header ────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur-md">
-        <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between px-3 sm:px-6 lg:px-8">
           
           {/* Left: Mobile Hamburger button & Brand Logo */}
           <div className="flex items-center gap-3">
@@ -218,7 +218,7 @@ export default function MerchantLayout() {
         )}
 
         {/* Main Routed Page Content */}
-        <main className="flex-1 min-w-0 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 min-w-0 overflow-y-auto bg-slate-50 p-3.5 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

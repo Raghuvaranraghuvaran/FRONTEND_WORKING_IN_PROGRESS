@@ -530,7 +530,7 @@ export default function MerchantProducts() {
             ))}
           </select>
 
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none max-w-full sm:flex-wrap">
             {statusFilters.map((sf) => {
               let pillClass = 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               if (selectedStatus === sf.id) {
@@ -544,7 +544,7 @@ export default function MerchantProducts() {
                 <button
                   key={sf.id}
                   onClick={() => { setSelectedStatus(sf.id); setCurrentPage(1) }}
-                  className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${pillClass}`}
+                  className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${pillClass}`}
                 >
                   {sf.label}
                 </button>

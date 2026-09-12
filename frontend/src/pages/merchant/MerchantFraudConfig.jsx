@@ -650,10 +650,10 @@ export default function MerchantFraudConfig() {
       </div>
 
       {/* ── TABS NAVIGATION BAR ── */}
-      <div className="flex border-b border-slate-200 text-xs font-bold">
+      <div className="flex border-b border-slate-200 text-xs font-bold overflow-x-auto scrollbar-none pb-0.5">
         <button
           onClick={() => setActiveTab('weights')}
-          className={`flex items-center gap-2 border-b-2 px-5 py-3 transition-colors cursor-pointer ${
+          className={`flex items-center gap-2 border-b-2 px-4 sm:px-5 py-3 transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
             activeTab === 'weights'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -665,7 +665,7 @@ export default function MerchantFraudConfig() {
 
         <button
           onClick={() => setActiveTab('triggers')}
-          className={`flex items-center gap-2 border-b-2 px-5 py-3 transition-colors cursor-pointer ${
+          className={`flex items-center gap-2 border-b-2 px-4 sm:px-5 py-3 transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
             activeTab === 'triggers'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -677,7 +677,7 @@ export default function MerchantFraudConfig() {
 
         <button
           onClick={() => setActiveTab('simulator')}
-          className={`flex items-center gap-2 border-b-2 px-5 py-3 transition-colors cursor-pointer ${
+          className={`flex items-center gap-2 border-b-2 px-4 sm:px-5 py-3 transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
             activeTab === 'simulator'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -689,7 +689,7 @@ export default function MerchantFraudConfig() {
 
         <button
           onClick={() => setActiveTab('rules')}
-          className={`flex items-center gap-2 border-b-2 px-5 py-3 transition-colors cursor-pointer ${
+          className={`flex items-center gap-2 border-b-2 px-4 sm:px-5 py-3 transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
             activeTab === 'rules'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:text-slate-800'

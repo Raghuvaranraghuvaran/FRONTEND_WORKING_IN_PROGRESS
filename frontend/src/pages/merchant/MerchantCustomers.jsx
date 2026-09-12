@@ -236,9 +236,9 @@ export default function MerchantCustomers() {
         </div>
 
         {/* 4 Stat Cards on the Right */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-3 overflow-x-auto pb-1.5 scrollbar-none max-w-full sm:flex-wrap">
           {/* Card 1: Total Customers */}
-          <div className="flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/40 px-4 py-3 min-w-[170px] shadow-2xs">
+          <div className="flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/40 px-4 py-3 min-w-[170px] shrink-0 shadow-2xs">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
               <User className="h-5 w-5" />
             </div>
@@ -255,7 +255,7 @@ export default function MerchantCustomers() {
           </div>
 
           {/* Card 2: Low Risk */}
-          <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/30 px-4 py-3 min-w-[130px] shadow-2xs">
+          <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/30 px-4 py-3 min-w-[130px] shrink-0 shadow-2xs">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
               <ShieldCheck className="h-5 w-5" />
             </div>
@@ -267,7 +267,7 @@ export default function MerchantCustomers() {
           </div>
 
           {/* Card 3: Medium Risk */}
-          <div className="flex items-center gap-3 rounded-2xl border border-amber-100 bg-amber-50/30 px-4 py-3 min-w-[130px] shadow-2xs">
+          <div className="flex items-center gap-3 rounded-2xl border border-amber-100 bg-amber-50/30 px-4 py-3 min-w-[130px] shrink-0 shadow-2xs">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
               <Flame className="h-5 w-5" />
             </div>
@@ -279,7 +279,7 @@ export default function MerchantCustomers() {
           </div>
 
           {/* Card 4: High Risk */}
-          <div className="flex items-center gap-3 rounded-2xl border border-rose-100 bg-rose-50/40 px-4 py-3 min-w-[130px] shadow-2xs">
+          <div className="flex items-center gap-3 rounded-2xl border border-rose-100 bg-rose-50/40 px-4 py-3 min-w-[130px] shrink-0 shadow-2xs">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
               <AlertTriangle className="h-5 w-5" />
             </div>
